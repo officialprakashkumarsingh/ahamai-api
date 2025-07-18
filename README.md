@@ -19,8 +19,7 @@ Before deploying, ensure `wrangler` can access your Cloudflare account by
 running `npx wrangler login` or by setting a `CLOUDFLARE_API_TOKEN` environment
 variable.
 
-The OpenRouter API key is currently hard-coded in `workers.js`. Clients only
-need the Worker API key (`ahamaibyprakash25`).
+Clients only need the Worker API key (`ahamaibyprakash25`).
 
 ## Supported Models
 
@@ -29,7 +28,9 @@ The Worker proxies several OpenAI-compatible models. Current chat models are:
 - `claude-3-5-sonnet`
 - `claude-3-7-sonnet`
 - `claude-sonnet-4`
-- `Kimi K2` (via OpenRouter)
 
-The Worker contacts OpenRouter using the embedded API key. Clients only need
-the Worker API key (`ahamaibyprakash25`).
+## Web Search
+
+An additional `/v1/web-search` endpoint performs basic web searches using free
+sources such as DuckDuckGo. Requests should provide a `q` query parameter.
+Results include a timestamp indicating when the search was performed.
