@@ -63,10 +63,6 @@ export default {
       return handleImageModelList();
     }
 
-    if (path === "/v1/web-search" && request.method === "GET") {
-      return handleWebSearch(url.searchParams.get("q") || "");
-    }
-
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
       headers: { "Content-Type": "application/json" }
@@ -88,25 +84,82 @@ async function handleChat(request) {
   }
 
   const { url, headers: routeHeaders } = modelRoutes[internalModel];
-  const response = await fetch(url, {
+
+  if (stream) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(routeHeaders || {}) },
+      body: JSON.stringify({ ...body, model: internalModel })
+    });
+    return new Response(res.body, {
+      status: res.status,
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Transfer-Encoding": "chunked",
+        "Cache-Control": "no-cache"
+      }
+    });
+  }
+
+  const tools = body.tools || [
+    {
+      type: "function",
+      function: {
+        name: "web_search",
+        description: "Search the web using DuckDuckGo and Wikipedia",
+        parameters: {
+          type: "object",
+          properties: { query: { type: "string" } },
+          required: ["query"]
+        }
+      }
+    }
+  ];
+
+  const initialPayload = { ...body, model: internalModel, tools };
+  const firstRes = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(routeHeaders || {}) },
-    body: JSON.stringify({ ...body, model: internalModel })
+    body: JSON.stringify(initialPayload)
   });
 
-  return stream
-    ? new Response(response.body, {
-        status: response.status,
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Transfer-Encoding": "chunked",
-          "Cache-Control": "no-cache"
-        }
-      })
-    : new Response(await response.text(), {
-        status: response.status,
-        headers: { "Content-Type": "application/json" }
-      });
+  const firstData = await firstRes.json();
+  const toolCalls = firstData.choices?.[0]?.message?.tool_calls || [];
+
+  if (toolCalls.length > 0) {
+    const messages = body.messages || [];
+    messages.push(firstData.choices[0].message);
+
+    for (const call of toolCalls) {
+      if (call.function?.name === "web_search") {
+        let args = {};
+        try {
+          args = JSON.parse(call.function.arguments || "{}");
+        } catch {}
+        const result = await performWebSearch(args.query || "");
+        messages.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: JSON.stringify(result)
+        });
+      }
+    }
+
+    const finalRes = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(routeHeaders || {}) },
+      body: JSON.stringify({ ...body, model: internalModel, messages })
+    });
+    return new Response(await finalRes.text(), {
+      status: finalRes.status,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  return new Response(JSON.stringify(firstData), {
+    status: firstRes.status,
+    headers: { "Content-Type": "application/json" }
+  });
 }
 
 async function handleImage(request) {
@@ -203,40 +256,41 @@ function handleImageModelList() {
   });
 }
 
-async function handleWebSearch(query) {
-  const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-  const res = await fetch(apiUrl);
-  if (!res.ok) {
-    return new Response(JSON.stringify({ error: "Search failed" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
-  }
-  const data = await res.json();
-
+async function performWebSearch(query) {
+  const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+  const ddgRes = await fetch(ddgUrl);
   const results = [];
-  if (data.AbstractText) {
-    results.push({ text: data.AbstractText, source: data.AbstractURL });
-  }
-  if (Array.isArray(data.RelatedTopics)) {
-    for (const item of data.RelatedTopics) {
-      if (item.Text && item.FirstURL) {
-        results.push({ text: item.Text, source: item.FirstURL });
-      } else if (item.Topics) {
-        for (const sub of item.Topics) {
-          if (sub.Text && sub.FirstURL) {
-            results.push({ text: sub.Text, source: sub.FirstURL });
+
+  if (ddgRes.ok) {
+    const data = await ddgRes.json();
+    if (data.AbstractText) {
+      results.push({ text: data.AbstractText, source: data.AbstractURL });
+    }
+    if (Array.isArray(data.RelatedTopics)) {
+      for (const item of data.RelatedTopics) {
+        if (item.Text && item.FirstURL) {
+          results.push({ text: item.Text, source: item.FirstURL });
+        } else if (item.Topics) {
+          for (const sub of item.Topics) {
+            if (sub.Text && sub.FirstURL) {
+              results.push({ text: sub.Text, source: sub.FirstURL });
+            }
           }
         }
       }
     }
   }
 
-  return new Response(JSON.stringify({
-    query,
-    time: new Date().toISOString(),
-    results
-  }), {
-    headers: { "Content-Type": "application/json" }
-  });
+  const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
+  const wikiRes = await fetch(wikiUrl);
+  if (wikiRes.ok) {
+    const wikiData = await wikiRes.json();
+    const searchResults = wikiData?.query?.search || [];
+    for (const r of searchResults.slice(0, 3)) {
+      const pageUrl = `https://en.wikipedia.org/?curid=${r.pageid}`;
+      results.push({ text: r.snippet.replace(/<[^>]+>/g, ""), source: pageUrl });
+    }
+  }
+
+  return { query, time: new Date().toISOString(), results };
 }

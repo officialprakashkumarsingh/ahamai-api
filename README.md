@@ -31,6 +31,8 @@ The Worker proxies several OpenAI-compatible models. Current chat models are:
 
 ## Web Search
 
-An additional `/v1/web-search` endpoint performs basic web searches using free
-sources such as DuckDuckGo. Requests should provide a `q` query parameter.
-Results include a timestamp indicating when the search was performed.
+The chat endpoint exposes a built-in `web_search` tool that queries free
+sources such as DuckDuckGo and Wikipedia. Models can invoke this function when
+they determine additional context is needed. Clients do not call a separate
+endpoint; instead, the model will automatically request a search and receive the
+results within the conversation.
