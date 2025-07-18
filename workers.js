@@ -1,29 +1,16 @@
 const API_KEY = "ahamaibyprakash25";
-const OPENROUTER_API_KEY =
-  "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";
 
 const exposedToInternalMap = {
   "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet",
   "claude-3-7-sonnet": "anthropic/claude-3-7-sonnet",
-  "claude-sonnet-4": "anthropic/claude-sonnet-4",
-  "Kimi K2": "moonshotai/kimi-k2:free"
+  "claude-sonnet-4": "anthropic/claude-sonnet-4"
 };
 
-function buildModelRoutes() {
-  return {
-    "anthropic/claude-3-5-sonnet": { url: "http://V1.s1.sdk.li/v1/chat/completions" },
-    "anthropic/claude-3-7-sonnet": { url: "http://V1.s1.sdk.li/v1/chat/completions" },
-    "anthropic/claude-sonnet-4": { url: "http://V1.s1.sdk.li/v1/chat/completions" },
-    "moonshotai/kimi-k2:free": {
-      url: "https://openrouter.ai/api/v1/chat/completions",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://aham-ai",
-        "X-Title": "ahamai-api"
-      }
-    }
-  };
-}
+const modelRoutes = {
+  "anthropic/claude-3-5-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
+  "anthropic/claude-3-7-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
+  "anthropic/claude-sonnet-4": "http://V1.s1.sdk.li/v1/chat/completions"
+};
 
 const imageModelRoutes = {
   "flux": {
@@ -47,8 +34,6 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    const modelRoutes = buildModelRoutes();
-
     // Auth check
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || authHeader !== `Bearer ${API_KEY}`) {
@@ -59,7 +44,7 @@ export default {
     }
 
     if (path === "/v1/chat/completions" && request.method === "POST") {
-      return handleChat(request, modelRoutes);
+      return handleChat(request);
     }
 
     if (path === "/v1/images/generations" && request.method === "POST") {
@@ -85,7 +70,7 @@ export default {
   }
 };
 
-async function handleChat(request, modelRoutes) {
+async function handleChat(request) {
   const body = await request.json();
   const exposedModel = body.model;
   const internalModel = exposedToInternalMap[exposedModel];
@@ -99,25 +84,82 @@ async function handleChat(request, modelRoutes) {
   }
 
   const { url, headers: routeHeaders } = modelRoutes[internalModel];
-  const response = await fetch(url, {
+
+  if (stream) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(routeHeaders || {}) },
+      body: JSON.stringify({ ...body, model: internalModel })
+    });
+    return new Response(res.body, {
+      status: res.status,
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Transfer-Encoding": "chunked",
+        "Cache-Control": "no-cache"
+      }
+    });
+  }
+
+  const tools = body.tools || [
+    {
+      type: "function",
+      function: {
+        name: "web_search",
+        description: "Search the web using DuckDuckGo and Wikipedia",
+        parameters: {
+          type: "object",
+          properties: { query: { type: "string" } },
+          required: ["query"]
+        }
+      }
+    }
+  ];
+
+  const initialPayload = { ...body, model: internalModel, tools };
+  const firstRes = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(routeHeaders || {}) },
-    body: JSON.stringify({ ...body, model: internalModel })
+    body: JSON.stringify(initialPayload)
   });
 
-  return stream
-    ? new Response(response.body, {
-        status: response.status,
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Transfer-Encoding": "chunked",
-          "Cache-Control": "no-cache"
-        }
-      })
-    : new Response(await response.text(), {
-        status: response.status,
-        headers: { "Content-Type": "application/json" }
-      });
+  const firstData = await firstRes.json();
+  const toolCalls = firstData.choices?.[0]?.message?.tool_calls || [];
+
+  if (toolCalls.length > 0) {
+    const messages = body.messages || [];
+    messages.push(firstData.choices[0].message);
+
+    for (const call of toolCalls) {
+      if (call.function?.name === "web_search") {
+        let args = {};
+        try {
+          args = JSON.parse(call.function.arguments || "{}");
+        } catch {}
+        const result = await performWebSearch(args.query || "");
+        messages.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: JSON.stringify(result)
+        });
+      }
+    }
+
+    const finalRes = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(routeHeaders || {}) },
+      body: JSON.stringify({ ...body, model: internalModel, messages })
+    });
+    return new Response(await finalRes.text(), {
+      status: finalRes.status,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  return new Response(JSON.stringify(firstData), {
+    status: firstRes.status,
+    headers: { "Content-Type": "application/json" }
+  });
 }
 
 async function handleImage(request) {
@@ -212,4 +254,43 @@ function handleImageModelList() {
   }), {
     headers: { "Content-Type": "application/json" }
   });
+}
+
+async function performWebSearch(query) {
+  const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+  const ddgRes = await fetch(ddgUrl);
+  const results = [];
+
+  if (ddgRes.ok) {
+    const data = await ddgRes.json();
+    if (data.AbstractText) {
+      results.push({ text: data.AbstractText, source: data.AbstractURL });
+    }
+    if (Array.isArray(data.RelatedTopics)) {
+      for (const item of data.RelatedTopics) {
+        if (item.Text && item.FirstURL) {
+          results.push({ text: item.Text, source: item.FirstURL });
+        } else if (item.Topics) {
+          for (const sub of item.Topics) {
+            if (sub.Text && sub.FirstURL) {
+              results.push({ text: sub.Text, source: sub.FirstURL });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
+  const wikiRes = await fetch(wikiUrl);
+  if (wikiRes.ok) {
+    const wikiData = await wikiRes.json();
+    const searchResults = wikiData?.query?.search || [];
+    for (const r of searchResults.slice(0, 3)) {
+      const pageUrl = `https://en.wikipedia.org/?curid=${r.pageid}`;
+      results.push({ text: r.snippet.replace(/<[^>]+>/g, ""), source: pageUrl });
+    }
+  }
+
+  return { query, time: new Date().toISOString(), results };
 }
