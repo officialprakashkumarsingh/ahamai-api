@@ -15,6 +15,10 @@ npx wrangler deploy
 
 The `wrangler.toml` file specifies `workers.js` as the main entry point.
 
+Before adding secrets, ensure `wrangler` can access your Cloudflare account by
+running `npx wrangler login` or by setting a `CLOUDFLARE_API_TOKEN` environment
+variable.
+
 Store your OpenRouter key as a secret with:
 
 ```sh
