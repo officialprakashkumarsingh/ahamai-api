@@ -14,3 +14,12 @@ npx wrangler deploy
 ```
 
 The `wrangler.toml` file specifies `workers.js` as the main entry point.
+
+## Supported Models
+
+The Worker proxies several OpenAI-compatible models. Current chat models are:
+
+- `claude-3-5-sonnet`
+- `claude-3-7-sonnet`
+- `claude-sonnet-4`
+- `Kimi K2` (via OpenRouter)
