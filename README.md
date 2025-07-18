@@ -15,15 +15,12 @@ npx wrangler deploy
 
 The `wrangler.toml` file specifies `workers.js` as the main entry point.
 
-Before adding secrets, ensure `wrangler` can access your Cloudflare account by
+Before deploying, ensure `wrangler` can access your Cloudflare account by
 running `npx wrangler login` or by setting a `CLOUDFLARE_API_TOKEN` environment
 variable.
 
-Store your OpenRouter key as a secret with:
-
-```sh
-npx wrangler secret put OPENROUTER_API_KEY
-```
+The OpenRouter API key is currently hard-coded in `workers.js`. Clients only
+need the Worker API key (`ahamaibyprakash25`).
 
 ## Supported Models
 
@@ -34,5 +31,5 @@ The Worker proxies several OpenAI-compatible models. Current chat models are:
 - `claude-sonnet-4`
 - `Kimi K2` (via OpenRouter)
 
-The Worker reads `OPENROUTER_API_KEY` from its environment to contact
-OpenRouter. Clients only need the Worker API key (`ahamaibyprakash25`).
+The Worker contacts OpenRouter using the embedded API key. Clients only need
+the Worker API key (`ahamaibyprakash25`).

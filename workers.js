@@ -1,4 +1,6 @@
 const API_KEY = "ahamaibyprakash25";
+const OPENROUTER_API_KEY =
+  "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";
 
 const exposedToInternalMap = {
   "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet",
@@ -7,7 +9,7 @@ const exposedToInternalMap = {
   "Kimi K2": "moonshotai/kimi-k2:free"
 };
 
-function buildModelRoutes(openrouterKey) {
+function buildModelRoutes() {
   return {
     "anthropic/claude-3-5-sonnet": { url: "http://V1.s1.sdk.li/v1/chat/completions" },
     "anthropic/claude-3-7-sonnet": { url: "http://V1.s1.sdk.li/v1/chat/completions" },
@@ -15,7 +17,7 @@ function buildModelRoutes(openrouterKey) {
     "moonshotai/kimi-k2:free": {
       url: "https://openrouter.ai/api/v1/chat/completions",
       headers: {
-        Authorization: `Bearer ${openrouterKey}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "HTTP-Referer": "https://aham-ai",
         "X-Title": "ahamai-api"
       }
@@ -41,11 +43,11 @@ const imageModelRoutes = {
 };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request) {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    const modelRoutes = buildModelRoutes(env.OPENROUTER_API_KEY);
+    const modelRoutes = buildModelRoutes();
 
     // Auth check
     const authHeader = request.headers.get("Authorization");
