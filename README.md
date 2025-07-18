@@ -29,10 +29,3 @@ The Worker proxies several OpenAI-compatible models. Current chat models are:
 - `claude-3-7-sonnet`
 - `claude-sonnet-4`
 
-## Web Search
-
-The chat endpoint exposes a built-in `web_search` tool that queries free
-sources such as DuckDuckGo and Wikipedia. Models can invoke this function when
-they determine additional context is needed. Clients do not call a separate
-endpoint; instead, the model will automatically request a search and receive the
-results within the conversation.
