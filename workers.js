@@ -3,14 +3,25 @@ const API_KEY = "ahamaibyprakash25";
 const exposedToInternalMap = {
   "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet",
   "claude-3-7-sonnet": "anthropic/claude-3-7-sonnet",
-  "claude-sonnet-4": "anthropic/claude-sonnet-4"
+  "claude-sonnet-4": "anthropic/claude-sonnet-4",
+  "Kimi K2": "moonshotai/kimi-k2:free"
 };
 
-const modelRoutes = {
-  "anthropic/claude-3-5-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
-  "anthropic/claude-3-7-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
-  "anthropic/claude-sonnet-4": "http://V1.s1.sdk.li/v1/chat/completions"
-};
+function buildModelRoutes(openrouterKey) {
+  return {
+    "anthropic/claude-3-5-sonnet": { url: "http://V1.s1.sdk.li/v1/chat/completions" },
+    "anthropic/claude-3-7-sonnet": { url: "http://V1.s1.sdk.li/v1/chat/completions" },
+    "anthropic/claude-sonnet-4": { url: "http://V1.s1.sdk.li/v1/chat/completions" },
+    "moonshotai/kimi-k2:free": {
+      url: "https://openrouter.ai/api/v1/chat/completions",
+      headers: {
+        Authorization: `Bearer ${openrouterKey}`,
+        "HTTP-Referer": "https://aham-ai",
+        "X-Title": "ahamai-api"
+      }
+    }
+  };
+}
 
 const imageModelRoutes = {
   "flux": {
@@ -30,9 +41,11 @@ const imageModelRoutes = {
 };
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
+
+    const modelRoutes = buildModelRoutes(env.OPENROUTER_API_KEY);
 
     // Auth check
     const authHeader = request.headers.get("Authorization");
@@ -44,7 +57,7 @@ export default {
     }
 
     if (path === "/v1/chat/completions" && request.method === "POST") {
-      return handleChat(request);
+      return handleChat(request, modelRoutes);
     }
 
     if (path === "/v1/images/generations" && request.method === "POST") {
@@ -70,7 +83,7 @@ export default {
   }
 };
 
-async function handleChat(request) {
+async function handleChat(request, modelRoutes) {
   const body = await request.json();
   const exposedModel = body.model;
   const internalModel = exposedToInternalMap[exposedModel];
@@ -83,9 +96,10 @@ async function handleChat(request) {
     });
   }
 
-  const response = await fetch(modelRoutes[internalModel], {
+  const { url, headers: routeHeaders } = modelRoutes[internalModel];
+  const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(routeHeaders || {}) },
     body: JSON.stringify({ ...body, model: internalModel })
   });
 
