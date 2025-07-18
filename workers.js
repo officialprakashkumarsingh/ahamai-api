@@ -71,10 +71,11 @@ export default {
 };
 
 async function handleChat(request) {
-  const body = await request.json();
-  const exposedModel = body.model;
-  const internalModel = exposedToInternalMap[exposedModel];
-  const stream = body.stream === true;
+  try {
+    const body = await request.json();
+    const exposedModel = body.model;
+    const internalModel = exposedToInternalMap[exposedModel];
+    const stream = body.stream === true;
 
   if (!internalModel || !modelRoutes[internalModel]) {
     return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), {
@@ -156,10 +157,16 @@ async function handleChat(request) {
     });
   }
 
-  return new Response(JSON.stringify(firstData), {
-    status: firstRes.status,
-    headers: { "Content-Type": "application/json" }
-  });
+    return new Response(JSON.stringify(firstData), {
+      status: firstRes.status,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
 }
 
 async function handleImage(request) {
@@ -257,39 +264,47 @@ function handleImageModelList() {
 }
 
 async function performWebSearch(query) {
-  const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-  const ddgRes = await fetch(ddgUrl);
   const results = [];
 
-  if (ddgRes.ok) {
-    const data = await ddgRes.json();
-    if (data.AbstractText) {
-      results.push({ text: data.AbstractText, source: data.AbstractURL });
-    }
-    if (Array.isArray(data.RelatedTopics)) {
-      for (const item of data.RelatedTopics) {
-        if (item.Text && item.FirstURL) {
-          results.push({ text: item.Text, source: item.FirstURL });
-        } else if (item.Topics) {
-          for (const sub of item.Topics) {
-            if (sub.Text && sub.FirstURL) {
-              results.push({ text: sub.Text, source: sub.FirstURL });
+  try {
+    const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+    const ddgRes = await fetch(ddgUrl);
+    if (ddgRes.ok) {
+      const data = await ddgRes.json();
+      if (data.AbstractText) {
+        results.push({ text: data.AbstractText, source: data.AbstractURL });
+      }
+      if (Array.isArray(data.RelatedTopics)) {
+        for (const item of data.RelatedTopics) {
+          if (item.Text && item.FirstURL) {
+            results.push({ text: item.Text, source: item.FirstURL });
+          } else if (item.Topics) {
+            for (const sub of item.Topics) {
+              if (sub.Text && sub.FirstURL) {
+                results.push({ text: sub.Text, source: sub.FirstURL });
+              }
             }
           }
         }
       }
     }
+  } catch (err) {
+    results.push({ text: `DuckDuckGo search failed: ${err.message}` });
   }
 
-  const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
-  const wikiRes = await fetch(wikiUrl);
-  if (wikiRes.ok) {
-    const wikiData = await wikiRes.json();
-    const searchResults = wikiData?.query?.search || [];
-    for (const r of searchResults.slice(0, 3)) {
-      const pageUrl = `https://en.wikipedia.org/?curid=${r.pageid}`;
-      results.push({ text: r.snippet.replace(/<[^>]+>/g, ""), source: pageUrl });
+  try {
+    const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
+    const wikiRes = await fetch(wikiUrl);
+    if (wikiRes.ok) {
+      const wikiData = await wikiRes.json();
+      const searchResults = wikiData?.query?.search || [];
+      for (const r of searchResults.slice(0, 3)) {
+        const pageUrl = `https://en.wikipedia.org/?curid=${r.pageid}`;
+        results.push({ text: r.snippet.replace(/<[^>]+>/g, ""), source: pageUrl });
+      }
     }
+  } catch (err) {
+    results.push({ text: `Wikipedia search failed: ${err.message}` });
   }
 
   return { query, time: new Date().toISOString(), results };
