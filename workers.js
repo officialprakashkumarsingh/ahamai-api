@@ -71,11 +71,10 @@ export default {
 };
 
 async function handleChat(request) {
-  try {
-    const body = await request.json();
-    const exposedModel = body.model;
-    const internalModel = exposedToInternalMap[exposedModel];
-    const stream = body.stream === true;
+  const body = await request.json();
+  const exposedModel = body.model;
+  const internalModel = exposedToInternalMap[exposedModel];
+  const stream = body.stream === true;
 
   if (!internalModel || !modelRoutes[internalModel]) {
     return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), {
@@ -84,41 +83,25 @@ async function handleChat(request) {
     });
   }
 
-  const { url, headers: routeHeaders } = modelRoutes[internalModel];
-
-  if (stream) {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(routeHeaders || {}) },
-      body: JSON.stringify({ ...body, model: internalModel })
-    });
-    return new Response(res.body, {
-      status: res.status,
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Transfer-Encoding": "chunked",
-        "Cache-Control": "no-cache"
-      }
-    });
-  }
-
-  const payload = { ...body, model: internalModel };
-  const response = await fetch(url, {
+  const response = await fetch(modelRoutes[internalModel], {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(routeHeaders || {}) },
-    body: JSON.stringify(payload)
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...body, model: internalModel })
   });
 
-  return new Response(await response.text(), {
-    status: response.status,
-    headers: { "Content-Type": "application/json" }
-  });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
-  }
+  return stream
+    ? new Response(response.body, {
+        status: response.status,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Transfer-Encoding": "chunked",
+          "Cache-Control": "no-cache"
+        }
+      })
+    : new Response(await response.text(), {
+        status: response.status,
+        headers: { "Content-Type": "application/json" }
+      });
 }
 
 async function handleImage(request) {
