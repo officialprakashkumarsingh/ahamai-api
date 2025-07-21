@@ -1,5 +1,5 @@
 const API_KEY = "ahamaibyprakash25";
-const GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE";
+const GROQ_API_KEY = "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";
 
 const exposedToInternalMap = {
   "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet",
