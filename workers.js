@@ -1,15 +1,18 @@
 const API_KEY = "ahamaibyprakash25";
+const GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE";
 
 const exposedToInternalMap = {
   "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet",
   "claude-3-7-sonnet": "anthropic/claude-3-7-sonnet",
-  "claude-sonnet-4": "anthropic/claude-sonnet-4"
+  "claude-sonnet-4": "anthropic/claude-sonnet-4",
+  "kimi-k2": "moonshotai/kimi-k2-instruct"
 };
 
 const modelRoutes = {
   "anthropic/claude-3-5-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
   "anthropic/claude-3-7-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
-  "anthropic/claude-sonnet-4": "http://V1.s1.sdk.li/v1/chat/completions"
+  "anthropic/claude-sonnet-4": "http://V1.s1.sdk.li/v1/chat/completions",
+  "moonshotai/kimi-k2-instruct": "https://api.groq.com/openai/v1/chat/completions"
 };
 
 const imageModelRoutes = {
@@ -83,9 +86,17 @@ async function handleChat(request) {
     });
   }
 
+  // Prepare headers based on the model
+  const headers = { "Content-Type": "application/json" };
+  
+  // Add Groq API authorization for Moonshot AI models
+  if (internalModel === "moonshotai/kimi-k2-instruct") {
+    headers["Authorization"] = `Bearer ${GROQ_API_KEY}`;
+  }
+
   const response = await fetch(modelRoutes[internalModel], {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: headers,
     body: JSON.stringify({ ...body, model: internalModel })
   });
 

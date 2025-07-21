@@ -1,35 +1,132 @@
-# ahamai-api
+# OpenAI Compatible API Worker
 
-This repository contains the Cloudflare Worker used for the `ahamai-api`.
-The Worker implements routes for chat completions, image generation and
-model listings.
+This Cloudflare Worker provides an OpenAI-compatible API that supports multiple AI models including Claude models and Moonshot AI Kimi-K2.
 
-## Deployment
+## Features
 
-Ensure you have [Wrangler](https://developers.cloudflare.com/workers/wrangler/)
-installed. Deploy with:
-
-```sh
-npx wrangler deploy
-```
-
-The `wrangler.toml` file specifies `workers.js` as the main entry point.
-
-Before deploying, ensure `wrangler` can access your Cloudflare account by
-running `npx wrangler login` or by setting a `CLOUDFLARE_API_TOKEN` environment
-variable.
-
-The OpenRouter API key is currently hard-coded in `workers.js`. Clients only
-need the Worker API key (`ahamaibyprakash25`).
+- **Chat Completions**: Support for multiple AI models with streaming capabilities
+- **Image Generation**: AI-powered image generation using Pollinations API
+- **Model Management**: List available chat and image models
+- **Authentication**: Secure API key-based authentication
+- **OpenAI Compatible**: Works with any OpenAI-compatible client library
 
 ## Supported Models
 
-The Worker proxies several OpenAI-compatible models. Current chat models are:
+### Chat Models
+- `claude-3-5-sonnet` - Anthropic Claude 3.5 Sonnet
+- `claude-3-7-sonnet` - Anthropic Claude 3.7 Sonnet  
+- `claude-sonnet-4` - Anthropic Claude Sonnet 4
+- `kimi-k2` - Moonshot AI Kimi-K2 Instruct (via Groq API)
 
-- `claude-3-5-sonnet`
-- `claude-3-7-sonnet`
-- `claude-sonnet-4`
-- `Kimi K2` (via OpenRouter)
+### Image Models
+- `flux` - High Quality Image Generation
+- `turbo` - Fast Image Generation
 
-The Worker contacts OpenRouter using the embedded API key. Clients only need
-the Worker API key (`ahamaibyprakash25`).
+## API Endpoints
+
+### Chat Completions
+```
+POST /v1/chat/completions
+```
+
+Example request:
+```bash
+curl -X POST https://your-worker-domain/v1/chat/completions \
+  -H "Authorization: Bearer ahamaibyprakash25" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "kimi-k2",
+    "messages": [
+      {"role": "user", "content": "Hello, how are you?"}
+    ],
+    "stream": false
+  }'
+```
+
+### Image Generation
+```
+POST /v1/images/generations
+```
+
+Example request:
+```bash
+curl -X POST https://your-worker-domain/v1/images/generations \
+  -H "Authorization: Bearer ahamaibyprakash25" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "flux",
+    "prompt": "A beautiful sunset over mountains",
+    "width": 1024,
+    "height": 1024
+  }'
+```
+
+### List Models
+```
+GET /v1/models              # All models (chat + image)
+GET /v1/chat/models         # Chat models only
+GET /v1/images/models       # Image models only
+```
+
+## Authentication
+
+All requests require an Authorization header:
+```
+Authorization: Bearer ahamaibyprakash25
+```
+
+## Configuration
+
+- **API_KEY**: Worker authentication key (`ahamaibyprakash25`)
+- **GROQ_API_KEY**: Replace `YOUR_GROQ_API_KEY_HERE` with your actual Groq API key for Moonshot AI models
+- **Model Routes**: Configure endpoints for different AI providers
+- **Image Models**: Configure image generation providers and settings
+
+### Setting up the Groq API Key
+
+1. Get your Groq API key from [Groq Console](https://console.groq.com/)
+2. Replace `YOUR_GROQ_API_KEY_HERE` in the workers.js file with your actual key
+3. The key should start with `gsk_`
+
+## Deployment
+
+1. Copy the workers.js code from this repository
+2. Create a new Cloudflare Worker
+3. Replace the default code with the provided code
+4. Update the GROQ_API_KEY with your actual Groq API key
+5. Deploy the worker
+6. Configure your custom domain (optional)
+
+## Testing the Kimi-K2 Model
+
+You can test the new Kimi-K2 model with this example:
+
+```bash
+curl -X POST https://your-worker-domain/v1/chat/completions \
+  -H "Authorization: Bearer ahamaibyprakash25" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "kimi-k2",
+    "messages": [
+      {"role": "user", "content": "Explain quantum computing in simple terms"}
+    ]
+  }'
+```
+
+## Security Notes
+
+- API keys should be kept secure and not exposed in public repositories
+- In production, consider using Cloudflare environment variables for API keys
+- Implement rate limiting for production usage
+- Monitor API usage and costs
+
+## Support
+
+This worker supports:
+- ✅ OpenAI-compatible chat completions
+- ✅ Streaming responses
+- ✅ Image generation
+- ✅ Model listing
+- ✅ Multiple AI providers
+- ✅ Groq API integration
+- ✅ Authentication and authorization
