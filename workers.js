@@ -5,7 +5,7 @@ const exposedToInternalMap = {
   "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet",
   "claude-3-7-sonnet": "anthropic/claude-3-7-sonnet",
   "claude-sonnet-4": "anthropic/claude-sonnet-4",
-  "grok-3-beta": "x-ai/grok-3-beta"
+  "x-ai/grok-3-beta": "x-ai/grok-3-beta"
 };
 
 const modelRoutes = {
