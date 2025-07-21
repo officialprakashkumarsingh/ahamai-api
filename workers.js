@@ -1,18 +1,18 @@
 const API_KEY = "ahamaibyprakash25";
-const GROQ_API_KEY = "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";
+const Typegpt_API_KEY = "sk-opTjonVDepkc7g95FeoxJcfRvsGOvhh4JJUZSi1iHC4RSCBR";
 
 const exposedToInternalMap = {
   "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet",
   "claude-3-7-sonnet": "anthropic/claude-3-7-sonnet",
   "claude-sonnet-4": "anthropic/claude-sonnet-4",
-  "kimi-k2": "moonshotai/kimi-k2-instruct"
+  "kimi-k2": "moonshotai/Kimi-K2-Instruct"
 };
 
 const modelRoutes = {
   "anthropic/claude-3-5-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
   "anthropic/claude-3-7-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
   "anthropic/claude-sonnet-4": "http://V1.s1.sdk.li/v1/chat/completions",
-  "moonshotai/kimi-k2-instruct": "https://api.groq.com/openai/v1/chat/completions"
+  "moonshotai/Kimi-K2-Instruct": "https://wow.typegpt.net/v1/chat/completions"
 };
 
 const imageModelRoutes = {
@@ -89,9 +89,9 @@ async function handleChat(request) {
   // Prepare headers based on the model
   const headers = { "Content-Type": "application/json" };
   
-  // Add Groq API authorization for Moonshot AI models
-  if (internalModel === "moonshotai/kimi-k2-instruct") {
-    headers["Authorization"] = `Bearer ${GROQ_API_KEY}`;
+  // Add Typegpt API authorization for Moonshot AI models
+  if (internalModel === "moonshotai/Kimi-K2-Instruct") {
+    headers["Authorization"] = `Bearer ${Typegpt_API_KEY}`;
   }
 
   const response = await fetch(modelRoutes[internalModel], {
