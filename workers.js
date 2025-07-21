@@ -90,7 +90,7 @@ async function handleChat(request) {
   const headers = { "Content-Type": "application/json" };
   
   // Add Typegpt API authorization for Moonshot AI models
-  if (internalModel === "moonshotai/Kimi-K2-Instruct") {
+  if (internalModel === "x-ai/grok-3-beta") {
     headers["Authorization"] = `Bearer ${Typegpt_API_KEY}`;
   }
 
