@@ -1,4 +1,4 @@
-name = "ahamai-api"
+name = "api-of-ahamai"
 main = "workers.js"
 compatibility_date = "2025-07-18"
 
