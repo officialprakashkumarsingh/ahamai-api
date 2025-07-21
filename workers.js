@@ -5,14 +5,14 @@ const exposedToInternalMap = {
   "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet",
   "claude-3-7-sonnet": "anthropic/claude-3-7-sonnet",
   "claude-sonnet-4": "anthropic/claude-sonnet-4",
-  "kimi-k2": "moonshotai/Kimi-K2-Instruct"
+  "grok-3-beta": "x-ai/grok-3-beta"
 };
 
 const modelRoutes = {
   "anthropic/claude-3-5-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
   "anthropic/claude-3-7-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
   "anthropic/claude-sonnet-4": "http://V1.s1.sdk.li/v1/chat/completions",
-  "moonshotai/Kimi-K2-Instruct": "https://wow.typegpt.net/v1/chat/completions"
+  "x-ai/grok-3-beta": "https://wow.typegpt.net/v1/chat/completions"
 };
 
 const imageModelRoutes = {
