@@ -12,7 +12,23 @@ const exposedToInternalMap = {
   "DeepSeek-R1-0528-Think": "DeepSeek-R1-0528-Think",
   "DeepSeek-V3": "DeepSeek-V3",
   "Llama4-Maverick-17B-lnstruct": "Llama4-Maverick-17B-lnstruct",
-  "Llama4-Scout-17B-16E-lnstruct": "Llama4-Scout-17B-16E-lnstruct"
+  "Llama4-Scout-17B-16E-lnstruct": "Llama4-Scout-17B-16E-lnstruct",
+  "grok-3-mini-beta": "HeckAI/x-ai/grok-3-mini-beta",
+  "grok-3-mini-beta-server-2": "HeckAI/x-ai/grok-3-mini-beta",
+  "grok-3-mini-fast": "SciraChat/grok-3-mini-fast",
+  "grok-3-mini-fast-server-2": "SciraChat/grok-3-mini-fast",
+  "grok-3-mini": "SciraChat/grok-3-mini",
+  "grok-3-mini-server-2": "SciraChat/grok-3-mini",
+  "grok-3-mini-flowith": "Flowith/grok-3-mini",
+  "grok-3-mini-flowith-server-2": "Flowith/grok-3-mini",
+  "grok-3-fast": "SciraChat/grok-3-fast",
+  "grok-3-fast-server-2": "SciraChat/grok-3-fast",
+  "grok-3-beta": "oivscode/grok-3-beta",
+  "grok-3-beta-server-2": "oivscode/grok-3-beta",
+  "grok-3-beta-toolbaz": "Toolbaz/grok-3-beta",
+  "grok-3-beta-toolbaz-server-2": "Toolbaz/grok-3-beta",
+  "grok-3-blackbox": "BLACKBOXAI/Grok 3",
+  "grok-3-blackbox-server-2": "BLACKBOXAI/Grok 3"
 };
 
 const modelRoutes = {
@@ -27,7 +43,15 @@ const modelRoutes = {
   "DeepSeek-R1-0528-Think": "https://a7-at41rv.vercel.app/v1/chat/completions",
   "DeepSeek-V3": "https://a7-at41rv.vercel.app/v1/chat/completions",
   "Llama4-Maverick-17B-lnstruct": "https://a7-at41rv.vercel.app/v1/chat/completions",
-  "Llama4-Scout-17B-16E-lnstruct": "https://a7-at41rv.vercel.app/v1/chat/completions"
+  "Llama4-Scout-17B-16E-lnstruct": "https://a7-at41rv.vercel.app/v1/chat/completions",
+  "HeckAI/x-ai/grok-3-mini-beta": "https://ai4free-test.hf.space/v1/chat/completions",
+  "SciraChat/grok-3-mini-fast": "https://ai4free-test.hf.space/v1/chat/completions",
+  "SciraChat/grok-3-mini": "https://ai4free-test.hf.space/v1/chat/completions",
+  "Flowith/grok-3-mini": "https://ai4free-test.hf.space/v1/chat/completions",
+  "SciraChat/grok-3-fast": "https://ai4free-test.hf.space/v1/chat/completions",
+  "oivscode/grok-3-beta": "https://ai4free-test.hf.space/v1/chat/completions",
+  "Toolbaz/grok-3-beta": "https://ai4free-test.hf.space/v1/chat/completions",
+  "BLACKBOXAI/Grok 3": "https://ai4free-test.hf.space/v1/chat/completions"
 };
 
 const imageModelRoutes = {
