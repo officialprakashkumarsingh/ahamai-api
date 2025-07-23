@@ -1,7 +1,7 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  "claude-sonnet-4-rproxy": "rproxy/claude-sonnet-4",
+  "claude-sonnet-4": "rproxy/claude-sonnet-4",
   "claude-opus-4": "rproxy/claude-opus-4",
   "grok-3-mini-beta": "HeckAI/x-ai/grok-3-mini-beta",
   "grok-3-mini-fast": "SciraChat/grok-3-mini-fast",
