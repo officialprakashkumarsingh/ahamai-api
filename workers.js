@@ -1,18 +1,9 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet",
-  "claude-3-7-sonnet": "anthropic/claude-3-7-sonnet",
-  "claude-sonnet-4": "anthropic/claude-sonnet-4",
   "claude-3-5-sonnet-ashlynn": "ashlynn/claude-3-5-sonnet",
   "claude-sonnet-4-rproxy": "rproxy/claude-sonnet-4",
   "claude-opus-4": "rproxy/claude-opus-4",
-  "Kimi-K2": "Kimi-K2",
-  "DeepSeek-R1-Think": "DeepSeek-R1-Think",
-  "DeepSeek-R1-0528-Think": "DeepSeek-R1-0528-Think",
-  "DeepSeek-V3": "DeepSeek-V3",
-  "Llama4-Maverick-17B-lnstruct": "Llama4-Maverick-17B-lnstruct",
-  "Llama4-Scout-17B-16E-lnstruct": "Llama4-Scout-17B-16E-lnstruct",
   "grok-3-mini-beta": "HeckAI/x-ai/grok-3-mini-beta",
   "grok-3-mini-fast": "SciraChat/grok-3-mini-fast",
   "grok-3-mini": "SciraChat/grok-3-mini",
@@ -24,18 +15,9 @@ const exposedToInternalMap = {
 };
 
 const modelRoutes = {
-  "anthropic/claude-3-5-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
-  "anthropic/claude-3-7-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
-  "anthropic/claude-sonnet-4": "http://V1.s1.sdk.li/v1/chat/completions",
   "ashlynn/claude-3-5-sonnet": "https://ai.ashlynn.workers.dev/ask",
   "rproxy/claude-sonnet-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
   "rproxy/claude-opus-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
-  "Kimi-K2": "https://a7-at41rv.vercel.app/v1/chat/completions",
-  "DeepSeek-R1-Think": "https://a7-at41rv.vercel.app/v1/chat/completions",
-  "DeepSeek-R1-0528-Think": "https://a7-at41rv.vercel.app/v1/chat/completions",
-  "DeepSeek-V3": "https://a7-at41rv.vercel.app/v1/chat/completions",
-  "Llama4-Maverick-17B-lnstruct": "https://a7-at41rv.vercel.app/v1/chat/completions",
-  "Llama4-Scout-17B-16E-lnstruct": "https://a7-at41rv.vercel.app/v1/chat/completions",
   "HeckAI/x-ai/grok-3-mini-beta": "https://ai4free-test.hf.space/v1/chat/completions",
   "SciraChat/grok-3-mini-fast": "https://ai4free-test.hf.space/v1/chat/completions",
   "SciraChat/grok-3-mini": "https://ai4free-test.hf.space/v1/chat/completions",
