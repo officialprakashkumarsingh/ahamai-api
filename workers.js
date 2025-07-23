@@ -14,21 +14,13 @@ const exposedToInternalMap = {
   "Llama4-Maverick-17B-lnstruct": "Llama4-Maverick-17B-lnstruct",
   "Llama4-Scout-17B-16E-lnstruct": "Llama4-Scout-17B-16E-lnstruct",
   "grok-3-mini-beta": "HeckAI/x-ai/grok-3-mini-beta",
-  "grok-3-mini-beta-server-2": "HeckAI/x-ai/grok-3-mini-beta",
   "grok-3-mini-fast": "SciraChat/grok-3-mini-fast",
-  "grok-3-mini-fast-server-2": "SciraChat/grok-3-mini-fast",
   "grok-3-mini": "SciraChat/grok-3-mini",
-  "grok-3-mini-server-2": "SciraChat/grok-3-mini",
-  "grok-3-mini-flowith": "Flowith/grok-3-mini",
-  "grok-3-mini-flowith-server-2": "Flowith/grok-3-mini",
+  "grok-3-mini-server-2": "Flowith/grok-3-mini",
   "grok-3-fast": "SciraChat/grok-3-fast",
-  "grok-3-fast-server-2": "SciraChat/grok-3-fast",
   "grok-3-beta": "oivscode/grok-3-beta",
-  "grok-3-beta-server-2": "oivscode/grok-3-beta",
-  "grok-3-beta-toolbaz": "Toolbaz/grok-3-beta",
-  "grok-3-beta-toolbaz-server-2": "Toolbaz/grok-3-beta",
-  "grok-3-blackbox": "BLACKBOXAI/Grok 3",
-  "grok-3-blackbox-server-2": "BLACKBOXAI/Grok 3"
+  "grok-3-beta-server-2": "Toolbaz/grok-3-beta",
+  "grok-3-blackbox": "BLACKBOXAI/Grok 3"
 };
 
 const modelRoutes = {
