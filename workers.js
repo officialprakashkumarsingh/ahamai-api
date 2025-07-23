@@ -1,7 +1,6 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  "claude-3-5-sonnet-ashlynn": "ashlynn/claude-3-5-sonnet",
   "claude-sonnet-4-rproxy": "rproxy/claude-sonnet-4",
   "claude-opus-4": "rproxy/claude-opus-4",
   "grok-3-mini-beta": "HeckAI/x-ai/grok-3-mini-beta",
@@ -15,7 +14,6 @@ const exposedToInternalMap = {
 };
 
 const modelRoutes = {
-  "ashlynn/claude-3-5-sonnet": "https://ai.ashlynn.workers.dev/ask",
   "rproxy/claude-sonnet-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
   "rproxy/claude-opus-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
   "HeckAI/x-ai/grok-3-mini-beta": "https://ai4free-test.hf.space/v1/chat/completions",
@@ -119,10 +117,7 @@ async function handleChat(request, corsHeaders) {
     });
   }
 
-  // Handle ashlynn endpoint differently
-  if (internalModel === "ashlynn/claude-3-5-sonnet") {
-    return handleAshlynn(body, stream, corsHeaders);
-  }
+
 
   // Prepare headers based on the model
   const headers = { "Content-Type": "application/json" };
@@ -157,95 +152,7 @@ async function handleChat(request, corsHeaders) {
       });
 }
 
-async function handleAshlynn(body, stream, corsHeaders) {
-  // Extract the user message from the OpenAI format
-  const messages = body.messages || [];
-  const lastMessage = messages[messages.length - 1];
-  const prompt = lastMessage?.content || "";
-  
-  if (!prompt) {
-    return new Response(JSON.stringify({ error: "No prompt provided" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
-  }
 
-  // Make request to ashlynn endpoint with Claude 3.5 Sonnet
-  const encodedPrompt = encodeURIComponent(prompt);
-  const ashlynnUrl = `https://ai.ashlynn.workers.dev/ask?prompt=${encodedPrompt}&model=Claude+3.5+Sonnet`;
-  
-  try {
-    const response = await fetch(ashlynnUrl);
-    const data = await response.json();
-    
-    if (!data.success) {
-      return new Response(JSON.stringify({ error: data.error || "Request failed" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders }
-      });
-    }
-
-    // Convert to OpenAI format
-    const openaiResponse = {
-      id: `chatcmpl-${Date.now()}`,
-      object: "chat.completion",
-      created: Math.floor(Date.now() / 1000),
-      model: "claude-3-5-sonnet-ashlynn",
-      choices: [{
-        index: 0,
-        message: {
-          role: "assistant",
-          content: data.response
-        },
-        finish_reason: "stop"
-      }],
-      usage: {
-        prompt_tokens: prompt.length,
-        completion_tokens: data.response.length,
-        total_tokens: prompt.length + data.response.length
-      }
-    };
-
-    if (stream) {
-      // For streaming, create a simple stream with the complete response
-      const streamData = `data: ${JSON.stringify({
-        id: openaiResponse.id,
-        object: "chat.completion.chunk",
-        created: openaiResponse.created,
-        model: "claude-3-5-sonnet-ashlynn",
-        choices: [{
-          index: 0,
-          delta: {
-            role: "assistant",
-            content: data.response
-          },
-          finish_reason: "stop"
-        }]
-      })}\n\ndata: [DONE]\n\n`;
-
-      return new Response(streamData, {
-        status: 200,
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          "Connection": "keep-alive",
-          ...corsHeaders
-        }
-      });
-    }
-
-    return new Response(JSON.stringify(openaiResponse), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
-
-  } catch (error) {
-    return new Response(JSON.stringify({ error: "Failed to process request" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
-  }
-}
 
 async function handleImage(request, corsHeaders) {
   const body = await request.json();
