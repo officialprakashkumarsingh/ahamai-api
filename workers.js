@@ -5,6 +5,8 @@ const exposedToInternalMap = {
   "claude-3-7-sonnet": "anthropic/claude-3-7-sonnet",
   "claude-sonnet-4": "anthropic/claude-sonnet-4",
   "claude-3-5-sonnet-ashlynn": "ashlynn/claude-3-5-sonnet",
+  "claude-sonnet-4-rproxy": "rproxy/claude-sonnet-4",
+  "claude-opus-4": "rproxy/claude-opus-4",
   "Kimi-K2": "Kimi-K2",
   "DeepSeek-R1-Think": "DeepSeek-R1-Think",
   "DeepSeek-R1-0528-Think": "DeepSeek-R1-0528-Think",
@@ -18,6 +20,8 @@ const modelRoutes = {
   "anthropic/claude-3-7-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
   "anthropic/claude-sonnet-4": "http://V1.s1.sdk.li/v1/chat/completions",
   "ashlynn/claude-3-5-sonnet": "https://ai.ashlynn.workers.dev/ask",
+  "rproxy/claude-sonnet-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
+  "rproxy/claude-opus-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
   "Kimi-K2": "https://a7-at41rv.vercel.app/v1/chat/completions",
   "DeepSeek-R1-Think": "https://a7-at41rv.vercel.app/v1/chat/completions",
   "DeepSeek-R1-0528-Think": "https://a7-at41rv.vercel.app/v1/chat/completions",
@@ -125,10 +129,18 @@ async function handleChat(request, corsHeaders) {
   // Prepare headers based on the model
   const headers = { "Content-Type": "application/json" };
 
+  // For rproxy models, use the original exposed model name
+  let requestModel = internalModel;
+  if (internalModel === "rproxy/claude-sonnet-4") {
+    requestModel = "claude-sonnet-4";
+  } else if (internalModel === "rproxy/claude-opus-4") {
+    requestModel = "claude-opus-4";
+  }
+
   const response = await fetch(modelRoutes[internalModel], {
     method: "POST",
     headers: headers,
-    body: JSON.stringify({ ...body, model: internalModel })
+    body: JSON.stringify({ ...body, model: requestModel })
   });
 
   return stream
