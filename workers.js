@@ -36,43 +36,63 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // CORS headers
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    };
+
+    // Handle preflight requests
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 200,
+        headers: corsHeaders
+      });
+    }
+
     // Auth check
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || authHeader !== `Bearer ${API_KEY}`) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json", ...corsHeaders }
       });
     }
 
+    // Handle root endpoint for model listing
+    if (path === "/" && request.method === "GET") {
+      return handleModelList(corsHeaders);
+    }
+
     if (path === "/v1/chat/completions" && request.method === "POST") {
-      return handleChat(request);
+      return handleChat(request, corsHeaders);
     }
 
     if (path === "/v1/images/generations" && request.method === "POST") {
-      return handleImage(request);
+      return handleImage(request, corsHeaders);
     }
 
     if (path === "/v1/models" && request.method === "GET") {
-      return handleModelList();
+      return handleModelList(corsHeaders);
     }
 
     if (path === "/v1/chat/models" && request.method === "GET") {
-      return handleChatModelList();
+      return handleChatModelList(corsHeaders);
     }
 
     if (path === "/v1/images/models" && request.method === "GET") {
-      return handleImageModelList();
+      return handleImageModelList(corsHeaders);
     }
 
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
   }
 };
 
-async function handleChat(request) {
+async function handleChat(request, corsHeaders) {
   const body = await request.json();
   const exposedModel = body.model;
   const internalModel = exposedToInternalMap[exposedModel];
@@ -81,13 +101,13 @@ async function handleChat(request) {
   if (!internalModel || !modelRoutes[internalModel]) {
     return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), {
       status: 400,
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
   }
 
   // Handle ashlynn endpoint differently
   if (internalModel === "ashlynn/claude-3-5-sonnet") {
-    return handleAshlynn(body, stream);
+    return handleAshlynn(body, stream, corsHeaders);
   }
 
   // Prepare headers based on the model
@@ -105,16 +125,17 @@ async function handleChat(request) {
         headers: {
           "Content-Type": "text/event-stream",
           "Transfer-Encoding": "chunked",
-          "Cache-Control": "no-cache"
+          "Cache-Control": "no-cache",
+          ...corsHeaders
         }
       })
     : new Response(await response.text(), {
         status: response.status,
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json", ...corsHeaders }
       });
 }
 
-async function handleAshlynn(body, stream) {
+async function handleAshlynn(body, stream, corsHeaders) {
   // Extract the user message from the OpenAI format
   const messages = body.messages || [];
   const lastMessage = messages[messages.length - 1];
@@ -123,7 +144,7 @@ async function handleAshlynn(body, stream) {
   if (!prompt) {
     return new Response(JSON.stringify({ error: "No prompt provided" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
   }
 
@@ -138,7 +159,7 @@ async function handleAshlynn(body, stream) {
     if (!data.success) {
       return new Response(JSON.stringify({ error: data.error || "Request failed" }), {
         status: 400,
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json", ...corsHeaders }
       });
     }
 
@@ -185,25 +206,26 @@ async function handleAshlynn(body, stream) {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
-          "Connection": "keep-alive"
+          "Connection": "keep-alive",
+          ...corsHeaders
         }
       });
     }
 
     return new Response(JSON.stringify(openaiResponse), {
       status: 200,
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
 
   } catch (error) {
     return new Response(JSON.stringify({ error: "Failed to process request" }), {
       status: 500,
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
   }
 }
 
-async function handleImage(request) {
+async function handleImage(request, corsHeaders) {
   const body = await request.json();
   const model = body.model || "flux";
   const prompt = encodeURIComponent(body.prompt || "");
@@ -211,7 +233,7 @@ async function handleImage(request) {
   if (!imageModelRoutes[model]) {
     return new Response(JSON.stringify({ error: `Image model '${model}' is not supported.` }), {
       status: 400,
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
   }
 
@@ -238,12 +260,13 @@ async function handleImage(request) {
     status: imageRes.status,
     headers: {
       "Content-Type": imageRes.headers.get("Content-Type") || "image/jpeg",
-      "Transfer-Encoding": "chunked"
+      "Transfer-Encoding": "chunked",
+      ...corsHeaders
     }
   });
 }
 
-function handleModelList() {
+function handleModelList(corsHeaders = {}) {
   const chatModels = Object.keys(exposedToInternalMap).map((id) => ({
     id,
     object: "model",
@@ -260,11 +283,11 @@ function handleModelList() {
     object: "list",
     data: [...chatModels, ...imageModels]
   }), {
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json", ...corsHeaders }
   });
 }
 
-function handleChatModelList() {
+function handleChatModelList(corsHeaders = {}) {
   const chatModels = Object.keys(exposedToInternalMap).map((id) => ({
     id,
     object: "model",
@@ -275,11 +298,11 @@ function handleChatModelList() {
     object: "list",
     data: chatModels
   }), {
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json", ...corsHeaders }
   });
 }
 
-function handleImageModelList() {
+function handleImageModelList(corsHeaders = {}) {
   const models = Object.entries(imageModelRoutes).map(([id, meta]) => ({
     id,
     object: "image-model",
@@ -293,6 +316,6 @@ function handleImageModelList() {
     object: "list",
     data: models
   }), {
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json", ...corsHeaders }
   });
 }
