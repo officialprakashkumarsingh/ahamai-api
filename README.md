@@ -16,7 +16,7 @@ This Cloudflare Worker provides an OpenAI-compatible API that supports multiple 
 - `claude-3-5-sonnet` - Anthropic Claude 3.5 Sonnet
 - `claude-3-7-sonnet` - Anthropic Claude 3.7 Sonnet  
 - `claude-sonnet-4` - Anthropic Claude Sonnet 4
-- `kimi-k2` - Moonshot AI Kimi-K2 Instruct (via Groq API)
+- `chatgpt-4o` - ChatGPT-4o (via Ashlynn AI)
 
 ### Image Models
 - `flux` - High Quality Image Generation
@@ -35,7 +35,7 @@ curl -X POST https://your-worker-domain/v1/chat/completions \
   -H "Authorization: Bearer ahamaibyprakash25" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "kimi-k2",
+    "model": "chatgpt-4o",
     "messages": [
       {"role": "user", "content": "Hello, how are you?"}
     ],
@@ -78,35 +78,27 @@ Authorization: Bearer ahamaibyprakash25
 ## Configuration
 
 - **API_KEY**: Worker authentication key (`ahamaibyprakash25`)
-- **GROQ_API_KEY**: Replace `YOUR_GROQ_API_KEY_HERE` with your actual Groq API key for Moonshot AI models
 - **Model Routes**: Configure endpoints for different AI providers
 - **Image Models**: Configure image generation providers and settings
-
-### Setting up the Groq API Key
-
-1. Get your Groq API key from [Groq Console](https://console.groq.com/)
-2. Replace `YOUR_GROQ_API_KEY_HERE` in the workers.js file with your actual key
-3. The key should start with `gsk_`
 
 ## Deployment
 
 1. Copy the workers.js code from this repository
 2. Create a new Cloudflare Worker
 3. Replace the default code with the provided code
-4. Update the GROQ_API_KEY with your actual Groq API key
-5. Deploy the worker
-6. Configure your custom domain (optional)
+4. Deploy the worker
+5. Configure your custom domain (optional)
 
-## Testing the Kimi-K2 Model
+## Testing the ChatGPT-4o Model
 
-You can test the new Kimi-K2 model with this example:
+You can test the new ChatGPT-4o model with this example:
 
 ```bash
 curl -X POST https://your-worker-domain/v1/chat/completions \
   -H "Authorization: Bearer ahamaibyprakash25" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "kimi-k2",
+    "model": "chatgpt-4o",
     "messages": [
       {"role": "user", "content": "Explain quantum computing in simple terms"}
     ]
@@ -128,5 +120,5 @@ This worker supports:
 - ✅ Image generation
 - ✅ Model listing
 - ✅ Multiple AI providers
-- ✅ Groq API integration
+- ✅ Ashlynn AI integration
 - ✅ Authentication and authorization
