@@ -5,14 +5,14 @@ const exposedToInternalMap = {
   "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet",
   "claude-3-7-sonnet": "anthropic/claude-3-7-sonnet",
   "claude-sonnet-4": "anthropic/claude-sonnet-4",
-  "x-ai/grok-3-beta": "x-ai/grok-3-beta"
+  "chatgpt-4o": "ashlynn/chatgpt-4o"
 };
 
 const modelRoutes = {
   "anthropic/claude-3-5-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
   "anthropic/claude-3-7-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
   "anthropic/claude-sonnet-4": "http://V1.s1.sdk.li/v1/chat/completions",
-  "x-ai/grok-3-beta": "https://wow.typegpt.net/v1/chat/completions"
+  "ashlynn/chatgpt-4o": "https://ai.ashlynn.workers.dev/ask"
 };
 
 const imageModelRoutes = {
@@ -86,13 +86,13 @@ async function handleChat(request) {
     });
   }
 
+  // Handle ashlynn endpoint differently
+  if (internalModel === "ashlynn/chatgpt-4o") {
+    return handleAshlynn(body, stream);
+  }
+
   // Prepare headers based on the model
   const headers = { "Content-Type": "application/json" };
-  
-  // Add Typegpt API authorization for Moonshot AI models
-  if (internalModel === "x-ai/grok-3-beta") {
-    headers["Authorization"] = `Bearer ${Typegpt_API_KEY}`;
-  }
 
   const response = await fetch(modelRoutes[internalModel], {
     method: "POST",
@@ -113,6 +113,95 @@ async function handleChat(request) {
         status: response.status,
         headers: { "Content-Type": "application/json" }
       });
+}
+
+async function handleAshlynn(body, stream) {
+  // Extract the user message from the OpenAI format
+  const messages = body.messages || [];
+  const lastMessage = messages[messages.length - 1];
+  const prompt = lastMessage?.content || "";
+  
+  if (!prompt) {
+    return new Response(JSON.stringify({ error: "No prompt provided" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  // Make request to ashlynn endpoint
+  const encodedPrompt = encodeURIComponent(prompt);
+  const ashlynnUrl = `https://ai.ashlynn.workers.dev/ask?prompt=${encodedPrompt}&model=ChatGPT-4o`;
+  
+  try {
+    const response = await fetch(ashlynnUrl);
+    const data = await response.json();
+    
+    if (!data.success) {
+      return new Response(JSON.stringify({ error: data.error || "Request failed" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    // Convert to OpenAI format
+    const openaiResponse = {
+      id: `chatcmpl-${Date.now()}`,
+      object: "chat.completion",
+      created: Math.floor(Date.now() / 1000),
+      model: "chatgpt-4o",
+      choices: [{
+        index: 0,
+        message: {
+          role: "assistant",
+          content: data.response
+        },
+        finish_reason: "stop"
+      }],
+      usage: {
+        prompt_tokens: prompt.length,
+        completion_tokens: data.response.length,
+        total_tokens: prompt.length + data.response.length
+      }
+    };
+
+    if (stream) {
+      // For streaming, create a simple stream with the complete response
+      const streamData = `data: ${JSON.stringify({
+        id: openaiResponse.id,
+        object: "chat.completion.chunk",
+        created: openaiResponse.created,
+        model: "chatgpt-4o",
+        choices: [{
+          index: 0,
+          delta: {
+            role: "assistant",
+            content: data.response
+          },
+          finish_reason: "stop"
+        }]
+      })}\n\ndata: [DONE]\n\n`;
+
+      return new Response(streamData, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive"
+        }
+      });
+    }
+
+    return new Response(JSON.stringify(openaiResponse), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+
+  } catch (error) {
+    return new Response(JSON.stringify({ error: "Failed to process request" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
 }
 
 async function handleImage(request) {
