@@ -13,10 +13,26 @@ This Cloudflare Worker provides an OpenAI-compatible API that supports multiple 
 ## Supported Models
 
 ### Chat Models
-- `claude-3-5-sonnet` - Anthropic Claude 3.5 Sonnet
-- `claude-3-7-sonnet` - Anthropic Claude 3.7 Sonnet  
-- `claude-sonnet-4` - Anthropic Claude Sonnet 4
 - `claude-3-5-sonnet-ashlynn` - Claude 3.5 Sonnet (via Ashlynn AI)
+- `claude-sonnet-4` - Claude Sonnet 4 (via rproxy)
+- `claude-opus-4` - Claude Opus 4 (via rproxy)
+- `grok-3-beta` - xAI Grok 3 Beta (free via DeepInfra)
+- `grok-3-mini-beta` - xAI Grok 3 Mini Beta (free via DeepInfra)
+- `grok-3-beta-2nd` - xAI Grok 3 Beta (via AI/ML API)
+- `grok-3-mini-beta-2nd` - xAI Grok 3 Mini Beta (via AI/ML API)
+- `phi-4` - Microsoft Phi-4 (free via DeepInfra)
+- `gemini-2.5-flash` - Google Gemini 2.5 Flash (free via DeepInfra)
+- `qwen-3-235b` - Qwen 3 235B (free via DeepInfra)
+- `deepseek-r1` - DeepSeek R1 (free via DeepInfra)
+- `llama-3.3-70b` - Meta Llama 3.3 70B (free via DeepInfra)
+- `llama-4-scout` - Meta Llama 4 Scout (free via DeepInfra)
+- `llama-4-maverick` - Meta Llama 4 Maverick (free via DeepInfra)
+- `Kimi-K2` - Moonshot AI Kimi-K2
+- `DeepSeek-R1-Think` - DeepSeek R1 Think
+- `DeepSeek-R1-0528-Think` - DeepSeek R1 0528 Think
+- `DeepSeek-V3` - DeepSeek V3
+- `Llama4-Maverick-17B-lnstruct` - Llama 4 Maverick 17B Instruct
+- `Llama4-Scout-17B-16E-lnstruct` - Llama 4 Scout 17B 16E Instruct
 
 ### Image Models
 - `flux` - High Quality Image Generation
@@ -35,7 +51,7 @@ curl -X POST https://your-worker-domain/v1/chat/completions \
   -H "Authorization: Bearer ahamaibyprakash25" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "claude-3-5-sonnet-ashlynn",
+    "model": "grok-3-beta",
     "messages": [
       {"role": "user", "content": "Hello, how are you?"}
     ],

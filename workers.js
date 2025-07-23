@@ -1,24 +1,29 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet",
-  "claude-3-7-sonnet": "anthropic/claude-3-7-sonnet",
-  "claude-sonnet-4": "anthropic/claude-sonnet-4",
   "claude-3-5-sonnet-ashlynn": "ashlynn/claude-3-5-sonnet",
-  "claude-sonnet-4-rproxy": "rproxy/claude-sonnet-4",
+  "claude-sonnet-4": "rproxy/claude-sonnet-4",
   "claude-opus-4": "rproxy/claude-opus-4",
   "Kimi-K2": "Kimi-K2",
   "DeepSeek-R1-Think": "DeepSeek-R1-Think",
   "DeepSeek-R1-0528-Think": "DeepSeek-R1-0528-Think",
   "DeepSeek-V3": "DeepSeek-V3",
   "Llama4-Maverick-17B-lnstruct": "Llama4-Maverick-17B-lnstruct",
-  "Llama4-Scout-17B-16E-lnstruct": "Llama4-Scout-17B-16E-lnstruct"
+  "Llama4-Scout-17B-16E-lnstruct": "Llama4-Scout-17B-16E-lnstruct",
+  "grok-3-beta": "grok-3-beta-free",
+  "grok-3-mini-beta": "grok-3-mini-beta-free",
+  "grok-3-beta-2nd": "aimlapi/grok-3-beta",
+  "grok-3-mini-beta-2nd": "aimlapi/grok-3-mini-beta",
+  "phi-4": "phi-4-free",
+  "gemini-2.5-flash": "gemini-2.5-flash-free",
+  "qwen-3-235b": "qwen-3-235b-free",
+  "deepseek-r1": "deepseek-r1-free",
+  "llama-3.3-70b": "llama-3.3-70b-free",
+  "llama-4-scout": "llama-4-scout-free",
+  "llama-4-maverick": "llama-4-maverick-free"
 };
 
 const modelRoutes = {
-  "anthropic/claude-3-5-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
-  "anthropic/claude-3-7-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
-  "anthropic/claude-sonnet-4": "http://V1.s1.sdk.li/v1/chat/completions",
   "ashlynn/claude-3-5-sonnet": "https://ai.ashlynn.workers.dev/ask",
   "rproxy/claude-sonnet-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
   "rproxy/claude-opus-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
@@ -27,7 +32,18 @@ const modelRoutes = {
   "DeepSeek-R1-0528-Think": "https://a7-at41rv.vercel.app/v1/chat/completions",
   "DeepSeek-V3": "https://a7-at41rv.vercel.app/v1/chat/completions",
   "Llama4-Maverick-17B-lnstruct": "https://a7-at41rv.vercel.app/v1/chat/completions",
-  "Llama4-Scout-17B-16E-lnstruct": "https://a7-at41rv.vercel.app/v1/chat/completions"
+  "Llama4-Scout-17B-16E-lnstruct": "https://a7-at41rv.vercel.app/v1/chat/completions",
+  "grok-3-beta-free": "https://api.deepinfra.com/v1/openai/chat/completions",
+  "grok-3-mini-beta-free": "https://api.deepinfra.com/v1/openai/chat/completions",
+  "aimlapi/grok-3-beta": "https://api.aimlapi.com/v1/chat/completions",
+  "aimlapi/grok-3-mini-beta": "https://api.aimlapi.com/v1/chat/completions",
+  "phi-4-free": "https://api.deepinfra.com/v1/openai/chat/completions",
+  "gemini-2.5-flash-free": "https://api.deepinfra.com/v1/openai/chat/completions",
+  "qwen-3-235b-free": "https://api.deepinfra.com/v1/openai/chat/completions",
+  "deepseek-r1-free": "https://api.deepinfra.com/v1/openai/chat/completions",
+  "llama-3.3-70b-free": "https://api.deepinfra.com/v1/openai/chat/completions",
+  "llama-4-scout-free": "https://api.deepinfra.com/v1/openai/chat/completions",
+  "llama-4-maverick-free": "https://api.deepinfra.com/v1/openai/chat/completions"
 };
 
 const imageModelRoutes = {
@@ -135,6 +151,36 @@ async function handleChat(request, corsHeaders) {
     requestModel = "claude-sonnet-4";
   } else if (internalModel === "rproxy/claude-opus-4") {
     requestModel = "claude-opus-4";
+  }
+
+  // Handle free models from DeepInfra
+  if (internalModel === "grok-3-beta-free") {
+    requestModel = "x-ai/grok-3-beta";
+  } else if (internalModel === "grok-3-mini-beta-free") {
+    requestModel = "x-ai/grok-3-mini-beta";
+  } else if (internalModel === "phi-4-free") {
+    requestModel = "microsoft/phi-4";
+  } else if (internalModel === "gemini-2.5-flash-free") {
+    requestModel = "google/gemini-2.5-flash";
+  } else if (internalModel === "qwen-3-235b-free") {
+    requestModel = "qwen/qwen-3-235b";
+  } else if (internalModel === "deepseek-r1-free") {
+    requestModel = "deepseek-ai/deepseek-r1";
+  } else if (internalModel === "llama-3.3-70b-free") {
+    requestModel = "meta-llama/llama-3.3-70b-instruct";
+  } else if (internalModel === "llama-4-scout-free") {
+    requestModel = "meta-llama/llama-4-scout";
+  } else if (internalModel === "llama-4-maverick-free") {
+    requestModel = "meta-llama/llama-4-maverick";
+  }
+
+  // Handle AI/ML API models
+  if (internalModel === "aimlapi/grok-3-beta") {
+    requestModel = "x-ai/grok-3-beta";
+    headers["Authorization"] = "Bearer YOUR_AIMLAPI_KEY";
+  } else if (internalModel === "aimlapi/grok-3-mini-beta") {
+    requestModel = "x-ai/grok-3-mini-beta";
+    headers["Authorization"] = "Bearer YOUR_AIMLAPI_KEY";
   }
 
   const response = await fetch(modelRoutes[internalModel], {
