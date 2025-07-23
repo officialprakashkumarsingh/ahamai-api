@@ -16,7 +16,7 @@ This Cloudflare Worker provides an OpenAI-compatible API that supports multiple 
 - `claude-3-5-sonnet` - Anthropic Claude 3.5 Sonnet
 - `claude-3-7-sonnet` - Anthropic Claude 3.7 Sonnet  
 - `claude-sonnet-4` - Anthropic Claude Sonnet 4
-- `chatgpt-4o` - ChatGPT-4o (via Ashlynn AI)
+- `claude-3-5-sonnet-ashlynn` - Claude 3.5 Sonnet (via Ashlynn AI)
 
 ### Image Models
 - `flux` - High Quality Image Generation
@@ -35,7 +35,7 @@ curl -X POST https://your-worker-domain/v1/chat/completions \
   -H "Authorization: Bearer ahamaibyprakash25" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "chatgpt-4o",
+    "model": "claude-3-5-sonnet-ashlynn",
     "messages": [
       {"role": "user", "content": "Hello, how are you?"}
     ],
@@ -89,16 +89,16 @@ Authorization: Bearer ahamaibyprakash25
 4. Deploy the worker
 5. Configure your custom domain (optional)
 
-## Testing the ChatGPT-4o Model
+## Testing the Claude 3.5 Sonnet (Ashlynn) Model
 
-You can test the new ChatGPT-4o model with this example:
+You can test the Claude 3.5 Sonnet model via Ashlynn AI with this example:
 
 ```bash
 curl -X POST https://your-worker-domain/v1/chat/completions \
   -H "Authorization: Bearer ahamaibyprakash25" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "chatgpt-4o",
+    "model": "claude-3-5-sonnet-ashlynn",
     "messages": [
       {"role": "user", "content": "Explain quantum computing in simple terms"}
     ]

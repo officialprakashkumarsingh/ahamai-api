@@ -1,18 +1,17 @@
 const API_KEY = "ahamaibyprakash25";
-const Typegpt_API_KEY = "sk-opTjonVDepkc7g95FeoxJcfRvsGOvhh4JJUZSi1iHC4RSCBR";
 
 const exposedToInternalMap = {
   "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet",
   "claude-3-7-sonnet": "anthropic/claude-3-7-sonnet",
   "claude-sonnet-4": "anthropic/claude-sonnet-4",
-  "chatgpt-4o": "ashlynn/chatgpt-4o"
+  "claude-3-5-sonnet-ashlynn": "ashlynn/claude-3-5-sonnet"
 };
 
 const modelRoutes = {
   "anthropic/claude-3-5-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
   "anthropic/claude-3-7-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
   "anthropic/claude-sonnet-4": "http://V1.s1.sdk.li/v1/chat/completions",
-  "ashlynn/chatgpt-4o": "https://ai.ashlynn.workers.dev/ask"
+  "ashlynn/claude-3-5-sonnet": "https://ai.ashlynn.workers.dev/ask"
 };
 
 const imageModelRoutes = {
@@ -87,7 +86,7 @@ async function handleChat(request) {
   }
 
   // Handle ashlynn endpoint differently
-  if (internalModel === "ashlynn/chatgpt-4o") {
+  if (internalModel === "ashlynn/claude-3-5-sonnet") {
     return handleAshlynn(body, stream);
   }
 
@@ -128,9 +127,9 @@ async function handleAshlynn(body, stream) {
     });
   }
 
-  // Make request to ashlynn endpoint
+  // Make request to ashlynn endpoint with Claude 3.5 Sonnet
   const encodedPrompt = encodeURIComponent(prompt);
-  const ashlynnUrl = `https://ai.ashlynn.workers.dev/ask?prompt=${encodedPrompt}&model=ChatGPT-4o`;
+  const ashlynnUrl = `https://ai.ashlynn.workers.dev/ask?prompt=${encodedPrompt}&model=Claude+3.5+Sonnet`;
   
   try {
     const response = await fetch(ashlynnUrl);
@@ -148,7 +147,7 @@ async function handleAshlynn(body, stream) {
       id: `chatcmpl-${Date.now()}`,
       object: "chat.completion",
       created: Math.floor(Date.now() / 1000),
-      model: "chatgpt-4o",
+      model: "claude-3-5-sonnet-ashlynn",
       choices: [{
         index: 0,
         message: {
@@ -170,7 +169,7 @@ async function handleAshlynn(body, stream) {
         id: openaiResponse.id,
         object: "chat.completion.chunk",
         created: openaiResponse.created,
-        model: "chatgpt-4o",
+        model: "claude-3-5-sonnet-ashlynn",
         choices: [{
           index: 0,
           delta: {
