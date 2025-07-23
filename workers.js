@@ -5,12 +5,12 @@ const exposedToInternalMap = {
   "claude-3-7-sonnet": "anthropic/claude-3-7-sonnet",
   "claude-sonnet-4": "anthropic/claude-sonnet-4",
   "claude-3-5-sonnet-ashlynn": "ashlynn/claude-3-5-sonnet",
-  "kimi-k2": "ap/kimi-k2",
-  "deepseek-r1-think": "ap/deepseek-r1-think",
-  "deepseek-r1-0528-think": "ap/deepseek-r1-0528-think",
-  "deepseek-v3": "ap/deepseek-v3",
-  "llama4-maverick-17b-instruct": "ap/llama4-maverick-17b-instruct",
-  "llama4-scout-17b-16e-instruct": "ap/llama4-scout-17b-16e-instruct"
+  "Kimi-K2": "Kimi-K2",
+  "DeepSeek-R1-Think": "DeepSeek-R1-Think",
+  "DeepSeek-R1-0528-Think": "DeepSeek-R1-0528-Think",
+  "DeepSeek-V3": "DeepSeek-V3",
+  "Llama4-Maverick-17B-lnstruct": "Llama4-Maverick-17B-lnstruct",
+  "Llama4-Scout-17B-16E-lnstruct": "Llama4-Scout-17B-16E-lnstruct"
 };
 
 const modelRoutes = {
@@ -18,12 +18,12 @@ const modelRoutes = {
   "anthropic/claude-3-7-sonnet": "http://V1.s1.sdk.li/v1/chat/completions",
   "anthropic/claude-sonnet-4": "http://V1.s1.sdk.li/v1/chat/completions",
   "ashlynn/claude-3-5-sonnet": "https://ai.ashlynn.workers.dev/ask",
-  "ap/kimi-k2": "https://a7-at41rv.vercel.app/v1/chat/completions",
-  "ap/deepseek-r1-think": "https://a7-at41rv.vercel.app/v1/chat/completions",
-  "ap/deepseek-r1-0528-think": "https://a7-at41rv.vercel.app/v1/chat/completions",
-  "ap/deepseek-v3": "https://a7-at41rv.vercel.app/v1/chat/completions",
-  "ap/llama4-maverick-17b-instruct": "https://a7-at41rv.vercel.app/v1/chat/completions",
-  "ap/llama4-scout-17b-16e-instruct": "https://a7-at41rv.vercel.app/v1/chat/completions"
+  "Kimi-K2": "https://a7-at41rv.vercel.app/v1/chat/completions",
+  "DeepSeek-R1-Think": "https://a7-at41rv.vercel.app/v1/chat/completions",
+  "DeepSeek-R1-0528-Think": "https://a7-at41rv.vercel.app/v1/chat/completions",
+  "DeepSeek-V3": "https://a7-at41rv.vercel.app/v1/chat/completions",
+  "Llama4-Maverick-17B-lnstruct": "https://a7-at41rv.vercel.app/v1/chat/completions",
+  "Llama4-Scout-17B-16E-lnstruct": "https://a7-at41rv.vercel.app/v1/chat/completions"
 };
 
 const imageModelRoutes = {
