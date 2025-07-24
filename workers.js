@@ -8,7 +8,10 @@ const exposedToInternalMap = {
   "claude-3.5-sonnet": "io-8/claude-3.5-sonnet",
   // Web search models
   "sonar": "io-4/sonar",
-  "sonar-pro": "io-4/sonar-pro"
+  "sonar-pro": "io-4/sonar-pro",
+  // New server 2 models from rproxy-nine.vercel.app
+  "claude-sonnet-4-2": "claude-sonnet-4",
+  "claude-opus-4-2": "claude-opus-4"
 };
 
 const modelRoutes = {
@@ -19,7 +22,10 @@ const modelRoutes = {
   "io-8/claude-3.5-sonnet": "https://lm.0.sdk.li/v1/chat/completions",
   // Web search models routes
   "io-4/sonar": "https://lm.0.sdk.li/v1/chat/completions",
-  "io-4/sonar-pro": "https://lm.0.sdk.li/v1/chat/completions"
+  "io-4/sonar-pro": "https://lm.0.sdk.li/v1/chat/completions",
+  // New server 2 models routes
+  "claude-sonnet-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
+  "claude-opus-4": "https://rproxy-nine.vercel.app/v1/chat/completions"
 };
 
 const imageModelRoutes = {
@@ -129,11 +135,19 @@ async function handleChat(request, corsHeaders) {
 
 
 
-  // Prepare headers based on the model
-  const headers = { 
-    "Content-Type": "application/json",
-    "Authorization": "Bearer LM0_QZMKWYVVUDYAIUDG.1748-UPYOUMDGIMAV"
+  // Prepare headers based on the model and API endpoint
+  let headers = { 
+    "Content-Type": "application/json"
   };
+
+  // Use different authentication for different endpoints
+  if (modelRoutes[internalModel].includes('rproxy-nine.vercel.app')) {
+    // For the new rproxy endpoint, no specific auth key needed
+    headers["Authorization"] = "Bearer dummy-key";
+  } else {
+    // For existing lm.0.sdk.li endpoint
+    headers["Authorization"] = "Bearer LM0_QZMKWYVVUDYAIUDG.1748-UPYOUMDGIMAV";
+  }
 
   const response = await fetch(modelRoutes[internalModel], {
     method: "POST",
