@@ -6,6 +6,10 @@ const exposedToInternalMap = {
   "claude-4-opus": "io-8/claude-4-opus",
   "claude-3.7-sonnet": "io-8/claude-3.7-sonnet",
   "claude-3.5-sonnet": "io-8/claude-3.5-sonnet",
+  "kimi-k2": "io-6/kimi-k2",
+  "grok-3": "grok-3(clinesp)",
+  "qwen3-coder-480B-A35B-instruct": "provider5-Qwen/Qwen3-Coder-480B-A35B-Instruct",
+  "deepseek-chat-v3-0324-free": "deepseek-chat-v3-0324:free(clinesp)",
   // Web search models
   "sonar": "io-4/sonar",
   "sonar-pro": "io-4/sonar-pro",
@@ -20,6 +24,10 @@ const modelRoutes = {
   "io-8/claude-4-opus": "https://lm.0.sdk.li/v1/chat/completions",
   "io-8/claude-3.7-sonnet": "https://lm.0.sdk.li/v1/chat/completions",
   "io-8/claude-3.5-sonnet": "https://lm.0.sdk.li/v1/chat/completions",
+  "io-6/kimi-k2": "https://lm.0.sdk.li/v1/chat/completions",
+  "grok-3(clinesp)": "https://samuraiapi.in/v1/chat/completions",
+  "provider5-Qwen/Qwen3-Coder-480B-A35B-Instruct": "https://samuraiapi.in/v1/chat/completions",
+  "deepseek-chat-v3-0324:free(clinesp)": "https://samuraiapi.in/v1/chat/completions",
   // Web search models routes
   "io-4/sonar": "https://lm.0.sdk.li/v1/chat/completions",
   "io-4/sonar-pro": "https://lm.0.sdk.li/v1/chat/completions",
@@ -144,6 +152,8 @@ async function handleChat(request, corsHeaders) {
   if (modelRoutes[internalModel].includes('rproxy-nine.vercel.app')) {
     // For the new rproxy endpoint, no specific auth key needed
     headers["Authorization"] = "Bearer dummy-key";
+  } else if (modelRoutes[internalModel].includes('samuraiapi.in')) {
+    headers["Authorization"] = "Bearer sk-KFzgj5NntdNGMVlyRF4bJVvXGhLLrxchu9xdwLEk5l3M9iHk";
   } else {
     // For existing lm.0.sdk.li endpoint
     headers["Authorization"] = "Bearer LM0_QZMKWYVVUDYAIUDG.1748-UPYOUMDGIMAV";
