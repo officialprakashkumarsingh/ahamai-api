@@ -6,6 +6,8 @@ const exposedToInternalMap = {
   "claude-4-opus": "io-8/claude-4-opus",
   "claude-3.7-sonnet": "io-8/claude-3.7-sonnet",
   "claude-3.5-sonnet": "io-8/claude-3.5-sonnet",
+  "kimi-k2": "io-6/kimi-k2",
+  "qwen3-coder-480B-A35B": "io-6/qwen3-coder-480B-A35B",
   // Web search models
   "sonar": "io-4/sonar",
   "sonar-pro": "io-4/sonar-pro",
@@ -20,6 +22,8 @@ const modelRoutes = {
   "io-8/claude-4-opus": "https://lm.0.sdk.li/v1/chat/completions",
   "io-8/claude-3.7-sonnet": "https://lm.0.sdk.li/v1/chat/completions",
   "io-8/claude-3.5-sonnet": "https://lm.0.sdk.li/v1/chat/completions",
+  "io-6/kimi-k2": "https://lm.0.sdk.li/v1/chat/completions",
+  "io-6/qwen3-coder-480B-A35B": "https://lm.0.sdk.li/v1/chat/completions",
   // Web search models routes
   "io-4/sonar": "https://lm.0.sdk.li/v1/chat/completions",
   "io-4/sonar-pro": "https://lm.0.sdk.li/v1/chat/completions",
