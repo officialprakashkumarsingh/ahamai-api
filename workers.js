@@ -16,7 +16,10 @@ const exposedToInternalMap = {
   "sonar-pro": "io-4/sonar-pro",
   // New server 2 models from rproxy-nine.vercel.app
   "claude-sonnet-4-2": "claude-sonnet-4",
-  "claude-opus-4-2": "claude-opus-4"
+  "claude-opus-4-2": "claude-opus-4",
+  // HelpingAI models
+  "dhanishtha-2.0-preview": "Dhanishtha-2.0-preview",
+  "dhanishtha-2.0-preview-mini": "Dhanishtha-2.0-preview-mini"
 };
 
 const modelRoutes = {
@@ -35,7 +38,10 @@ const modelRoutes = {
   "io-4/sonar-pro": "https://lm.0.sdk.li/v1/chat/completions",
   // New server 2 models routes
   "claude-sonnet-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
-  "claude-opus-4": "https://rproxy-nine.vercel.app/v1/chat/completions"
+  "claude-opus-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
+  // HelpingAI models routes
+  "Dhanishtha-2.0-preview": "https://api.helpingai.co/v1/chat/completions",
+  "Dhanishtha-2.0-preview-mini": "https://api.helpingai.co/v1/chat/completions"
 };
 
 const imageModelRoutes = {
