@@ -19,7 +19,11 @@ const exposedToInternalMap = {
   "claude-opus-4-2": "claude-opus-4",
   // HelpingAI models
   "dhanishtha-2.0-preview": "Dhanishtha-2.0-preview",
-  "dhanishtha-2.0-preview-mini": "Dhanishtha-2.0-preview-mini"
+  "dhanishtha-2.0-preview-mini": "Dhanishtha-2.0-preview-mini",
+  // v0.dev models
+  "v0-1.0-md": "v0-1.0-md",
+  "v0-1.5-md": "v0-1.5-md",
+  "v0-1.5-lg": "v0-1.5-lg"
 };
 
 const modelRoutes = {
@@ -41,7 +45,11 @@ const modelRoutes = {
   "claude-opus-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
   // HelpingAI models routes
   "Dhanishtha-2.0-preview": "https://api.helpingai.co/v1/chat/completions",
-  "Dhanishtha-2.0-preview-mini": "https://api.helpingai.co/v1/chat/completions"
+  "Dhanishtha-2.0-preview-mini": "https://api.helpingai.co/v1/chat/completions",
+  // v0.dev models routes
+  "v0-1.0-md": "https://api.v0.dev/v1/chat/completions",
+  "v0-1.5-md": "https://api.v0.dev/v1/chat/completions",
+  "v0-1.5-lg": "https://api.v0.dev/v1/chat/completions"
 };
 
 const imageModelRoutes = {
@@ -165,6 +173,9 @@ async function handleChat(request, corsHeaders) {
   } else if (modelRoutes[internalModel].includes('api.helpingai.co')) {
     // For HelpingAI endpoint
     headers["Authorization"] = "Bearer hl-5acd8e0c-4bb1-458b-bb6a-9aec773d3199";
+  } else if (modelRoutes[internalModel].includes('api.v0.dev')) {
+    // For v0.dev endpoint
+    headers["Authorization"] = "Bearer v1:team_m5jgJm4W1wUMbgEjKzSQVapS:1QFTMtR5LJB9gqjdafPGyct1";
   } else {
     // For existing lm.0.sdk.li endpoint
     headers["Authorization"] = "Bearer LM0_QZMKWYVVUDYAIUDG.1748-UPYOUMDGIMAV";
