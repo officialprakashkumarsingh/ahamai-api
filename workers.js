@@ -162,6 +162,9 @@ async function handleChat(request, corsHeaders) {
     headers["Authorization"] = "Bearer dummy-key";
   } else if (modelRoutes[internalModel].includes('samuraiapi.in')) {
     headers["Authorization"] = "Bearer sk-KFzgj5NntdNGMVlyRF4bJVvXGhLLrxchu9xdwLEk5l3M9iHk";
+  } else if (modelRoutes[internalModel].includes('api.helpingai.co')) {
+    // For HelpingAI endpoint
+    headers["Authorization"] = "Bearer hl-5acd8e0c-4bb1-458b-bb6a-9aec773d3199";
   } else {
     // For existing lm.0.sdk.li endpoint
     headers["Authorization"] = "Bearer LM0_QZMKWYVVUDYAIUDG.1748-UPYOUMDGIMAV";
