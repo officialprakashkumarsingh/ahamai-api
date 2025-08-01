@@ -139,11 +139,6 @@ export default {
       });
     }
 
-    // Handle root endpoint for model listing
-    if (path === "/" && request.method === "GET") {
-      return handleModelList(corsHeaders);
-    }
-
     if (path === "/v1/chat/completions" && request.method === "POST") {
       return handleChat(request, corsHeaders);
     }
@@ -153,10 +148,6 @@ export default {
     }
 
     if (path === "/v1/models" && request.method === "GET") {
-      return handleModelList(corsHeaders);
-    }
-
-    if (path === "/v1/chat/models" && request.method === "GET") {
       return handleChatModelList(corsHeaders);
     }
 
@@ -315,26 +306,7 @@ async function handleImage(request, corsHeaders) {
   }
 }
 
-function handleModelList(corsHeaders = {}) {
-  const chatModels = Object.keys(exposedToInternalMap).map((id) => ({
-    id,
-    object: "model",
-    owned_by: "openai-compatible"
-  }));
 
-  const imageModels = Object.entries(imageModelRoutes).map(([id, meta]) => ({
-    id,
-    object: "model",
-    owned_by: meta.provider
-  }));
-
-  return new Response(JSON.stringify({
-    object: "list",
-    data: [...chatModels, ...imageModels]
-  }), {
-    headers: { "Content-Type": "application/json", ...corsHeaders }
-  });
-}
 
 function handleChatModelList(corsHeaders = {}) {
   const chatModels = Object.keys(exposedToInternalMap).map((id) => ({
