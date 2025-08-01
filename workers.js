@@ -66,6 +66,41 @@ const imageModelRoutes = {
     displayName: "Turbo - Fast Generation",
     width: 1024,
     height: 1024
+  },
+  "img3": {
+    provider: "infip",
+    baseUrl: "https://api.infip.pro/v1/images/generations",
+    displayName: "IMG3 - Image Generation",
+    width: 1024,
+    height: 1024
+  },
+  "img4": {
+    provider: "infip",
+    baseUrl: "https://api.infip.pro/v1/images/generations",
+    displayName: "IMG4 - Image Generation",
+    width: 1024,
+    height: 1024
+  },
+  "uncen": {
+    provider: "infip",
+    baseUrl: "https://api.infip.pro/v1/images/generations",
+    displayName: "Uncen - Image Generation",
+    width: 1024,
+    height: 1024
+  },
+  "qwen": {
+    provider: "infip",
+    baseUrl: "https://api.infip.pro/v1/images/generations",
+    displayName: "Qwen - Image Generation",
+    width: 1024,
+    height: 1024
+  },
+  "gemini2.0": {
+    provider: "infip",
+    baseUrl: "https://api.infip.pro/v1/images/generations",
+    displayName: "Gemini 2.0 - Image Generation",
+    width: 1024,
+    height: 1024
   }
 };
 
@@ -208,7 +243,7 @@ async function handleChat(request, corsHeaders) {
 async function handleImage(request, corsHeaders) {
   const body = await request.json();
   const model = body.model || "flux";
-  const prompt = encodeURIComponent(body.prompt || "");
+  const prompt = body.prompt || "";
 
   if (!imageModelRoutes[model]) {
     return new Response(JSON.stringify({ error: `Image model '${model}' is not supported.` }), {
@@ -217,33 +252,67 @@ async function handleImage(request, corsHeaders) {
     });
   }
 
-  const { baseUrl } = imageModelRoutes[model];
+  const { baseUrl, provider } = imageModelRoutes[model];
 
-  const params = new URLSearchParams({
-    model,
-    width: body.width || 1024,
-    height: body.height || 1024,
-    seed: body.seed || "",
-    image: body.image || "",
-    private: "true",
-    enhance: body.enhance ? "true" : "false",
-    safe: body.safe ? "true" : "false",
-    transparent: body.transparent ? "true" : "false",
-    nologo: "true",
-    referrer: "aham-ai"
-  });
+  if (provider === "infip") {
+    // Handle infip API
+    const requestBody = {
+      model: model,
+      prompt: prompt,
+      n: body.n || 1,
+      size: body.size || "1024x1024"
+    };
 
-  const imageUrl = `${baseUrl}${prompt}?${params.toString()}`;
-  const imageRes = await fetch(imageUrl);
+    const infipResponse = await fetch(baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer infip-532d3377`
+      },
+      body: JSON.stringify(requestBody)
+    });
 
-  return new Response(imageRes.body, {
-    status: imageRes.status,
-    headers: {
-      "Content-Type": imageRes.headers.get("Content-Type") || "image/jpeg",
-      "Transfer-Encoding": "chunked",
-      ...corsHeaders
+    if (!infipResponse.ok) {
+      return new Response(JSON.stringify({ error: "Failed to generate image" }), {
+        status: infipResponse.status,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
     }
-  });
+
+    const result = await infipResponse.json();
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  } else {
+    // Handle pollinations API (existing flux/turbo models)
+    const encodedPrompt = encodeURIComponent(prompt);
+    const params = new URLSearchParams({
+      model,
+      width: body.width || 1024,
+      height: body.height || 1024,
+      seed: body.seed || "",
+      image: body.image || "",
+      private: "true",
+      enhance: body.enhance ? "true" : "false",
+      safe: body.safe ? "true" : "false",
+      transparent: body.transparent ? "true" : "false",
+      nologo: "true",
+      referrer: "aham-ai"
+    });
+
+    const imageUrl = `${baseUrl}${encodedPrompt}?${params.toString()}`;
+    const imageRes = await fetch(imageUrl);
+
+    return new Response(imageRes.body, {
+      status: imageRes.status,
+      headers: {
+        "Content-Type": imageRes.headers.get("Content-Type") || "image/jpeg",
+        "Transfer-Encoding": "chunked",
+        ...corsHeaders
+      }
+    });
+  }
 }
 
 function handleModelList(corsHeaders = {}) {
@@ -253,10 +322,10 @@ function handleModelList(corsHeaders = {}) {
     owned_by: "openai-compatible"
   }));
 
-  const imageModels = Object.keys(imageModelRoutes).map((id) => ({
+  const imageModels = Object.entries(imageModelRoutes).map(([id, meta]) => ({
     id,
-    object: "image-model",
-    owned_by: "pollinations"
+    object: "model",
+    owned_by: meta.provider
   }));
 
   return new Response(JSON.stringify({
@@ -285,11 +354,12 @@ function handleChatModelList(corsHeaders = {}) {
 function handleImageModelList(corsHeaders = {}) {
   const models = Object.entries(imageModelRoutes).map(([id, meta]) => ({
     id,
-    object: "image-model",
+    object: "model",
     provider: meta.provider,
     name: meta.displayName,
     width: meta.width,
-    height: meta.height
+    height: meta.height,
+    owned_by: meta.provider
   }));
 
   return new Response(JSON.stringify({
