@@ -11,6 +11,8 @@ const exposedToInternalMap = {
   "grok-3": "grok-3(clinesp)",
   "qwen3-coder-480B-A35B-instruct": "provider5-Qwen/Qwen3-Coder-480B-A35B-Instruct",
   "deepseek-chat-v3-0324-free": "deepseek-chat-v3-0324:free(clinesp)",
+  // DeepSeek R1 - Free & Uncensored
+  "deepseek-r1": "NiansuhAI/DeepSeek-R1",
   // Web search models
   "sonar": "io-4/sonar",
   "sonar-pro": "io-4/sonar-pro",
@@ -37,6 +39,8 @@ const modelRoutes = {
   "grok-3(clinesp)": "https://samuraiapi.in/v1/chat/completions",
   "provider5-Qwen/Qwen3-Coder-480B-A35B-Instruct": "https://samuraiapi.in/v1/chat/completions",
   "deepseek-chat-v3-0324:free(clinesp)": "https://samuraiapi.in/v1/chat/completions",
+  // DeepSeek R1 - Free & Uncensored
+  "NiansuhAI/DeepSeek-R1": "https://fast.typegpt.net/v1/chat/completions",
   // Web search models routes
   "io-4/sonar": "https://lm.0.sdk.li/v1/chat/completions",
   "io-4/sonar-pro": "https://lm.0.sdk.li/v1/chat/completions",
@@ -202,6 +206,9 @@ async function handleChat(request, corsHeaders) {
   } else if (modelRoutes[internalModel].includes('api.v0.dev')) {
     // For v0.dev endpoint
     headers["Authorization"] = "Bearer v1:team_m5jgJm4W1wUMbgEjKzSQVapS:1QFTMtR5LJB9gqjdafPGyct1";
+  } else if (modelRoutes[internalModel].includes('fast.typegpt.net')) {
+    // For DeepSeek R1 endpoint
+    headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
   } else {
     // For existing lm.0.sdk.li endpoint
     headers["Authorization"] = "Bearer LM0_QZMKWYVVUDYAIUDG.1748-UPYOUMDGIMAV";
