@@ -15,10 +15,10 @@ const exposedToInternalMap = {
   "gemini-2.5-pro": "gemini-2.5-pro",
   "gpt-4.1": "gpt-4.1",
   "o4-mini": "o4-mini",
-  // Samurai API models
-  "claude-sonnet-4-bedrock": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
-  "claude-opus-4-bedrock": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
-  "grok-4": "Paid/xai/grok-4"
+  // Samurai API models (updated with actual available models)
+  "claude-3.5-sonnet-samurai": "paid/replcate/claude-3.5-sonnet",
+  "claude-3.7-sonnet-samurai": "paid/replcate/claude-3.7-sonnet",
+  "claude-4-sonnet-samurai": "paid/replcate/claude-4-sonnet"
 };
 
 const modelRoutes = {
@@ -36,10 +36,10 @@ const modelRoutes = {
   "gemini-2.5-pro": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
   "gpt-4.1": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
   "o4-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  // Samurai API models
-  "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
-  "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
-  "Paid/xai/grok-4": "https://samuraiapi.in/v1/chat/completions"
+  // Samurai API models (updated with actual available models)
+  "paid/replcate/claude-3.5-sonnet": "https://samuraiapi.in/v1/chat/completions",
+  "paid/replcate/claude-3.7-sonnet": "https://samuraiapi.in/v1/chat/completions",
+  "paid/replcate/claude-4-sonnet": "https://samuraiapi.in/v1/chat/completions"
 };
 
 const imageModelRoutes = {
