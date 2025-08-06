@@ -6,18 +6,6 @@ var API_KEY = "ahamaibyprakash25";
 var exposedToInternalMap = {
   // DeepSeek R1 - Free & Uncensored (keeping this one)
   "deepseek-r1": "NiansuhAI/DeepSeek-R1",
-  // GitHub Copilot/Hugging Face spaces models
-  "gpt-4o": "gpt-4o",
-  "o3-mini": "o3-mini",
-  "o1": "o1",
-  "claude-3.5-sonnet": "claude-3.5-sonnet",
-  "claude-3.7-sonnet": "claude-3.7-sonnet",
-  "claude-3.7-sonnet-thought": "claude-3.7-sonnet-thought",
-  "claude-sonnet-4": "claude-sonnet-4",
-  "gemini-2.0-flash-001": "gemini-2.0-flash-001",
-  "gemini-2.5-pro": "gemini-2.5-pro",
-  "gpt-4.1": "gpt-4.1",
-  "o4-mini": "o4-mini",
   // Samurai API models with Paid prefix (simple naming)
   "claude-sonnet-4": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
   "claude-opus-4": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
@@ -31,18 +19,6 @@ var exposedToInternalMap = {
 var modelRoutes = {
   // DeepSeek R1 - keeping original route
   "NiansuhAI/DeepSeek-R1": "https://fast.typegpt.net/v1/chat/completions",
-  // GitHub Copilot/Hugging Face spaces models
-  "gpt-4o": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  "o3-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  "o1": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  "claude-3.5-sonnet": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  "claude-3.7-sonnet": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  "claude-3.7-sonnet-thought": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  "claude-sonnet-4": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  "gemini-2.0-flash-001": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  "gemini-2.5-pro": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  "gpt-4.1": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  "o4-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
   // Samurai API models with Paid prefix (renamed for client)
   "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
   "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
@@ -117,9 +93,8 @@ function getWorkingModels() {
 }
 __name(getWorkingModels, "getWorkingModels");
 var modelCategories = {
-  claude: ["claude-sonnet-4", "claude-opus-4", "claude-3.5-sonnet", "claude-3.7-sonnet", "claude-3.7-sonnet-thought"],
-  openai: ["gpt-4o", "gpt-4.1", "o1", "o3-mini", "o4-mini", "gpt-4o-samurai", "gpt-4o-latest"],
-  google: ["gemini-2.0-flash-001", "gemini-2.5-pro"],
+  claude: ["claude-sonnet-4", "claude-opus-4"],
+  openai: ["gpt-4o-samurai", "gpt-4o-latest"],
   xai: ["grok-4"],
   moonshot: ["kimi-k2-instruct"],
   deepseek: ["deepseek-r1"]
@@ -197,8 +172,7 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
   let headers = {
     "Content-Type": "application/json"
   };
-  if (modelRoutes[internalModel].includes("samfy001-giuthubsss.hf.space")) {
-  } else if (modelRoutes[internalModel].includes("fast.typegpt.net")) {
+  if (modelRoutes[internalModel].includes("fast.typegpt.net")) {
     headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
   } else if (modelRoutes[internalModel].includes("samuraiapi.in")) {
     headers["Authorization"] = "Bearer sk-IvMBi9qmzLiWHl0RpJ9KbyJpczm9YSIHAnMU2aDBbkpbYLF8";
@@ -226,9 +200,6 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
       } catch (e) {
         return null;
       }
-    }
-    if (modelRoutes[internalModel].includes("samfy001-giuthubsss.hf.space")) {
-      return null;
     }
     return new Response(response.body, {
       status: response.status,
