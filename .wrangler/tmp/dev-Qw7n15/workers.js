@@ -18,9 +18,9 @@ var exposedToInternalMap = {
   "gemini-2.5-pro": "gemini-2.5-pro",
   "gpt-4.1": "gpt-4.1",
   "o4-mini": "o4-mini",
-  // Samurai API models with Paid prefix
-  "claude-sonnet-4-bedrock": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
-  "claude-opus-4-bedrock": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
+  // Samurai API models with Paid prefix (renamed for client)
+  "claude-sonnet-4-pro": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
+  "claude-opus-4-pro": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
   "grok-4": "Paid/xai/grok-4"
 };
 var modelRoutes = {
@@ -38,7 +38,7 @@ var modelRoutes = {
   "gemini-2.5-pro": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
   "gpt-4.1": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
   "o4-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  // Samurai API models with Paid prefix
+  // Samurai API models with Paid prefix (renamed for client)
   "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
   "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
   "Paid/xai/grok-4": "https://samuraiapi.in/v1/chat/completions"
@@ -95,10 +95,27 @@ var imageModelRoutes = {
   }
 };
 var defaultModels = {
-  vision: "claude-3.5-sonnet",
+  vision: "claude-sonnet-4-pro",
   // Default vision model
-  webSearch: "claude-3.5-sonnet"
+  webSearch: "claude-sonnet-4-pro"
   // Default web search model
+};
+var fallbackModels = [
+  "claude-sonnet-4-pro",
+  // Primary fallback - reliable Samurai API
+  "claude-opus-4-pro",
+  // Secondary fallback - reliable Samurai API
+  "grok-4",
+  // Tertiary fallback - reliable Samurai API
+  "deepseek-r1"
+  // Final fallback - always working
+];
+var modelCategories = {
+  claude: ["claude-sonnet-4-pro", "claude-opus-4-pro", "claude-3.5-sonnet", "claude-3.7-sonnet"],
+  openai: ["gpt-4o", "gpt-4.1", "o1", "o3-mini", "o4-mini"],
+  google: ["gemini-2.0-flash-001", "gemini-2.5-pro"],
+  xai: ["grok-4"],
+  deepseek: ["deepseek-r1"]
 };
 var workers_default = {
   async fetch(request) {
@@ -146,16 +163,23 @@ var workers_default = {
     });
   }
 };
-async function handleChat(request, corsHeaders) {
-  const body = await request.json();
-  const exposedModel = body.model;
-  const internalModel = exposedToInternalMap[exposedModel];
-  const stream = body.stream === true;
+function getIntelligentFallback(originalModel) {
+  for (const [category, models] of Object.entries(modelCategories)) {
+    if (models.includes(originalModel)) {
+      for (const model of models) {
+        if (model !== originalModel && fallbackModels.includes(model)) {
+          return model;
+        }
+      }
+    }
+  }
+  return fallbackModels[0];
+}
+__name(getIntelligentFallback, "getIntelligentFallback");
+async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
+  const internalModel = exposedToInternalMap[modelId];
   if (!internalModel || !modelRoutes[internalModel]) {
-    return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
+    return null;
   }
   let headers = {
     "Content-Type": "application/json"
@@ -166,21 +190,78 @@ async function handleChat(request, corsHeaders) {
   } else if (modelRoutes[internalModel].includes("samuraiapi.in")) {
     headers["Authorization"] = "Bearer sk-IvMBi9qmzLiWHl0RpJ9KbyJpczm9YSIHAnMU2aDBbkpbYLF8";
   }
-  const response = await fetch(modelRoutes[internalModel], {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ ...body, model: internalModel })
-  });
-  return stream ? new Response(response.body, {
-    status: response.status,
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Transfer-Encoding": "chunked",
-      "Cache-Control": "no-cache",
-      ...corsHeaders
+  try {
+    const response = await fetch(modelRoutes[internalModel], {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...requestBody, model: internalModel })
+    });
+    if (!response.ok || response.status >= 400) {
+      return null;
     }
-  }) : new Response(await response.text(), {
-    status: response.status,
+    if (!stream) {
+      const responseText = await response.text();
+      try {
+        const responseJson = JSON.parse(responseText);
+        if (responseJson.error || responseJson.choices && responseJson.choices[0] && responseJson.choices[0].message && responseJson.choices[0].message.content === "") {
+          return null;
+        }
+        return new Response(responseText, {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      } catch (e) {
+        return null;
+      }
+    }
+    return new Response(response.body, {
+      status: response.status,
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Transfer-Encoding": "chunked",
+        "Cache-Control": "no-cache",
+        ...corsHeaders
+      }
+    });
+  } catch (error) {
+    return null;
+  }
+}
+__name(tryModelRequest, "tryModelRequest");
+async function handleChat(request, corsHeaders) {
+  const body = await request.json();
+  const exposedModel = body.model;
+  const stream = body.stream === true;
+  if (!exposedToInternalMap[exposedModel]) {
+    return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), {
+      status: 400,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
+  let result = await tryModelRequest(exposedModel, body, stream, corsHeaders);
+  if (result) {
+    return result;
+  }
+  const intelligentFallback = getIntelligentFallback(exposedModel);
+  if (intelligentFallback !== exposedModel) {
+    result = await tryModelRequest(intelligentFallback, body, stream, corsHeaders);
+    if (result) {
+      return result;
+    }
+  }
+  for (const fallbackModel of fallbackModels) {
+    if (fallbackModel !== exposedModel && fallbackModel !== intelligentFallback) {
+      result = await tryModelRequest(fallbackModel, body, stream, corsHeaders);
+      if (result) {
+        return result;
+      }
+    }
+  }
+  return new Response(JSON.stringify({
+    error: `Model '${exposedModel}' and all fallback models are currently unavailable. Please try again later.`,
+    attempted_fallbacks: fallbackModels
+  }), {
+    status: 503,
     headers: { "Content-Type": "application/json", ...corsHeaders }
   });
 }
@@ -372,7 +453,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-zWpGle/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-kTCXPv/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -404,7 +485,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-zWpGle/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-kTCXPv/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
