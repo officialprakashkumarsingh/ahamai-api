@@ -18,14 +18,7 @@ const exposedToInternalMap = {
   // Samurai API models with Paid prefix (simple naming)
   "claude-sonnet-4": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
   "claude-opus-4": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
-  "grok-4": "Paid/xai/grok-4",
-  // Baseten API models - High-quality reasoning models with function calling
-  "kimi-k2-instruct": "moonshotai/Kimi-K2-Instruct",
-  "llama-4-scout": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
-  "llama-4-maverick": "meta-llama/Llama-4-Maverick-17B-128E-Instruct",
-  "deepseek-v3": "deepseek-ai/DeepSeek-V3-0324",
-  "deepseek-r1-baseten": "deepseek-ai/DeepSeek-R1",
-  "deepseek-r1-0528": "deepseek-ai/DeepSeek-R1-0528"
+  "grok-4": "Paid/xai/grok-4"
 };
 
 const modelRoutes = {
