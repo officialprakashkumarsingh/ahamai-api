@@ -201,9 +201,10 @@ async function processAhamAIV1(requestBody, corsHeaders) {
   let scrapedContent = null;
   let imageResults = null;
 
-  // Check for uncensored content requirements
-  const uncensoredKeywords = ["uncensored", "jailbreak", "bypass", "hack", "exploit", "nsfw", "adult", "forbidden", "restricted"];
-  const isUncensored = uncensoredKeywords.some(keyword => content.toLowerCase().includes(keyword));
+  // Intelligent content analysis for task type detection
+  const isUncensored = analyzeForUncensoredContent(content);
+  const isCreativeTask = analyzeForCreativeContent(content);
+  const isVisionTask = hasImages || analyzeForVisionContent(content);
 
   // Check if user wants search functionality
   if (content.toLowerCase().includes("search") || content.toLowerCase().includes("find") || 
@@ -245,16 +246,15 @@ async function processAhamAIV1(requestBody, corsHeaders) {
     }
   }
 
-  // Determine which AI model to use based on task type and requirements
+  // Determine which AI model to use based on intelligent task analysis
   let selectedModel;
   if (isUncensored) {
     selectedModel = getAhamAIFallback("uncensored");
     taskType = "uncensored";
-  } else if (hasImages) {
+  } else if (isVisionTask) {
     selectedModel = getAhamAIFallback("vision");
     taskType = "vision";
-  } else if (content.toLowerCase().includes("creative") || content.toLowerCase().includes("story") || 
-             content.toLowerCase().includes("imagine")) {
+  } else if (isCreativeTask) {
     selectedModel = getAhamAIFallback("creative");
     taskType = "creative";
   } else {
@@ -414,6 +414,123 @@ function extractSearchQuery(content) {
 
   // If no pattern matches, use the whole content (cleaned)
   return content.replace(/search|find|lookup|browse|what is|tell me about/gi, '').trim();
+}
+
+// Intelligent content analysis functions
+function analyzeForUncensoredContent(content) {
+  const contentLower = content.toLowerCase();
+  
+  // Analyze content context and intent rather than just keywords
+  const uncensoredIndicators = [
+    // Direct requests for bypassing restrictions
+    contentLower.includes('without restrictions') || contentLower.includes('no limits'),
+    contentLower.includes('bypass') && (contentLower.includes('filter') || contentLower.includes('restriction')),
+    contentLower.includes('uncensored') || contentLower.includes('unfiltered'),
+    
+    // Requests for sensitive content with academic/research framing
+    (contentLower.includes('academic') || contentLower.includes('research')) && 
+    (contentLower.includes('sensitive') || contentLower.includes('controversial')),
+    
+    // Jailbreaking context
+    contentLower.includes('jailbreak') || contentLower.includes('dan ') || contentLower.includes('do anything now'),
+    
+    // Content that suggests rule breaking
+    contentLower.includes('ignore') && (contentLower.includes('guidelines') || contentLower.includes('instructions')),
+    
+    // Explicit requests for adult/mature content
+    contentLower.includes('nsfw') || contentLower.includes('adult content'),
+    
+    // Hacking/security context (when not clearly educational)
+    !contentLower.includes('learn') && !contentLower.includes('education') && 
+    (contentLower.includes('hack') || contentLower.includes('exploit')),
+    
+    // Requests to act outside normal parameters
+    contentLower.includes('pretend you are') && contentLower.includes('unrestricted')
+  ];
+
+  return uncensoredIndicators.some(indicator => indicator);
+}
+
+function analyzeForCreativeContent(content) {
+  const contentLower = content.toLowerCase();
+  
+  // Analyze for creative writing, storytelling, and imaginative tasks
+  const creativeIndicators = [
+    // Story and narrative requests
+    contentLower.includes('write a story') || contentLower.includes('tell a story'),
+    contentLower.includes('create a narrative') || contentLower.includes('craft a tale'),
+    
+    // Imaginative and creative prompts
+    contentLower.includes('imagine') || contentLower.includes('envision'),
+    contentLower.includes('creative writing') || contentLower.includes('fiction'),
+    
+    // Character and world building
+    contentLower.includes('character') && (contentLower.includes('create') || contentLower.includes('develop')),
+    contentLower.includes('world building') || contentLower.includes('fantasy world'),
+    
+    // Poetry and artistic expression
+    contentLower.includes('poem') || contentLower.includes('poetry'),
+    contentLower.includes('artistic') || contentLower.includes('creative expression'),
+    
+    // Dialogue and script writing
+    contentLower.includes('dialogue') || contentLower.includes('conversation between'),
+    contentLower.includes('script') || contentLower.includes('screenplay'),
+    
+    // Brainstorming and ideation
+    contentLower.includes('brainstorm') || contentLower.includes('come up with ideas'),
+    contentLower.includes('innovative') || contentLower.includes('out of the box'),
+    
+    // Genre-specific creative content
+    contentLower.includes('sci-fi') || contentLower.includes('science fiction'),
+    contentLower.includes('fantasy') || contentLower.includes('magical'),
+    contentLower.includes('horror') || contentLower.includes('thriller'),
+    
+    // Creative problem solving
+    contentLower.includes('creative solution') || contentLower.includes('think creatively')
+  ];
+
+  return creativeIndicators.some(indicator => indicator);
+}
+
+function analyzeForVisionContent(content) {
+  const contentLower = content.toLowerCase();
+  
+  // Analyze for vision-related tasks and image processing needs
+  const visionIndicators = [
+    // Direct image analysis requests
+    contentLower.includes('analyze this image') || contentLower.includes('describe the image'),
+    contentLower.includes('what do you see') || contentLower.includes('look at this'),
+    
+    // Visual description and interpretation
+    contentLower.includes('visual') && (contentLower.includes('analysis') || contentLower.includes('description')),
+    contentLower.includes('describe what') || contentLower.includes('tell me about the image'),
+    
+    // Image content analysis
+    contentLower.includes('in the image') || contentLower.includes('from the picture'),
+    contentLower.includes('photo') && (contentLower.includes('shows') || contentLower.includes('contains')),
+    
+    // OCR and text recognition
+    contentLower.includes('read the text') || contentLower.includes('extract text'),
+    contentLower.includes('ocr') || contentLower.includes('text recognition'),
+    
+    // Art and design analysis
+    contentLower.includes('artwork') || contentLower.includes('painting'),
+    contentLower.includes('design') && contentLower.includes('analyze'),
+    
+    // Object and scene recognition
+    contentLower.includes('identify') && (contentLower.includes('object') || contentLower.includes('person')),
+    contentLower.includes('scene') && contentLower.includes('describe'),
+    
+    // Medical/scientific image analysis
+    contentLower.includes('medical image') || contentLower.includes('x-ray'),
+    contentLower.includes('chart') || contentLower.includes('graph'),
+    
+    // Photography analysis
+    contentLower.includes('composition') || contentLower.includes('lighting'),
+    contentLower.includes('camera') && contentLower.includes('settings')
+  ];
+
+  return visionIndicators.some(indicator => indicator);
 }
 
 export default {
