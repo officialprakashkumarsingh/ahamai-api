@@ -196,7 +196,8 @@ async function processAhamAIV1(requestBody, corsHeaders) {
   const isUncensored = analyzeForUncensoredContent(content);
   const isCreativeTask = analyzeForCreativeContent(content);
   const isVisionTask = hasImages || analyzeForVisionContent(content);
-  if (content.toLowerCase().includes("search") || content.toLowerCase().includes("find") || content.toLowerCase().includes("lookup") || content.toLowerCase().includes("browse")) {
+  const isSimpleQuery = content.length < 20 || content.toLowerCase().match(/^(hi|hello|hey|thanks|thank you|ok|okay|yes|no)$/);
+  if (!isSimpleQuery) {
     const searchQuery = extractSearchQuery(content);
     const searchPromises = [
       enhancedGoogleSearch(searchQuery, 8),
@@ -443,18 +444,32 @@ function analyzeForUncensoredContent(content) {
     contentLower.includes("without restrictions") || contentLower.includes("no limits"),
     contentLower.includes("bypass") && (contentLower.includes("filter") || contentLower.includes("restriction")),
     contentLower.includes("uncensored") || contentLower.includes("unfiltered"),
+    // Adult/Sexual content keywords
+    contentLower.includes("porn") || contentLower.includes("pornography"),
+    contentLower.includes("adult content") || contentLower.includes("adult themes"),
+    contentLower.includes("sexual") || contentLower.includes("erotic"),
+    contentLower.includes("xxx") || contentLower.includes("nsfw"),
+    contentLower.includes("mature content") || contentLower.includes("explicit"),
+    contentLower.includes("sex") && !contentLower.includes("gender"),
+    contentLower.includes("nude") || contentLower.includes("naked"),
+    contentLower.includes("fetish") || contentLower.includes("kink"),
+    // Drug/illegal content
+    contentLower.includes("drug") && !contentLower.includes("pharmacy"),
+    contentLower.includes("illegal") || contentLower.includes("criminal"),
+    contentLower.includes("weapon") || contentLower.includes("violence"),
     // Requests for sensitive content with academic/research framing
-    (contentLower.includes("academic") || contentLower.includes("research")) && (contentLower.includes("sensitive") || contentLower.includes("controversial")),
+    (contentLower.includes("academic") || contentLower.includes("research")) && (contentLower.includes("sensitive") || contentLower.includes("controversial") || contentLower.includes("adult")),
     // Jailbreaking context
     contentLower.includes("jailbreak") || contentLower.includes("dan ") || contentLower.includes("do anything now"),
     // Content that suggests rule breaking
     contentLower.includes("ignore") && (contentLower.includes("guidelines") || contentLower.includes("instructions")),
-    // Explicit requests for adult/mature content
-    contentLower.includes("nsfw") || contentLower.includes("adult content"),
     // Hacking/security context (when not clearly educational)
     !contentLower.includes("learn") && !contentLower.includes("education") && (contentLower.includes("hack") || contentLower.includes("exploit")),
     // Requests to act outside normal parameters
-    contentLower.includes("pretend you are") && contentLower.includes("unrestricted")
+    contentLower.includes("pretend you are") && contentLower.includes("unrestricted"),
+    // Content creation requests
+    contentLower.includes("create") && (contentLower.includes("adult") || contentLower.includes("explicit")),
+    contentLower.includes("generate") && (contentLower.includes("porn") || contentLower.includes("sexual"))
   ];
   return uncensoredIndicators.some((indicator) => indicator);
 }
