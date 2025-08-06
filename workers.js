@@ -189,7 +189,7 @@ async function handleChat(request, corsHeaders) {
     headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
   } else if (modelRoutes[internalModel].includes('samuraiapi.in')) {
     // For Samurai API endpoint
-    headers["Authorization"] = "Bearer sk-ZDSU7f4xtttJxDc6qp95HT013E1TAp6RDnusMdrk8XY3MVTC";
+    headers["Authorization"] = "Bearer sk-IvMBi9qmzLiWHl0RpJ9KbyJpczm9YSIHAnMU2aDBbkpbYLF8";
   }
 
   const response = await fetch(modelRoutes[internalModel], {
