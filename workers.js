@@ -212,6 +212,14 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
     return null;
   }
 
+  // Special handling for DeepSeek R1 - force uncensored mode by removing system prompts
+  let modifiedBody = { ...requestBody };
+  if (internalModel === "NiansuhAI/DeepSeek-R1") {
+    // Filter out system prompts to keep uncensored mode
+    modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
+    console.log(`🔥 DeepSeek R1 Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s)`);
+  }
+
   let headers = { 
     "Content-Type": "application/json"
   };
@@ -232,7 +240,7 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
     const response = await fetch(modelRoutes[internalModel], {
       method: "POST",
       headers: headers,
-      body: JSON.stringify({ ...requestBody, model: internalModel })
+      body: JSON.stringify({ ...modifiedBody, model: internalModel })
     });
 
     // Check if response indicates an error
