@@ -14,7 +14,11 @@ const exposedToInternalMap = {
   "gemini-2.0-flash-001": "gemini-2.0-flash-001",
   "gemini-2.5-pro": "gemini-2.5-pro",
   "gpt-4.1": "gpt-4.1",
-  "o4-mini": "o4-mini"
+  "o4-mini": "o4-mini",
+  // Samurai API models
+  "claude-sonnet-4-bedrock": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
+  "claude-opus-4-bedrock": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
+  "grok-4": "Paid/xai/grok-4"
 };
 
 const modelRoutes = {
@@ -31,7 +35,11 @@ const modelRoutes = {
   "gemini-2.0-flash-001": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
   "gemini-2.5-pro": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
   "gpt-4.1": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  "o4-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions"
+  "o4-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  // Samurai API models
+  "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
+  "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
+  "Paid/xai/grok-4": "https://samuraiapi.in/v1/chat/completions"
 };
 
 const imageModelRoutes = {
@@ -179,6 +187,9 @@ async function handleChat(request, corsHeaders) {
   } else if (modelRoutes[internalModel].includes('fast.typegpt.net')) {
     // For DeepSeek R1 endpoint
     headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
+  } else if (modelRoutes[internalModel].includes('samuraiapi.in')) {
+    // For Samurai API endpoint
+    headers["Authorization"] = "Bearer sk-ZDSU7f4xtttJxDc6qp95HT013E1TAp6RDnusMdrk8XY3MVTC";
   }
 
   const response = await fetch(modelRoutes[internalModel], {
