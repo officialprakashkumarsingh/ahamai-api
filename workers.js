@@ -116,8 +116,272 @@ const modelCategories = {
   google: ["gemini-2.5-flash", "gemini-2.0-flash-thinking"],
   xai: ["grok-4"],
   moonshot: ["kimi-k2-instruct"],
-  deepseek: ["deepseek-r1"]
+  deepseek: ["deepseek-r1"],
+  browse: ["BrowseByAhamAI"]
 };
+
+// BrowseByAhamAI External API Helper Functions
+async function googleSearch(query, numResults = 10) {
+  try {
+    const url = `https://googlesearchapi.nepcoderapis.workers.dev/?q=${encodeURIComponent(query)}&num=${numResults}`;
+    const response = await fetch(url);
+    return await response.json();
+  } catch (error) {
+    console.error('Google Search API error:', error);
+    return { error: "Google Search failed" };
+  }
+}
+
+async function webScraper(url) {
+  try {
+    const scrapeUrl = `https://scrap.ytansh038.workers.dev/?url=${encodeURIComponent(url)}`;
+    const response = await fetch(scrapeUrl);
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Web Scraper API error:', error);
+    return { error: "Web scraping failed" };
+  }
+}
+
+async function bingSearch(query, state = "web", count = 10) {
+  try {
+    const url = `https://microsoftdeepsearch.anshppt19.workers.dev/?search=${encodeURIComponent(query)}&state=${state}&count=${count}`;
+    const response = await fetch(url);
+    return await response.json();
+  } catch (error) {
+    console.error('Bing Search API error:', error);
+    return { error: "Bing search failed" };
+  }
+}
+
+// BrowseByAhamAI Fallback Models for different tasks
+const browseAIFallbacks = {
+  analysis: ["claude-opus-4", "gemini-2.5-flash", "gpt-4o-latest"],
+  vision: ["grok-4", "claude-opus-4", "gemini-2.5-flash"],
+  creative: ["gemini-2.0-flash-thinking", "claude-opus-4", "deepseek-r1"]
+};
+
+// Function to get working fallback model for specific task
+function getBrowseAIFallback(taskType = "analysis") {
+  const fallbackModels = browseAIFallbacks[taskType] || browseAIFallbacks.analysis;
+  const workingModels = getWorkingModels();
+  
+  for (const model of fallbackModels) {
+    if (workingModels.includes(model)) {
+      return model;
+    }
+  }
+  return workingModels[0]; // Default fallback
+}
+
+// Main BrowseByAhamAI processing function
+async function processBrowseByAhamAI(requestBody, corsHeaders) {
+  const userMessage = requestBody.messages[requestBody.messages.length - 1]?.content;
+  if (!userMessage) {
+    return new Response(JSON.stringify({ error: "No user message found" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
+
+  let content = userMessage;
+  let hasImages = false;
+  
+  // Check if user message contains images (vision capability)
+  if (Array.isArray(userMessage)) {
+    hasImages = userMessage.some(item => item.type === "image_url");
+    content = userMessage.find(item => item.type === "text")?.text || "";
+  }
+
+  // Determine task type and required capabilities
+  let taskType = "analysis";
+  let searchResults = null;
+  let scrapedContent = null;
+  let imageResults = null;
+
+  // Check if user wants search functionality
+  if (content.toLowerCase().includes("search") || content.toLowerCase().includes("find") || 
+      content.toLowerCase().includes("lookup") || content.toLowerCase().includes("browse")) {
+    
+    // Extract search query
+    const searchQuery = extractSearchQuery(content);
+    
+    // Perform multiple searches in parallel
+    const searchPromises = [
+      googleSearch(searchQuery, 5),
+      bingSearch(searchQuery, "web", 5)
+    ];
+
+    // Add image search if needed
+    if (content.toLowerCase().includes("image") || content.toLowerCase().includes("picture") || 
+        content.toLowerCase().includes("photo") || hasImages) {
+      searchPromises.push(bingSearch(searchQuery, "image", 10));
+      taskType = "vision";
+    }
+
+    try {
+      const results = await Promise.all(searchPromises);
+      searchResults = {
+        google: results[0],
+        bing: results[1],
+        images: results[2] || null
+      };
+
+      // If we have good search results, scrape top URLs for more content
+      if (searchResults.google && searchResults.google.length > 0) {
+        const topUrl = searchResults.google[0]?.link;
+        if (topUrl) {
+          scrapedContent = await webScraper(topUrl);
+        }
+      }
+    } catch (error) {
+      console.error('Search operations failed:', error);
+    }
+  }
+
+  // Determine which AI model to use based on task type and image presence
+  let selectedModel;
+  if (hasImages) {
+    selectedModel = getBrowseAIFallback("vision");
+  } else if (content.toLowerCase().includes("creative") || content.toLowerCase().includes("story") || 
+             content.toLowerCase().includes("imagine")) {
+    selectedModel = getBrowseAIFallback("creative");
+  } else {
+    selectedModel = getBrowseAIFallback("analysis");
+  }
+
+  // Enhance the original message with search results and context
+  let enhancedContent = content;
+  
+  if (searchResults || scrapedContent) {
+    enhancedContent += "\n\n**BrowseByAhamAI Context:**\n";
+    
+    if (searchResults?.google && searchResults.google.length > 0) {
+      enhancedContent += "\n**Search Results:**\n";
+      searchResults.google.slice(0, 3).forEach((result, index) => {
+        enhancedContent += `${index + 1}. ${result.title}\n   ${result.snippet}\n   URL: ${result.link}\n\n`;
+      });
+    }
+
+    if (scrapedContent && !scrapedContent.error) {
+      enhancedContent += "\n**Additional Content from Top Result:**\n";
+      // Extract meaningful text from scraped content (limit to avoid token overflow)
+      const textContent = scrapedContent.content?.replace(/<[^>]*>/g, ' ').substring(0, 2000) || '';
+      enhancedContent += textContent + "\n\n";
+    }
+
+    if (searchResults?.images && searchResults.images.images?.results) {
+      enhancedContent += "\n**Related Images Found:**\n";
+      searchResults.images.images.results.slice(0, 5).forEach((imageUrl, index) => {
+        enhancedContent += `${index + 1}. ${imageUrl}\n`;
+      });
+      enhancedContent += "\n";
+    }
+  }
+
+  // Create enhanced message for the selected AI model
+  let enhancedMessages;
+  if (hasImages) {
+    // For vision tasks, keep the original format but enhance text
+    enhancedMessages = [...requestBody.messages];
+    const lastMessage = enhancedMessages[enhancedMessages.length - 1];
+    if (Array.isArray(lastMessage.content)) {
+      const textIndex = lastMessage.content.findIndex(item => item.type === "text");
+      if (textIndex !== -1) {
+        lastMessage.content[textIndex].text = enhancedContent;
+      }
+    }
+  } else {
+    // For text-only tasks
+    enhancedMessages = [
+      ...requestBody.messages.slice(0, -1),
+      {
+        role: "user",
+        content: enhancedContent
+      }
+    ];
+  }
+
+  // Add BrowseByAhamAI system prompt
+  const systemPrompt = {
+    role: "system",
+    content: `You are BrowseByAhamAI, an advanced AI assistant created by AhamAI that combines web browsing, search, and analysis capabilities. You have access to real-time web search results, scraped content, and image search results. Provide comprehensive, accurate, and insightful responses based on the enhanced context provided. Always acknowledge when you're using web-sourced information and cite sources when available.
+
+**Your capabilities include:**
+- Real-time web search via Google and Bing
+- Web page content scraping and analysis  
+- Image search and vision analysis
+- Multi-source information synthesis
+- Intelligent fallback to specialized AI models
+
+**Response Guidelines:**
+- Use the search results and scraped content to provide current, accurate information
+- Cite sources when referencing web content
+- If images are involved, provide detailed visual analysis
+- Synthesize information from multiple sources for comprehensive answers
+- Mention "Powered by AhamAI" in your responses`
+  };
+
+  const enhancedRequestBody = {
+    ...requestBody,
+    messages: [systemPrompt, ...enhancedMessages],
+    model: selectedModel
+  };
+
+  // Forward to the selected AI model with fallback
+  try {
+    const response = await tryModelRequest(selectedModel, enhancedRequestBody, requestBody.stream, corsHeaders);
+    if (response) {
+      return response;
+    }
+    
+    // If primary model fails, try fallbacks
+    const fallbackModels = browseAIFallbacks[taskType] || browseAIFallbacks.analysis;
+    for (const fallbackModel of fallbackModels.slice(1)) {
+      if (getWorkingModels().includes(fallbackModel)) {
+        const fallbackResponse = await tryModelRequest(fallbackModel, enhancedRequestBody, requestBody.stream, corsHeaders);
+        if (fallbackResponse) {
+          return fallbackResponse;
+        }
+      }
+    }
+    
+    throw new Error("All BrowseByAhamAI fallback models failed");
+  } catch (error) {
+    console.error('BrowseByAhamAI processing error:', error);
+    return new Response(JSON.stringify({ 
+      error: "BrowseByAhamAI processing failed",
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
+}
+
+// Helper function to extract search query from user message
+function extractSearchQuery(content) {
+  // Simple extraction - look for common search patterns
+  const searchPatterns = [
+    /search for (.+)/i,
+    /find (.+)/i,
+    /lookup (.+)/i,
+    /browse (.+)/i,
+    /what is (.+)/i,
+    /tell me about (.+)/i
+  ];
+
+  for (const pattern of searchPatterns) {
+    const match = content.match(pattern);
+    if (match) {
+      return match[1].trim();
+    }
+  }
+
+  // If no pattern matches, use the whole content (cleaned)
+  return content.replace(/search|find|lookup|browse|what is|tell me about/gi, '').trim();
+}
 
 export default {
   async fetch(request) {
@@ -204,6 +468,11 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
   
   if (!internalModel || !modelRoutes[internalModel]) {
     return null;
+  }
+
+  // Special handling for BrowseByAhamAI
+  if (internalModel === "BrowseByAhamAI") {
+    return await processBrowseByAhamAI(requestBody, corsHeaders);
   }
 
   // Special handling for different models
