@@ -21,7 +21,9 @@ var exposedToInternalMap = {
   // Samurai API models with Paid prefix (simple naming)
   "claude-sonnet-4": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
   "claude-opus-4": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
-  "grok-4": "Paid/xai/grok-4"
+  "grok-4": "Paid/xai/grok-4",
+  // Working Samurai API models (tested and functional)
+  "kimi-k2-instruct": "groq/moonshotai/kimi-k2-instruct"
 };
 var modelRoutes = {
   // DeepSeek R1 - keeping original route
@@ -41,7 +43,9 @@ var modelRoutes = {
   // Samurai API models with Paid prefix (renamed for client)
   "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
   "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
-  "Paid/xai/grok-4": "https://samuraiapi.in/v1/chat/completions"
+  "Paid/xai/grok-4": "https://samuraiapi.in/v1/chat/completions",
+  // Working Samurai API models (tested and functional)
+  "groq/moonshotai/kimi-k2-instruct": "https://samuraiapi.in/v1/chat/completions"
 };
 var imageModelRoutes = {
   "flux": {
@@ -111,6 +115,7 @@ var modelCategories = {
   openai: ["gpt-4o", "gpt-4.1", "o1", "o3-mini", "o4-mini"],
   google: ["gemini-2.0-flash-001", "gemini-2.5-pro"],
   xai: ["grok-4"],
+  moonshot: ["kimi-k2-instruct"],
   deepseek: ["deepseek-r1"]
 };
 var workers_default = {
@@ -494,7 +499,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-XwB9u1/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-hbybPt/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -526,7 +531,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-XwB9u1/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-hbybPt/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
