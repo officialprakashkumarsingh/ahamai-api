@@ -15,9 +15,9 @@ const exposedToInternalMap = {
   "gemini-2.5-pro": "gemini-2.5-pro",
   "gpt-4.1": "gpt-4.1",
   "o4-mini": "o4-mini",
-  // Samurai API models with Paid prefix (renamed for client)
-  "claude-sonnet-4-pro": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
-  "claude-opus-4-pro": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
+  // Samurai API models with Paid prefix (simple naming)
+  "claude-sonnet-4": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
+  "claude-opus-4": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
   "grok-4": "Paid/xai/grok-4"
 };
 
@@ -96,21 +96,29 @@ const imageModelRoutes = {
 
 // Default models configuration
 const defaultModels = {
-  vision: "claude-sonnet-4-pro", // Default vision model
-  webSearch: "claude-sonnet-4-pro" // Default web search model
+  vision: "claude-sonnet-4", // Default vision model
+  webSearch: "claude-sonnet-4" // Default web search model
 };
 
-// Fallback system - prioritized list of working models
-const fallbackModels = [
-  "claude-sonnet-4-pro",  // Primary fallback - reliable Samurai API
-  "claude-opus-4-pro",    // Secondary fallback - reliable Samurai API
-  "grok-4",               // Tertiary fallback - reliable Samurai API
-  "deepseek-r1"           // Final fallback - always working
-];
+// Dynamic fallback system - automatically detect working models
+function getWorkingModels() {
+  // Models known to be reliable based on endpoint
+  const reliableModels = [];
+  
+  // Check which models use reliable endpoints
+  for (const [exposedModel, internalModel] of Object.entries(exposedToInternalMap)) {
+    const route = modelRoutes[internalModel];
+    if (route && (route.includes('samuraiapi.in') || route.includes('fast.typegpt.net'))) {
+      reliableModels.push(exposedModel);
+    }
+  }
+  
+  return reliableModels;
+}
 
 // Model categories for intelligent fallback
 const modelCategories = {
-  claude: ["claude-sonnet-4-pro", "claude-opus-4-pro", "claude-3.5-sonnet", "claude-3.7-sonnet"],
+  claude: ["claude-sonnet-4", "claude-opus-4", "claude-3.5-sonnet", "claude-3.7-sonnet", "claude-3.7-sonnet-thought"],
   openai: ["gpt-4o", "gpt-4.1", "o1", "o3-mini", "o4-mini"],
   google: ["gemini-2.0-flash-001", "gemini-2.5-pro"],
   xai: ["grok-4"],
@@ -179,19 +187,21 @@ export default {
 
 // Get intelligent fallback model based on the original model's category
 function getIntelligentFallback(originalModel) {
+  const workingModels = getWorkingModels();
+  
   // Find which category the original model belongs to
   for (const [category, models] of Object.entries(modelCategories)) {
     if (models.includes(originalModel)) {
       // Try other models in the same category first
       for (const model of models) {
-        if (model !== originalModel && fallbackModels.includes(model)) {
+        if (model !== originalModel && workingModels.includes(model)) {
           return model;
         }
       }
     }
   }
-  // If no category match or no available models in category, use general fallback
-  return fallbackModels[0];
+  // If no category match or no available models in category, use first working model
+  return workingModels[0];
 }
 
 // Try to make a request with fallback support
@@ -230,15 +240,17 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
       return null;
     }
 
-    // For non-streaming, check if response has empty content
+    // For non-streaming, check if response has empty content or errors
     if (!stream) {
       const responseText = await response.text();
       try {
         const responseJson = JSON.parse(responseText);
+        // Check for various error conditions
         if (responseJson.error || 
             (responseJson.choices && responseJson.choices[0] && 
              responseJson.choices[0].message && 
-             responseJson.choices[0].message.content === "")) {
+             (responseJson.choices[0].message.content === "" || 
+              responseJson.choices[0].message.content.includes("I apologize, but I encountered an error")))) {
           return null;
         }
         return new Response(responseText, {
@@ -250,7 +262,13 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
       }
     }
 
-    // For streaming
+    // For streaming, do a simple check - if from HF spaces, likely to fail
+    if (modelRoutes[internalModel].includes('samfy001-giuthubsss.hf.space')) {
+      // HF spaces are currently unreliable, trigger fallback for streaming
+      return null;
+    }
+
+    // For other endpoints, return streaming response
     return new Response(response.body, {
       status: response.status,
       headers: {
@@ -293,8 +311,9 @@ async function handleChat(request, corsHeaders) {
     }
   }
 
-  // If intelligent fallback failed, try all fallback models in order
-  for (const fallbackModel of fallbackModels) {
+  // If intelligent fallback failed, try all working models in order
+  const workingModels = getWorkingModels();
+  for (const fallbackModel of workingModels) {
     if (fallbackModel !== exposedModel && fallbackModel !== intelligentFallback) {
       result = await tryModelRequest(fallbackModel, body, stream, corsHeaders);
       if (result) {
@@ -306,7 +325,7 @@ async function handleChat(request, corsHeaders) {
   // If all models failed, return error
   return new Response(JSON.stringify({ 
     error: `Model '${exposedModel}' and all fallback models are currently unavailable. Please try again later.`,
-    attempted_fallbacks: fallbackModels 
+    attempted_fallbacks: workingModels 
   }), {
     status: 503,
     headers: { "Content-Type": "application/json", ...corsHeaders }
