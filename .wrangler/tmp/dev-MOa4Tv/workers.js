@@ -18,9 +18,9 @@ var exposedToInternalMap = {
   "gemini-2.5-pro": "gemini-2.5-pro",
   "gpt-4.1": "gpt-4.1",
   "o4-mini": "o4-mini",
-  // Samurai API models with Paid prefix (renamed for client)
-  "claude-sonnet-4-pro": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
-  "claude-opus-4-pro": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
+  // Samurai API models with Paid prefix (simple naming)
+  "claude-sonnet-4": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
+  "claude-opus-4": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
   "grok-4": "Paid/xai/grok-4"
 };
 var modelRoutes = {
@@ -95,23 +95,24 @@ var imageModelRoutes = {
   }
 };
 var defaultModels = {
-  vision: "claude-sonnet-4-pro",
+  vision: "claude-sonnet-4",
   // Default vision model
-  webSearch: "claude-sonnet-4-pro"
+  webSearch: "claude-sonnet-4"
   // Default web search model
 };
-var fallbackModels = [
-  "claude-sonnet-4-pro",
-  // Primary fallback - reliable Samurai API
-  "claude-opus-4-pro",
-  // Secondary fallback - reliable Samurai API
-  "grok-4",
-  // Tertiary fallback - reliable Samurai API
-  "deepseek-r1"
-  // Final fallback - always working
-];
+function getWorkingModels() {
+  const reliableModels = [];
+  for (const [exposedModel, internalModel] of Object.entries(exposedToInternalMap)) {
+    const route = modelRoutes[internalModel];
+    if (route && (route.includes("samuraiapi.in") || route.includes("fast.typegpt.net"))) {
+      reliableModels.push(exposedModel);
+    }
+  }
+  return reliableModels;
+}
+__name(getWorkingModels, "getWorkingModels");
 var modelCategories = {
-  claude: ["claude-sonnet-4-pro", "claude-opus-4-pro", "claude-3.5-sonnet", "claude-3.7-sonnet"],
+  claude: ["claude-sonnet-4", "claude-opus-4", "claude-3.5-sonnet", "claude-3.7-sonnet", "claude-3.7-sonnet-thought"],
   openai: ["gpt-4o", "gpt-4.1", "o1", "o3-mini", "o4-mini"],
   google: ["gemini-2.0-flash-001", "gemini-2.5-pro"],
   xai: ["grok-4"],
@@ -164,16 +165,17 @@ var workers_default = {
   }
 };
 function getIntelligentFallback(originalModel) {
+  const workingModels = getWorkingModels();
   for (const [category, models] of Object.entries(modelCategories)) {
     if (models.includes(originalModel)) {
       for (const model of models) {
-        if (model !== originalModel && fallbackModels.includes(model)) {
+        if (model !== originalModel && workingModels.includes(model)) {
           return model;
         }
       }
     }
   }
-  return fallbackModels[0];
+  return workingModels[0];
 }
 __name(getIntelligentFallback, "getIntelligentFallback");
 async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
@@ -203,7 +205,7 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
       const responseText = await response.text();
       try {
         const responseJson = JSON.parse(responseText);
-        if (responseJson.error || responseJson.choices && responseJson.choices[0] && responseJson.choices[0].message && responseJson.choices[0].message.content === "") {
+        if (responseJson.error || responseJson.choices && responseJson.choices[0] && responseJson.choices[0].message && (responseJson.choices[0].message.content === "" || responseJson.choices[0].message.content.includes("I apologize, but I encountered an error"))) {
           return null;
         }
         return new Response(responseText, {
@@ -213,6 +215,9 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
       } catch (e) {
         return null;
       }
+    }
+    if (modelRoutes[internalModel].includes("samfy001-giuthubsss.hf.space")) {
+      return null;
     }
     return new Response(response.body, {
       status: response.status,
@@ -249,7 +254,8 @@ async function handleChat(request, corsHeaders) {
       return result;
     }
   }
-  for (const fallbackModel of fallbackModels) {
+  const workingModels = getWorkingModels();
+  for (const fallbackModel of workingModels) {
     if (fallbackModel !== exposedModel && fallbackModel !== intelligentFallback) {
       result = await tryModelRequest(fallbackModel, body, stream, corsHeaders);
       if (result) {
@@ -259,7 +265,7 @@ async function handleChat(request, corsHeaders) {
   }
   return new Response(JSON.stringify({
     error: `Model '${exposedModel}' and all fallback models are currently unavailable. Please try again later.`,
-    attempted_fallbacks: fallbackModels
+    attempted_fallbacks: workingModels
   }), {
     status: 503,
     headers: { "Content-Type": "application/json", ...corsHeaders }
@@ -453,7 +459,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-kTCXPv/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-KOm8e6/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -485,7 +491,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-kTCXPv/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-KOm8e6/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
