@@ -18,7 +18,9 @@ const exposedToInternalMap = {
   // Samurai API models with Paid prefix (simple naming)
   "claude-sonnet-4": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
   "claude-opus-4": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
-  "grok-4": "Paid/xai/grok-4"
+  "grok-4": "Paid/xai/grok-4",
+  // Working Samurai API models (tested and functional)
+  "kimi-k2-instruct": "groq/moonshotai/kimi-k2-instruct"
 };
 
 const modelRoutes = {
@@ -39,7 +41,9 @@ const modelRoutes = {
   // Samurai API models with Paid prefix (renamed for client)
   "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
   "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
-  "Paid/xai/grok-4": "https://samuraiapi.in/v1/chat/completions"
+  "Paid/xai/grok-4": "https://samuraiapi.in/v1/chat/completions",
+  // Working Samurai API models (tested and functional)
+  "groq/moonshotai/kimi-k2-instruct": "https://samuraiapi.in/v1/chat/completions"
 };
 
 const imageModelRoutes = {
@@ -117,6 +121,7 @@ const modelCategories = {
   openai: ["gpt-4o", "gpt-4.1", "o1", "o3-mini", "o4-mini"],
   google: ["gemini-2.0-flash-001", "gemini-2.5-pro"],
   xai: ["grok-4"],
+  moonshot: ["kimi-k2-instruct"],
   deepseek: ["deepseek-r1"]
 };
 
