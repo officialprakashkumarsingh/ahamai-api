@@ -17,7 +17,11 @@ var exposedToInternalMap = {
   "gemini-2.0-flash-001": "gemini-2.0-flash-001",
   "gemini-2.5-pro": "gemini-2.5-pro",
   "gpt-4.1": "gpt-4.1",
-  "o4-mini": "o4-mini"
+  "o4-mini": "o4-mini",
+  // Samurai API models
+  "claude-sonnet-4-bedrock": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
+  "claude-opus-4-bedrock": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
+  "grok-4": "Paid/xai/grok-4"
 };
 var modelRoutes = {
   // DeepSeek R1 - keeping original route
@@ -33,7 +37,11 @@ var modelRoutes = {
   "gemini-2.0-flash-001": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
   "gemini-2.5-pro": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
   "gpt-4.1": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  "o4-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions"
+  "o4-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  // Samurai API models
+  "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
+  "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
+  "Paid/xai/grok-4": "https://samuraiapi.in/v1/chat/completions"
 };
 var imageModelRoutes = {
   "flux": {
@@ -155,6 +163,8 @@ async function handleChat(request, corsHeaders) {
   if (modelRoutes[internalModel].includes("samfy001-giuthubsss.hf.space")) {
   } else if (modelRoutes[internalModel].includes("fast.typegpt.net")) {
     headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
+  } else if (modelRoutes[internalModel].includes("samuraiapi.in")) {
+    headers["Authorization"] = "Bearer sk-ZDSU7f4xtttJxDc6qp95HT013E1TAp6RDnusMdrk8XY3MVTC";
   }
   const response = await fetch(modelRoutes[internalModel], {
     method: "POST",
@@ -362,7 +372,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-n3n1fy/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-yFNhJL/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -394,7 +404,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-n3n1fy/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-yFNhJL/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
