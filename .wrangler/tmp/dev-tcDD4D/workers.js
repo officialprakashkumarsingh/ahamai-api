@@ -183,6 +183,11 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
   if (!internalModel || !modelRoutes[internalModel]) {
     return null;
   }
+  let modifiedBody = { ...requestBody };
+  if (internalModel === "NiansuhAI/DeepSeek-R1") {
+    modifiedBody.messages = requestBody.messages.filter((msg) => msg.role !== "system");
+    console.log(`\u{1F525} DeepSeek R1 Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s)`);
+  }
   let headers = {
     "Content-Type": "application/json"
   };
@@ -196,7 +201,7 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
     const response = await fetch(modelRoutes[internalModel], {
       method: "POST",
       headers,
-      body: JSON.stringify({ ...requestBody, model: internalModel })
+      body: JSON.stringify({ ...modifiedBody, model: internalModel })
     });
     if (!response.ok || response.status >= 400) {
       return null;
@@ -459,7 +464,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-KOm8e6/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-EifgOB/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -491,7 +496,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-KOm8e6/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-EifgOB/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
