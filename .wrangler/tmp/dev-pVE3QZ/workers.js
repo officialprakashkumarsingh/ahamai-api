@@ -6,6 +6,8 @@ var API_KEY = "ahamaibyprakash25";
 var exposedToInternalMap = {
   // DeepSeek R1 - Free & Uncensored (keeping this one)
   "deepseek-r1": "NiansuhAI/DeepSeek-R1",
+  // BrowseByAhamAI - Advanced browsing and analysis model
+  "BrowseByAhamAI": "BrowseByAhamAI",
   // Samurai API models with Paid prefix (simple naming)
   "claude-sonnet-4": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
   "claude-opus-4": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
@@ -23,6 +25,8 @@ var exposedToInternalMap = {
 var modelRoutes = {
   // DeepSeek R1 - keeping original route
   "NiansuhAI/DeepSeek-R1": "https://fast.typegpt.net/v1/chat/completions",
+  // BrowseByAhamAI - Special model for browsing and analysis
+  "BrowseByAhamAI": "browsebyahamai",
   // Samurai API models with Paid prefix (renamed for client)
   "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
   "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
