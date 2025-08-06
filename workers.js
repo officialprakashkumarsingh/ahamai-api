@@ -1,59 +1,37 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  // Vision models
-  "claude-4-sonnet": "io-8/claude-4-sonnet",
-  "claude-4-opus": "io-8/claude-4-opus",
-  "claude-3.7-sonnet": "io-8/claude-3.7-sonnet",
-  "claude-3.5-sonnet": "io-8/claude-3.5-sonnet",
-  "kimi-k2": "groq/moonshotai/kimi-k2",
-  "kimi-k2-instruct": "groq/moonshotai/kimi-k2-instruct",
-  "grok-3": "grok-3(clinesp)",
-  "qwen3-coder-480B-A35B-instruct": "provider5-Qwen/Qwen3-Coder-480B-A35B-Instruct",
-  "deepseek-chat-v3-0324-free": "deepseek-chat-v3-0324:free(clinesp)",
-  // DeepSeek R1 - Free & Uncensored
+  // DeepSeek R1 - Free & Uncensored (keeping this one)
   "deepseek-r1": "NiansuhAI/DeepSeek-R1",
-  // Web search models
-  "sonar": "io-4/sonar",
-  "sonar-pro": "io-4/sonar-pro",
-  // New server 2 models from rproxy-nine.vercel.app
-  "claude-sonnet-4-2": "claude-sonnet-4",
-  "claude-opus-4-2": "claude-opus-4",
-  // HelpingAI models
-  "dhanishtha-2.0-preview": "Dhanishtha-2.0-preview",
-  "dhanishtha-2.0-preview-mini": "Dhanishtha-2.0-preview-mini",
-  // v0.dev models
-  "v0-1.0-md": "v0-1.0-md",
-  "v0-1.5-md": "v0-1.5-md",
-  "v0-1.5-lg": "v0-1.5-lg"
+  // New GitHub Copilot models
+  "gpt-4o": "gpt-4o",
+  "o3-mini": "o3-mini",
+  "o1": "o1",
+  "claude-3.5-sonnet": "claude-3.5-sonnet",
+  "claude-3.7-sonnet": "claude-3.7-sonnet",
+  "claude-3.7-sonnet-thought": "claude-3.7-sonnet-thought",
+  "claude-sonnet-4": "claude-sonnet-4",
+  "gemini-2.0-flash-001": "gemini-2.0-flash-001",
+  "gemini-2.5-pro": "gemini-2.5-pro",
+  "gpt-4.1": "gpt-4.1",
+  "o4-mini": "o4-mini"
 };
 
 const modelRoutes = {
-  // Vision models routes
-  "io-8/claude-4-sonnet": "https://lm.0.sdk.li/v1/chat/completions",
-  "io-8/claude-4-opus": "https://lm.0.sdk.li/v1/chat/completions",
-  "io-8/claude-3.7-sonnet": "https://lm.0.sdk.li/v1/chat/completions",
-  "io-8/claude-3.5-sonnet": "https://lm.0.sdk.li/v1/chat/completions",
-  "groq/moonshotai/kimi-k2": "https://samuraiapi.in/v1/chat/completions",
-  "groq/moonshotai/kimi-k2-instruct": "https://samuraiapi.in/v1/chat/completions",
-  "grok-3(clinesp)": "https://samuraiapi.in/v1/chat/completions",
-  "provider5-Qwen/Qwen3-Coder-480B-A35B-Instruct": "https://samuraiapi.in/v1/chat/completions",
-  "deepseek-chat-v3-0324:free(clinesp)": "https://samuraiapi.in/v1/chat/completions",
-  // DeepSeek R1 - Free & Uncensored
+  // DeepSeek R1 - keeping original route
   "NiansuhAI/DeepSeek-R1": "https://fast.typegpt.net/v1/chat/completions",
-  // Web search models routes
-  "io-4/sonar": "https://lm.0.sdk.li/v1/chat/completions",
-  "io-4/sonar-pro": "https://lm.0.sdk.li/v1/chat/completions",
-  // New server 2 models routes
-  "claude-sonnet-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
-  "claude-opus-4": "https://rproxy-nine.vercel.app/v1/chat/completions",
-  // HelpingAI models routes
-  "Dhanishtha-2.0-preview": "https://api.helpingai.co/v1/chat/completions",
-  "Dhanishtha-2.0-preview-mini": "https://api.helpingai.co/v1/chat/completions",
-  // v0.dev models routes
-  "v0-1.0-md": "https://api.v0.dev/v1/chat/completions",
-  "v0-1.5-md": "https://api.v0.dev/v1/chat/completions",
-  "v0-1.5-lg": "https://api.v0.dev/v1/chat/completions"
+  // New GitHub Copilot models - all using the same endpoint
+  "gpt-4o": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "o3-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "o1": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "claude-3.5-sonnet": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "claude-3.7-sonnet": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "claude-3.7-sonnet-thought": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "claude-sonnet-4": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "gemini-2.0-flash-001": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "gemini-2.5-pro": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "gpt-4.1": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "o4-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions"
 };
 
 const imageModelRoutes = {
@@ -110,8 +88,8 @@ const imageModelRoutes = {
 
 // Default models configuration
 const defaultModels = {
-  vision: "claude-4-sonnet", // Default vision model
-  webSearch: "sonar" // Default web search model
+  vision: "claude-3.5-sonnet", // Default vision model
+  webSearch: "claude-3.5-sonnet" // Default web search model
 };
 
 export default {
@@ -195,23 +173,12 @@ async function handleChat(request, corsHeaders) {
   };
 
   // Use different authentication for different endpoints
-  if (modelRoutes[internalModel].includes('rproxy-nine.vercel.app')) {
-    // For the new rproxy endpoint, no specific auth key needed
+  if (modelRoutes[internalModel].includes('samfy001-giuthubsss.hf.space')) {
+    // For the GitHub Copilot endpoint, no specific auth key needed
     headers["Authorization"] = "Bearer dummy-key";
-  } else if (modelRoutes[internalModel].includes('samuraiapi.in')) {
-    headers["Authorization"] = "Bearer sk-KFzgj5NntdNGMVlyRF4bJVvXGhLLrxchu9xdwLEk5l3M9iHk";
-  } else if (modelRoutes[internalModel].includes('api.helpingai.co')) {
-    // For HelpingAI endpoint
-    headers["Authorization"] = "Bearer hl-5acd8e0c-4bb1-458b-bb6a-9aec773d3199";
-  } else if (modelRoutes[internalModel].includes('api.v0.dev')) {
-    // For v0.dev endpoint
-    headers["Authorization"] = "Bearer v1:team_m5jgJm4W1wUMbgEjKzSQVapS:1QFTMtR5LJB9gqjdafPGyct1";
   } else if (modelRoutes[internalModel].includes('fast.typegpt.net')) {
     // For DeepSeek R1 endpoint
     headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
-  } else {
-    // For existing lm.0.sdk.li endpoint
-    headers["Authorization"] = "Bearer LM0_QZMKWYVVUDYAIUDG.1748-UPYOUMDGIMAV";
   }
 
   const response = await fetch(modelRoutes[internalModel], {
