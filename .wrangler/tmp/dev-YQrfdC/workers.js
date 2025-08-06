@@ -6,6 +6,18 @@ var API_KEY = "ahamaibyprakash25";
 var exposedToInternalMap = {
   // DeepSeek R1 - Free & Uncensored (keeping this one)
   "deepseek-r1": "NiansuhAI/DeepSeek-R1",
+  // GitHub Copilot/Hugging Face spaces models
+  "gpt-4o": "gpt-4o",
+  "o3-mini": "o3-mini",
+  "o1": "o1",
+  "claude-3.5-sonnet": "claude-3.5-sonnet",
+  "claude-3.7-sonnet": "claude-3.7-sonnet",
+  "claude-3.7-sonnet-thought": "claude-3.7-sonnet-thought",
+  "claude-sonnet-4": "claude-sonnet-4",
+  "gemini-2.0-flash-001": "gemini-2.0-flash-001",
+  "gemini-2.5-pro": "gemini-2.5-pro",
+  "gpt-4.1": "gpt-4.1",
+  "o4-mini": "o4-mini",
   // Samurai API models with Paid prefix
   "claude-sonnet-4-bedrock": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
   "claude-opus-4-bedrock": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
@@ -14,6 +26,18 @@ var exposedToInternalMap = {
 var modelRoutes = {
   // DeepSeek R1 - keeping original route
   "NiansuhAI/DeepSeek-R1": "https://fast.typegpt.net/v1/chat/completions",
+  // GitHub Copilot/Hugging Face spaces models
+  "gpt-4o": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "o3-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "o1": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "claude-3.5-sonnet": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "claude-3.7-sonnet": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "claude-3.7-sonnet-thought": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "claude-sonnet-4": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "gemini-2.0-flash-001": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "gemini-2.5-pro": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "gpt-4.1": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
+  "o4-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
   // Samurai API models with Paid prefix
   "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
   "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
