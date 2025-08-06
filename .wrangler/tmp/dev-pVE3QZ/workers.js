@@ -13,8 +13,12 @@ var exposedToInternalMap = {
   // Working Samurai API models (tested and functional)
   "kimi-k2-instruct": "groq/moonshotai/kimi-k2-instruct",
   // Working GPT models from Samurai API
-  "gpt-4o-samurai": "provider9-gpt-4o",
-  "gpt-4o-latest": "provider9-gpt-4o-latest"
+  "gpt-4o": "provider9-gpt-4o",
+  "gpt-4o-latest": "provider9-gpt-4o-latest",
+  // Latest cutting-edge models from Samurai API
+  "o3-mini": "provider9-o3-mini",
+  "gemini-2.5-flash": "provider9-gemini-2.5-flash",
+  "gemini-2.0-flash-thinking": "provider9-gemini-2.0-flash-thinking"
 };
 var modelRoutes = {
   // DeepSeek R1 - keeping original route
@@ -27,7 +31,11 @@ var modelRoutes = {
   "groq/moonshotai/kimi-k2-instruct": "https://samuraiapi.in/v1/chat/completions",
   // Working GPT models from Samurai API
   "provider9-gpt-4o": "https://samuraiapi.in/v1/chat/completions",
-  "provider9-gpt-4o-latest": "https://samuraiapi.in/v1/chat/completions"
+  "provider9-gpt-4o-latest": "https://samuraiapi.in/v1/chat/completions",
+  // Latest cutting-edge models from Samurai API
+  "provider9-o3-mini": "https://samuraiapi.in/v1/chat/completions",
+  "provider9-gemini-2.5-flash": "https://samuraiapi.in/v1/chat/completions",
+  "provider9-gemini-2.0-flash-thinking": "https://samuraiapi.in/v1/chat/completions"
 };
 var imageModelRoutes = {
   "flux": {
@@ -94,7 +102,8 @@ function getWorkingModels() {
 __name(getWorkingModels, "getWorkingModels");
 var modelCategories = {
   claude: ["claude-sonnet-4", "claude-opus-4"],
-  openai: ["gpt-4o-samurai", "gpt-4o-latest"],
+  openai: ["gpt-4o", "gpt-4o-latest", "o3-mini"],
+  google: ["gemini-2.5-flash", "gemini-2.0-flash-thinking"],
   xai: ["grok-4"],
   moonshot: ["kimi-k2-instruct"],
   deepseek: ["deepseek-r1"]
