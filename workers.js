@@ -174,8 +174,8 @@ async function handleChat(request, corsHeaders) {
 
   // Use different authentication for different endpoints
   if (modelRoutes[internalModel].includes('samfy001-giuthubsss.hf.space')) {
-    // For the GitHub Copilot endpoint, no specific auth key needed
-    headers["Authorization"] = "Bearer dummy-key";
+    // For the GitHub Copilot endpoint, use the API key
+    headers["Authorization"] = "Bearer ahamaibyprakash25";
   } else if (modelRoutes[internalModel].includes('fast.typegpt.net')) {
     // For DeepSeek R1 endpoint
     headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
