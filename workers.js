@@ -15,9 +15,9 @@ const exposedToInternalMap = {
   "gemini-2.5-pro": "gemini-2.5-pro",
   "gpt-4.1": "gpt-4.1",
   "o4-mini": "o4-mini",
-  // Samurai API models with Paid prefix
-  "claude-sonnet-4-bedrock": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
-  "claude-opus-4-bedrock": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
+  // Samurai API models with Paid prefix (renamed for client)
+  "claude-sonnet-4-pro": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
+  "claude-opus-4-pro": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
   "grok-4": "Paid/xai/grok-4"
 };
 
@@ -36,7 +36,7 @@ const modelRoutes = {
   "gemini-2.5-pro": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
   "gpt-4.1": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
   "o4-mini": "https://samfy001-giuthubsss.hf.space/v1/chat/completions",
-  // Samurai API models with Paid prefix
+  // Samurai API models with Paid prefix (renamed for client)
   "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
   "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
   "Paid/xai/grok-4": "https://samuraiapi.in/v1/chat/completions"
@@ -96,8 +96,25 @@ const imageModelRoutes = {
 
 // Default models configuration
 const defaultModels = {
-  vision: "claude-3.5-sonnet", // Default vision model
-  webSearch: "claude-3.5-sonnet" // Default web search model
+  vision: "claude-sonnet-4-pro", // Default vision model
+  webSearch: "claude-sonnet-4-pro" // Default web search model
+};
+
+// Fallback system - prioritized list of working models
+const fallbackModels = [
+  "claude-sonnet-4-pro",  // Primary fallback - reliable Samurai API
+  "claude-opus-4-pro",    // Secondary fallback - reliable Samurai API
+  "grok-4",               // Tertiary fallback - reliable Samurai API
+  "deepseek-r1"           // Final fallback - always working
+];
+
+// Model categories for intelligent fallback
+const modelCategories = {
+  claude: ["claude-sonnet-4-pro", "claude-opus-4-pro", "claude-3.5-sonnet", "claude-3.7-sonnet"],
+  openai: ["gpt-4o", "gpt-4.1", "o1", "o3-mini", "o4-mini"],
+  google: ["gemini-2.0-flash-001", "gemini-2.5-pro"],
+  xai: ["grok-4"],
+  deepseek: ["deepseek-r1"]
 };
 
 export default {
@@ -160,22 +177,31 @@ export default {
   }
 };
 
-async function handleChat(request, corsHeaders) {
-  const body = await request.json();
-  const exposedModel = body.model;
-  const internalModel = exposedToInternalMap[exposedModel];
-  const stream = body.stream === true;
+// Get intelligent fallback model based on the original model's category
+function getIntelligentFallback(originalModel) {
+  // Find which category the original model belongs to
+  for (const [category, models] of Object.entries(modelCategories)) {
+    if (models.includes(originalModel)) {
+      // Try other models in the same category first
+      for (const model of models) {
+        if (model !== originalModel && fallbackModels.includes(model)) {
+          return model;
+        }
+      }
+    }
+  }
+  // If no category match or no available models in category, use general fallback
+  return fallbackModels[0];
+}
 
+// Try to make a request with fallback support
+async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
+  const internalModel = exposedToInternalMap[modelId];
+  
   if (!internalModel || !modelRoutes[internalModel]) {
-    return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
+    return null;
   }
 
-
-
-  // Prepare headers based on the model and API endpoint
   let headers = { 
     "Content-Type": "application/json"
   };
@@ -192,26 +218,99 @@ async function handleChat(request, corsHeaders) {
     headers["Authorization"] = "Bearer sk-IvMBi9qmzLiWHl0RpJ9KbyJpczm9YSIHAnMU2aDBbkpbYLF8";
   }
 
-  const response = await fetch(modelRoutes[internalModel], {
-    method: "POST",
-    headers: headers,
-    body: JSON.stringify({ ...body, model: internalModel })
-  });
+  try {
+    const response = await fetch(modelRoutes[internalModel], {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify({ ...requestBody, model: internalModel })
+    });
 
-  return stream
-    ? new Response(response.body, {
-        status: response.status,
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Transfer-Encoding": "chunked",
-          "Cache-Control": "no-cache",
-          ...corsHeaders
+    // Check if response indicates an error
+    if (!response.ok || response.status >= 400) {
+      return null;
+    }
+
+    // For non-streaming, check if response has empty content
+    if (!stream) {
+      const responseText = await response.text();
+      try {
+        const responseJson = JSON.parse(responseText);
+        if (responseJson.error || 
+            (responseJson.choices && responseJson.choices[0] && 
+             responseJson.choices[0].message && 
+             responseJson.choices[0].message.content === "")) {
+          return null;
         }
-      })
-    : new Response(await response.text(), {
-        status: response.status,
-        headers: { "Content-Type": "application/json", ...corsHeaders }
-      });
+        return new Response(responseText, {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // For streaming
+    return new Response(response.body, {
+      status: response.status,
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Transfer-Encoding": "chunked",
+        "Cache-Control": "no-cache",
+        ...corsHeaders
+      }
+    });
+
+  } catch (error) {
+    return null;
+  }
+}
+
+async function handleChat(request, corsHeaders) {
+  const body = await request.json();
+  const exposedModel = body.model;
+  const stream = body.stream === true;
+
+  if (!exposedToInternalMap[exposedModel]) {
+    return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), {
+      status: 400,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
+
+  // Try the requested model first
+  let result = await tryModelRequest(exposedModel, body, stream, corsHeaders);
+  if (result) {
+    return result;
+  }
+
+  // If original model failed, try intelligent fallback
+  const intelligentFallback = getIntelligentFallback(exposedModel);
+  if (intelligentFallback !== exposedModel) {
+    result = await tryModelRequest(intelligentFallback, body, stream, corsHeaders);
+    if (result) {
+      return result;
+    }
+  }
+
+  // If intelligent fallback failed, try all fallback models in order
+  for (const fallbackModel of fallbackModels) {
+    if (fallbackModel !== exposedModel && fallbackModel !== intelligentFallback) {
+      result = await tryModelRequest(fallbackModel, body, stream, corsHeaders);
+      if (result) {
+        return result;
+      }
+    }
+  }
+
+  // If all models failed, return error
+  return new Response(JSON.stringify({ 
+    error: `Model '${exposedModel}' and all fallback models are currently unavailable. Please try again later.`,
+    attempted_fallbacks: fallbackModels 
+  }), {
+    status: 503,
+    headers: { "Content-Type": "application/json", ...corsHeaders }
+  });
 }
 
 
