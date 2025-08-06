@@ -164,7 +164,7 @@ async function handleChat(request, corsHeaders) {
   } else if (modelRoutes[internalModel].includes("fast.typegpt.net")) {
     headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
   } else if (modelRoutes[internalModel].includes("samuraiapi.in")) {
-    headers["Authorization"] = "Bearer sk-ZDSU7f4xtttJxDc6qp95HT013E1TAp6RDnusMdrk8XY3MVTC";
+    headers["Authorization"] = "Bearer sk-IvMBi9qmzLiWHl0RpJ9KbyJpczm9YSIHAnMU2aDBbkpbYLF8";
   }
   const response = await fetch(modelRoutes[internalModel], {
     method: "POST",
@@ -372,7 +372,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-7mEljQ/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-zWpGle/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -404,7 +404,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-7mEljQ/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-zWpGle/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
