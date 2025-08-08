@@ -239,6 +239,9 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
   } else if (modelRoutes[internalModel].includes('samuraiapi.in')) {
     // For Samurai API endpoint
     headers["Authorization"] = "Bearer sk-IvMBi9qmzLiWHl0RpJ9KbyJpczm9YSIHAnMU2aDBbkpbYLF8";
+  } else if (modelRoutes[internalModel].includes('gpt-oss-openai-proxy.onrender.com')) {
+    // For OpenAI-compatible onrender proxy
+    headers["Authorization"] = `Bearer ${API_KEY}`;
   }
 
   try {
