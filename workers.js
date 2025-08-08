@@ -4,6 +4,16 @@ const exposedToInternalMap = {
   // OpenAI-compatible proxy models (put first)
   "gpt-4o": "gpt-4o",
   "gpt-4o-mini": "gpt-4o-mini",
+  "perplexed": "perplexed",
+  "felo": "felo",
+  "gpt-4.1-nano": "gpt-4.1-nano",
+  "gpt-4.1-mini": "gpt-4.1-mini",
+  "deepseek-chat": "deepseek-chat",
+  "deepseek-reasoner": "deepseek-reasoner",
+  "claude-3.5-haiku": "claude-3.5-haiku",
+  "gemini-2.0-flash": "gemini-2.0-flash",
+  "gemini-2.5-flash-proxy": "gemini-2.5-flash",
+  "grok-3-mini": "grok-3-mini",
   // DeepSeek R1 - Free & Uncensored (keeping this one)
   "deepseek-r1": "NiansuhAI/DeepSeek-R1",
   // Samurai API models with Paid prefix (simple naming)
@@ -42,13 +52,29 @@ const modelRoutes = {
   "Paid/v0/v0-gpt-5": "https://samuraiapi.in/v1/chat/completions",
   // OpenAI-compatible proxy models
   "gpt-4o": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "gpt-4o-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
+  "gpt-4o-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "perplexed": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gpt-4.1-nano": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gpt-4.1-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "deepseek-chat": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "deepseek-reasoner": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "claude-3.5-haiku": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gemini-2.0-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gemini-2.5-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "grok-3-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
 // Backup internal targets if primary route fails (e.g., proxy downtime)
 const backupInternalForExposed = {
   "gpt-4o": "provider9-gpt-4o",
-  "gpt-4o-mini": "provider9-gpt-4o-latest"
+  "gpt-4o-mini": "provider9-gpt-4o-latest",
+  "deepseek-chat": "NiansuhAI/DeepSeek-R1",
+  "deepseek-reasoner": "NiansuhAI/DeepSeek-R1",
+  "claude-3.5-haiku": "claude-sonnet-4",
+  "gemini-2.0-flash": "provider9-gemini-2.0-flash-thinking",
+  "gemini-2.5-flash-proxy": "provider9-gemini-2.5-flash",
+  "grok-3-mini": "grok-4"
 };
 
 const imageModelRoutes = {
@@ -122,12 +148,13 @@ function getWorkingModels() {
 
 // Model categories for intelligent fallback
 const modelCategories = {
-  claude: ["claude-sonnet-4", "claude-opus-4"],
-  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4o-latest", "o3-mini", "gpt-5"],
-  google: ["gemini-2.5-flash", "gemini-2.0-flash-thinking"],
-  xai: ["grok-4"],
+  claude: ["claude-sonnet-4", "claude-opus-4", "claude-3.5-haiku"],
+  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4o-latest", "o3-mini", "gpt-5", "gpt-4.1-nano", "gpt-4.1-mini"],
+  google: ["gemini-2.5-flash", "gemini-2.0-flash-thinking", "gemini-2.0-flash", "gemini-2.5-flash-proxy"],
+  xai: ["grok-4", "grok-3-mini"],
   moonshot: ["kimi-k2-instruct"],
-  deepseek: ["deepseek-r1"]
+  deepseek: ["deepseek-r1", "deepseek-chat", "deepseek-reasoner"],
+  search: ["perplexed", "felo"]
 };
 
 
