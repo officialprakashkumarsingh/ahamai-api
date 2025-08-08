@@ -45,6 +45,12 @@ const modelRoutes = {
   "gpt-4o-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
+// Backup internal targets if primary route fails (e.g., proxy downtime)
+const backupInternalForExposed = {
+  "gpt-4o": "provider9-gpt-4o",
+  "gpt-4o-mini": "provider9-gpt-4o-latest"
+};
+
 const imageModelRoutes = {
   "flux": {
     provider: "pollinations",
@@ -210,88 +216,104 @@ function getIntelligentFallback(originalModel) {
 
 // Try to make a request with fallback support
 async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
-  const internalModel = exposedToInternalMap[modelId];
+  let internalModel = exposedToInternalMap[modelId];
   
-  if (!internalModel || !modelRoutes[internalModel]) {
-    return null;
-  }
-
-
-
-  // Special handling for different models
-  let modifiedBody = { ...requestBody };
-  
-  if (internalModel === "NiansuhAI/DeepSeek-R1") {
-    // DeepSeek R1 - force uncensored mode by removing system prompts
-    modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
-    console.log(`🔥 DeepSeek R1 Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s)`);
-  }
-  // For other models - use default app system prompts (no additional branding)
-
-  let headers = { 
-    "Content-Type": "application/json"
-  };
-
-  // Use different authentication for different endpoints
-  if (modelRoutes[internalModel].includes('fast.typegpt.net')) {
-    // For DeepSeek R1 endpoint
-    headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
-  } else if (modelRoutes[internalModel].includes('samuraiapi.in')) {
-    // For Samurai API endpoint
-    headers["Authorization"] = "Bearer sk-IvMBi9qmzLiWHl0RpJ9KbyJpczm9YSIHAnMU2aDBbkpbYLF8";
-  } else if (modelRoutes[internalModel].includes('gpt-oss-openai-proxy.onrender.com')) {
-    // For OpenAI-compatible onrender proxy
-    headers["Authorization"] = `Bearer ${API_KEY}`;
-  }
-
-  try {
-    const response = await fetch(modelRoutes[internalModel], {
-      method: "POST",
-      headers: headers,
-      body: JSON.stringify({ ...modifiedBody, model: internalModel })
-    });
-
-    // Check if response indicates an error
-    if (!response.ok || response.status >= 400) {
+  const attemptOnce = async (internal) => {
+    if (!internal || !modelRoutes[internal]) {
       return null;
     }
 
-    // For non-streaming, check if response has empty content or errors
-    if (!stream) {
-      const responseText = await response.text();
-      try {
-        const responseJson = JSON.parse(responseText);
-        // Check for various error conditions
-        if (responseJson.error || 
-            (responseJson.choices && responseJson.choices[0] && 
-             responseJson.choices[0].message && 
-             (responseJson.choices[0].message.content === "" || 
-              responseJson.choices[0].message.content.includes("I apologize, but I encountered an error")))) {
-          return null;
-        }
-        return new Response(responseText, {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
-      } catch (e) {
-        return null;
-      }
+    // Special handling for different models
+    let modifiedBody = { ...requestBody };
+    
+    if (internal === "NiansuhAI/DeepSeek-R1") {
+      // DeepSeek R1 - force uncensored mode by removing system prompts
+      modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
+      console.log(`🔥 DeepSeek R1 Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s)`);
+    }
+    // For other models - use default app system prompts (no additional branding)
+
+    let headers = { 
+      "Content-Type": "application/json"
+    };
+
+    // Use different authentication for different endpoints
+    if (modelRoutes[internal].includes('fast.typegpt.net')) {
+      // For DeepSeek R1 endpoint
+      headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
+    } else if (modelRoutes[internal].includes('samuraiapi.in')) {
+      // For Samurai API endpoint
+      headers["Authorization"] = "Bearer sk-IvMBi9qmzLiWHl0RpJ9KbyJpczm9YSIHAnMU2aDBbkpbYLF8";
+    } else if (modelRoutes[internal].includes('gpt-oss-openai-proxy.onrender.com')) {
+      // For OpenAI-compatible onrender proxy
+      headers["Authorization"] = `Bearer ${API_KEY}`;
     }
 
-    // Return streaming response
-    return new Response(response.body, {
-      status: response.status,
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Transfer-Encoding": "chunked",
-        "Cache-Control": "no-cache",
-        ...corsHeaders
-      }
-    });
+    try {
+      const response = await fetch(modelRoutes[internal], {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify({ ...modifiedBody, model: internal })
+      });
 
-  } catch (error) {
-    return null;
+      // Check if response indicates an error
+      if (!response.ok || response.status >= 400) {
+        return null;
+      }
+
+      // For non-streaming, check if response has empty content or errors
+      if (!stream) {
+        const responseText = await response.text();
+        try {
+          const responseJson = JSON.parse(responseText);
+          // Check for various error conditions
+          if (responseJson.error || 
+              (responseJson.choices && responseJson.choices[0] && 
+               responseJson.choices[0].message && 
+               (responseJson.choices[0].message.content === "" || 
+                responseJson.choices[0].message.content.includes("I apologize, but I encountered an error")))) {
+            return null;
+          }
+          return new Response(responseText, {
+            status: 200,
+            headers: { "Content-Type": "application/json", ...corsHeaders }
+          });
+        } catch (e) {
+          return null;
+        }
+      }
+
+      // Return streaming response
+      return new Response(response.body, {
+        status: response.status,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Transfer-Encoding": "chunked",
+          "Cache-Control": "no-cache",
+          ...corsHeaders
+        }
+      });
+
+    } catch (error) {
+      return null;
+    }
+  };
+
+  // First attempt: primary internal model
+  let primaryResult = await attemptOnce(internalModel);
+  if (primaryResult) {
+    return primaryResult;
   }
+
+  // If failed and we have a backup internal route for this exposed model, try it
+  if (backupInternalForExposed[modelId]) {
+    const backupResult = await attemptOnce(backupInternalForExposed[modelId]);
+    if (backupResult) {
+      return backupResult;
+    }
+  }
+
+  return null;
 }
 
 async function handleChat(request, corsHeaders) {
