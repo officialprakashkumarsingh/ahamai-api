@@ -1,6 +1,9 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
+  // OpenAI-compatible proxy models (put first)
+  "gpt-4o": "gpt-4o",
+  "gpt-4o-mini": "gpt-4o-mini",
   // DeepSeek R1 - Free & Uncensored (keeping this one)
   "deepseek-r1": "NiansuhAI/DeepSeek-R1",
   // Samurai API models with Paid prefix (simple naming)
@@ -10,7 +13,6 @@ const exposedToInternalMap = {
   // Working Samurai API models (tested and functional)
   "kimi-k2-instruct": "groq/moonshotai/kimi-k2-instruct",
   // Working GPT models from Samurai API
-  "gpt-4o": "provider9-gpt-4o",
   "gpt-4o-latest": "provider9-gpt-4o-latest",
   // Latest cutting-edge models from Samurai API
   "o3-mini": "provider9-o3-mini",
@@ -37,7 +39,10 @@ const modelRoutes = {
   "provider9-gemini-2.5-flash": "https://samuraiapi.in/v1/chat/completions",
   "provider9-gemini-2.0-flash-thinking": "https://samuraiapi.in/v1/chat/completions",
   // Newly added GPT-5 via Samurai v0
-  "Paid/v0/v0-gpt-5": "https://samuraiapi.in/v1/chat/completions"
+  "Paid/v0/v0-gpt-5": "https://samuraiapi.in/v1/chat/completions",
+  // OpenAI-compatible proxy models
+  "gpt-4o": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gpt-4o-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
 const imageModelRoutes = {
@@ -101,7 +106,7 @@ function getWorkingModels() {
   // Check which models use reliable endpoints
   for (const [exposedModel, internalModel] of Object.entries(exposedToInternalMap)) {
     const route = modelRoutes[internalModel];
-    if (route && (route.includes('samuraiapi.in') || route.includes('fast.typegpt.net'))) {
+    if (route && (route.includes('samuraiapi.in') || route.includes('fast.typegpt.net') || route.includes('gpt-oss-openai-proxy.onrender.com'))) {
       reliableModels.push(exposedModel);
     }
   }
@@ -112,7 +117,7 @@ function getWorkingModels() {
 // Model categories for intelligent fallback
 const modelCategories = {
   claude: ["claude-sonnet-4", "claude-opus-4"],
-  openai: ["gpt-4o", "gpt-4o-latest", "o3-mini", "gpt-5"],
+  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4o-latest", "o3-mini", "gpt-5"],
   google: ["gemini-2.5-flash", "gemini-2.0-flash-thinking"],
   xai: ["grok-4"],
   moonshot: ["kimi-k2-instruct"],
