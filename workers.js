@@ -16,12 +16,7 @@ const exposedToInternalMap = {
   "grok-3-mini": "grok-3-mini",
   // DeepSeek R1 - Free & Uncensored (keeping this one)
   "deepseek-r1": "NiansuhAI/DeepSeek-R1",
-  // Samurai API models with Paid prefix (simple naming)
-  "claude-sonnet-4": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
-  "claude-opus-4": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
-  "grok-4": "Paid/xai/grok-4",
-  // Working Samurai API models (tested and functional)
-  "kimi-k2-instruct": "groq/moonshotai/kimi-k2-instruct",
+  // Working Samurai API models (tested and functional) - Removed Claude, Grok, and Kimi models
   // Working GPT models from Samurai API
   "gpt-4o-latest": "provider9-gpt-4o-latest",
   // Latest cutting-edge models from Samurai API
@@ -35,12 +30,7 @@ const exposedToInternalMap = {
 const modelRoutes = {
   // DeepSeek R1 - keeping original route
   "NiansuhAI/DeepSeek-R1": "https://fast.typegpt.net/v1/chat/completions",
-  // Samurai API models with Paid prefix (renamed for client)
-  "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
-  "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
-  "Paid/xai/grok-4": "https://samuraiapi.in/v1/chat/completions",
-  // Working Samurai API models (tested and functional)
-  "groq/moonshotai/kimi-k2-instruct": "https://samuraiapi.in/v1/chat/completions",
+  // Removed Samurai API models for Claude, Grok, and Kimi
   // Working GPT models from Samurai API
   "provider9-gpt-4o": "https://samuraiapi.in/v1/chat/completions",
   "provider9-gpt-4o-latest": "https://samuraiapi.in/v1/chat/completions",
@@ -70,11 +60,7 @@ const backupInternalForExposed = {
   "gpt-4o": "provider9-gpt-4o",
   "gpt-4o-mini": "provider9-gpt-4o-latest",
   "deepseek-chat": "NiansuhAI/DeepSeek-R1",
-  "deepseek-reasoner": "NiansuhAI/DeepSeek-R1",
-  "claude-3.5-haiku": "claude-sonnet-4",
-  "gemini-2.0-flash": "provider9-gemini-2.0-flash-thinking",
-  "gemini-2.5-flash-proxy": "provider9-gemini-2.5-flash",
-  "grok-3-mini": "grok-4"
+  "deepseek-reasoner": "NiansuhAI/DeepSeek-R1"
 };
 
 const imageModelRoutes = {
@@ -126,8 +112,8 @@ const imageModelRoutes = {
 
 // Default models configuration
 const defaultModels = {
-  vision: "claude-sonnet-4", // Default vision model
-  webSearch: "claude-sonnet-4" // Default web search model
+  vision: "claude-3.5-haiku", // Default vision model
+  webSearch: "perplexed" // Default web search model
 };
 
 // Dynamic fallback system - automatically detect working models
@@ -148,11 +134,10 @@ function getWorkingModels() {
 
 // Model categories for intelligent fallback
 const modelCategories = {
-  claude: ["claude-sonnet-4", "claude-opus-4", "claude-3.5-haiku"],
+  claude: ["claude-3.5-haiku"],
   openai: ["gpt-4o", "gpt-4o-mini", "gpt-4o-latest", "o3-mini", "gpt-5", "gpt-4.1-nano", "gpt-4.1-mini"],
   google: ["gemini-2.5-flash", "gemini-2.0-flash-thinking", "gemini-2.0-flash", "gemini-2.5-flash-proxy"],
-  xai: ["grok-4", "grok-3-mini"],
-  moonshot: ["kimi-k2-instruct"],
+  xai: ["grok-3-mini"],
   deepseek: ["deepseek-r1", "deepseek-chat", "deepseek-reasoner"],
   search: ["perplexed", "felo"]
 };
