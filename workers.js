@@ -255,13 +255,22 @@ When a user asks you to take a screenshot of a website, explain that you can cap
 You have access to this screenshot functionality and should offer it when relevant to user requests.`
       };
       
-      // Check if there's already a system message, if not add ours at the beginning
-      const hasSystemMessage = modifiedBody.messages.some(msg => msg.role === "system");
-      if (!hasSystemMessage) {
+      // Force screenshot capability by merging with existing system prompts
+      const existingSystemIndex = modifiedBody.messages.findIndex(msg => msg.role === "system");
+      
+      if (existingSystemIndex >= 0) {
+        // Merge with existing system prompt
+        const existingContent = modifiedBody.messages[existingSystemIndex].content;
+        modifiedBody.messages[existingSystemIndex].content = `${screenshotSystemPrompt.content}
+
+---
+
+${existingContent}`;
+        console.log(`📸 Screenshot capability merged with existing system prompt for ${modelId} (${internal})`);
+      } else {
+        // Add as new system prompt
         modifiedBody.messages = [screenshotSystemPrompt, ...modifiedBody.messages];
         console.log(`📸 Screenshot system prompt added to ${modelId} (${internal})`);
-      } else {
-        console.log(`⚠️ System message already exists for ${modelId}, skipping screenshot prompt`);
       }
     }
 
