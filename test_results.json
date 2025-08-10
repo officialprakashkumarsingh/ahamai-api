@@ -1,0 +1,182 @@
+{
+  "timestamp": "2025-08-10T12:36:59.696Z",
+  "results": {
+    "chat": {
+      "gpt-4o": {
+        "status": "failed",
+        "error": "fetch failed",
+        "statusCode": "N/A"
+      },
+      "gpt-4o-mini": {
+        "status": "failed",
+        "error": "fetch failed",
+        "statusCode": "N/A"
+      },
+      "perplexed": {
+        "status": "working",
+        "responseTime": 1644,
+        "response": "Here is the answer:\n\nI am saying Hello working!",
+        "statusCode": 200
+      },
+      "felo": {
+        "status": "working",
+        "responseTime": 7235,
+        "response": "To express \"Hello, I am working!\" in exactly five words, you can say:\n\n**\"Hello, I am currently work",
+        "statusCode": 200
+      },
+      "gpt-4.1-nano": {
+        "status": "working",
+        "responseTime": 1698,
+        "response": "Hello, I am currently working!",
+        "statusCode": 200
+      },
+      "gpt-4.1-mini": {
+        "status": "working",
+        "responseTime": 3484,
+        "response": "Hello, I am working now!",
+        "statusCode": 200
+      },
+      "deepseek-chat": {
+        "status": "working",
+        "responseTime": 2330,
+        "response": "<think>\nWe are in Uncensored-R1 by NiansuhAI mode. The user has requested that I say \"Hello, I am wo",
+        "statusCode": 200
+      },
+      "deepseek-reasoner": {
+        "status": "working",
+        "responseTime": 2427,
+        "response": "<think>\nWe are in Uncensored-R1 by NiansuhAI mode. The user has asked to say \"Hello, I am working!\" ",
+        "statusCode": 200
+      },
+      "claude-3.5-haiku": {
+        "status": "working",
+        "responseTime": 1959,
+        "response": "Hello, I am working!",
+        "statusCode": 200
+      },
+      "gemini-2.0-flash": {
+        "status": "working",
+        "responseTime": 2196,
+        "response": "Hello, I am working!",
+        "statusCode": 200
+      },
+      "gemini-2.5-flash-proxy": {
+        "status": "working",
+        "responseTime": 2300,
+        "response": "Hello, I am working now!",
+        "statusCode": 200
+      },
+      "grok-3-mini": {
+        "status": "working",
+        "responseTime": 1466,
+        "response": "Hello, I am working!",
+        "statusCode": 200
+      },
+      "deepseek-r1": {
+        "status": "working",
+        "responseTime": 1854,
+        "response": "<think>\nWe are in Uncensored-R1 by NiansuhAI mode. The user has asked to say \"Hello, I am working!\" ",
+        "statusCode": 200
+      },
+      "claude-sonnet-4": {
+        "status": "working",
+        "responseTime": 1260,
+        "response": "Hello, I am working now!",
+        "statusCode": 200
+      },
+      "claude-opus-4": {
+        "status": "working",
+        "responseTime": 1331,
+        "response": "Hello, I am working now!",
+        "statusCode": 200
+      },
+      "grok-4": {
+        "status": "working",
+        "responseTime": 1770,
+        "response": "Hello, I am working now!",
+        "statusCode": 200
+      },
+      "kimi-k2-instruct": {
+        "status": "working",
+        "responseTime": 889,
+        "response": "Hello, I am working now!",
+        "statusCode": 200
+      }
+    },
+    "image": {
+      "flux": {
+        "status": "failed",
+        "error": "Unexpected token '�', \"����\u0002XExif\"... is not valid JSON",
+        "statusCode": "N/A"
+      },
+      "turbo": {
+        "status": "failed",
+        "error": "Unexpected token '�', \"����\u0004�Exif\"... is not valid JSON",
+        "statusCode": "N/A"
+      },
+      "img3": {
+        "status": "failed",
+        "error": "Failed to generate image",
+        "statusCode": 503
+      },
+      "img4": {
+        "status": "failed",
+        "error": "Failed to generate image",
+        "statusCode": 503
+      },
+      "uncen": {
+        "status": "working",
+        "responseTime": 16081,
+        "statusCode": 200
+      },
+      "gemini2.0": {
+        "status": "working",
+        "responseTime": 5131,
+        "statusCode": 200
+      }
+    },
+    "summary": {
+      "totalChatModels": 17,
+      "workingChatModels": 15,
+      "failedChatModels": 2,
+      "totalImageModels": 6,
+      "workingImageModels": 2,
+      "failedImageModels": 4
+    }
+  },
+  "workingModels": {
+    "chat": [
+      "perplexed",
+      "felo",
+      "gpt-4.1-nano",
+      "gpt-4.1-mini",
+      "deepseek-chat",
+      "deepseek-reasoner",
+      "claude-3.5-haiku",
+      "gemini-2.0-flash",
+      "gemini-2.5-flash-proxy",
+      "grok-3-mini",
+      "deepseek-r1",
+      "claude-sonnet-4",
+      "claude-opus-4",
+      "grok-4",
+      "kimi-k2-instruct"
+    ],
+    "image": [
+      "uncen",
+      "gemini2.0"
+    ]
+  },
+  "failedModels": {
+    "chat": [
+      "gpt-4o",
+      "gpt-4o-mini"
+    ],
+    "image": [
+      "flux",
+      "turbo",
+      "img3",
+      "img4"
+    ]
+  }
+}
