@@ -1,0 +1,62 @@
+{
+  "api_url": "https://ahamai-api.officialprakashkrsingh.workers.dev",
+  "test_date": "2025-08-10 17:32:30",
+  "total_models": 17,
+  "working_models": [
+    "gpt-4o",
+    "gpt-4o-mini",
+    "perplexed",
+    "felo",
+    "deepseek-r1"
+  ],
+  "non_working_models": [
+    {
+      "model": "gpt-4.1-nano",
+      "error": "Unexpected error: 'str' object has no attribute 'get'"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "error": "Unexpected error: 'str' object has no attribute 'get'"
+    },
+    {
+      "model": "deepseek-chat",
+      "error": "Unexpected error: 'str' object has no attribute 'get'"
+    },
+    {
+      "model": "deepseek-reasoner",
+      "error": "Unexpected error: 'str' object has no attribute 'get'"
+    },
+    {
+      "model": "claude-3.5-haiku",
+      "error": "Unexpected error: 'str' object has no attribute 'get'"
+    },
+    {
+      "model": "gemini-2.0-flash",
+      "error": "Unexpected error: 'str' object has no attribute 'get'"
+    },
+    {
+      "model": "gemini-2.5-flash-proxy",
+      "error": "Unexpected error: 'str' object has no attribute 'get'"
+    },
+    {
+      "model": "grok-3-mini",
+      "error": "Unexpected error: 'str' object has no attribute 'get'"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "error": "Unexpected error: 'str' object has no attribute 'get'"
+    },
+    {
+      "model": "claude-opus-4",
+      "error": "Unexpected error: 'str' object has no attribute 'get'"
+    },
+    {
+      "model": "grok-4",
+      "error": "Unexpected error: 'str' object has no attribute 'get'"
+    },
+    {
+      "model": "kimi-k2-instruct",
+      "error": "Unexpected error: 'str' object has no attribute 'get'"
+    }
+  ]
+}
