@@ -1,49 +1,23 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  // OpenAI-compatible proxy models (put first)
+  // Working OpenAI-compatible proxy models (tested and confirmed)
   "gpt-4o": "gpt-4o",
   "gpt-4o-mini": "gpt-4o-mini",
   "perplexed": "perplexed",
   "felo": "felo",
-  "gpt-4.1-nano": "gpt-4.1-nano",
-  "gpt-4.1-mini": "gpt-4.1-mini",
-  "deepseek-chat": "deepseek-chat",
-  "deepseek-reasoner": "deepseek-reasoner",
-  "claude-3.5-haiku": "claude-3.5-haiku",
-  "gemini-2.0-flash": "gemini-2.0-flash",
-  "gemini-2.5-flash-proxy": "gemini-2.5-flash",
-  "grok-3-mini": "grok-3-mini",
-  // DeepSeek R1 - Free & Uncensored (keeping this one)
-  "deepseek-r1": "NiansuhAI/DeepSeek-R1",
-  // Samurai API models to keep (Claude, Grok-4, Kimi)
-  "claude-sonnet-4": "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
-  "claude-opus-4": "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0",
-  "grok-4": "Paid/xai/grok-4",
-  "kimi-k2-instruct": "groq/moonshotai/kimi-k2-instruct"
+  // DeepSeek R1 - Free & Uncensored (working)
+  "deepseek-r1": "NiansuhAI/DeepSeek-R1"
 };
 
 const modelRoutes = {
   // DeepSeek R1 - keeping original route
   "NiansuhAI/DeepSeek-R1": "https://fast.typegpt.net/v1/chat/completions",
-  // Samurai API models to keep (Claude, Grok-4, Kimi)
-  "Paid/bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
-  "Paid/bedrock/us.anthropic.claude-opus-4-20250514-v1:0": "https://samuraiapi.in/v1/chat/completions",
-  "Paid/xai/grok-4": "https://samuraiapi.in/v1/chat/completions",
-  "groq/moonshotai/kimi-k2-instruct": "https://samuraiapi.in/v1/chat/completions",
-  // OpenAI-compatible proxy models
+  // Working OpenAI-compatible proxy models
   "gpt-4o": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gpt-4o-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "perplexed": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "gpt-4.1-nano": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "gpt-4.1-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "deepseek-chat": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "deepseek-reasoner": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "claude-3.5-haiku": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "gemini-2.0-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "gemini-2.5-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "grok-3-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
+  "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
 
@@ -97,8 +71,8 @@ const imageModelRoutes = {
 
 // Default models configuration
 const defaultModels = {
-  vision: "claude-sonnet-4", // Default vision model
-  webSearch: "perplexed" // Default web search model
+  vision: "gpt-4o", // Changed to working model
+  webSearch: "perplexed" // Default web search model (working)
 };
 
 
@@ -202,9 +176,6 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
   if (modelRoutes[internalModel].includes('fast.typegpt.net')) {
     // For DeepSeek R1 endpoint
     headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
-  } else if (modelRoutes[internalModel].includes('samuraiapi.in')) {
-    // For Samurai API endpoint
-    headers["Authorization"] = "Bearer sk-IvMBi9qmzLiWHl0RpJ9KbyJpczm9YSIHAnMU2aDBbkpbYLF8";
   } else if (modelRoutes[internalModel].includes('gpt-oss-openai-proxy.onrender.com')) {
     // For OpenAI-compatible onrender proxy
     headers["Authorization"] = `Bearer ${API_KEY}`;
