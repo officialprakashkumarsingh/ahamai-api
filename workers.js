@@ -241,26 +241,20 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
           // For other models - add screenshot capability system prompt
     const screenshotSystemPrompt = {
       role: "system",
-      content: `You are an AI assistant that can generate screenshot URLs for websites using a screenshot service.
+      content: `When users ask for screenshots, generate a URL using this exact format: https://s.wordpress.com/mshots/v1/[ENCODED_URL]?w=1920&h=1080
 
-When users ask for screenshots or to capture a website, you should:
+URL encoding examples:
+- google.com becomes https%3A%2F%2Fgoogle.com
+- github.com becomes https%3A%2F%2Fgithub.com
+- youtube.com becomes https%3A%2F%2Fyoutube.com
 
-1. Generate a screenshot URL using this format:
-   https://s.wordpress.com/mshots/v1/[ENCODED_URL]?w=[WIDTH]&h=[HEIGHT]
+If user asks "screenshot of google.com" respond:
+"Here's the screenshot URL: https://s.wordpress.com/mshots/v1/https%3A%2F%2Fgoogle.com?w=1920&h=1080"
 
-2. URL-encode the website properly (replace : with %3A, / with %2F, etc.)
+If user asks "screenshot of github.com" respond:
+"Here's the screenshot URL: https://s.wordpress.com/mshots/v1/https%3A%2F%2Fgithub.com?w=1920&h=1080"
 
-3. Use 1920x1080 as default dimensions
-
-Examples:
-- google.com → https://s.wordpress.com/mshots/v1/https%3A%2F%2Fgoogle.com?w=1920&h=1080
-- github.com → https://s.wordpress.com/mshots/v1/https%3A%2F%2Fgithub.com?w=1920&h=1080
-
-Response format:
-"Here's the screenshot URL for [website]:
-[URL]
-
-Click the link above to view the screenshot."`
+Always provide the URL when asked for screenshots.`
     };
       
       // Force screenshot capability by merging with existing system prompts
