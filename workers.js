@@ -233,7 +233,7 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
     // Special handling for different models
     let modifiedBody = { ...requestBody };
     
-    if (internal === "NiansuhAI/DeepSeek-R1" || exposedModel === "deepseek-r1") {
+    if (internal === "NiansuhAI/DeepSeek-R1" || modelId === "deepseek-r1") {
       // DeepSeek R1 - force uncensored mode by removing system prompts
       modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
       console.log(`🔥 DeepSeek R1 Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s)`);
@@ -259,6 +259,9 @@ You have access to this screenshot functionality and should offer it when releva
       const hasSystemMessage = modifiedBody.messages.some(msg => msg.role === "system");
       if (!hasSystemMessage) {
         modifiedBody.messages = [screenshotSystemPrompt, ...modifiedBody.messages];
+        console.log(`📸 Screenshot system prompt added to ${modelId} (${internal})`);
+      } else {
+        console.log(`⚠️ System message already exists for ${modelId}, skipping screenshot prompt`);
       }
     }
 
