@@ -194,6 +194,10 @@ export default {
       return handleUrlAutomation(request, corsHeaders);
     }
 
+    if (path === "/v1/screenshot" && request.method === "POST") {
+      return handleScreenshot(request, corsHeaders);
+    }
+
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
       headers: { "Content-Type": "application/json", ...corsHeaders }
@@ -232,12 +236,34 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
     // Special handling for different models
     let modifiedBody = { ...requestBody };
     
-    if (internal === "NiansuhAI/DeepSeek-R1") {
-      // DeepSeek R1 - force uncensored mode by removing system prompts
+    if (internal.includes("DeepSeek") || internal.includes("deepseek")) {
+      // DeepSeek models - force uncensored mode by removing system prompts
       modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
-      console.log(`🔥 DeepSeek R1 Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s)`);
+      console.log(`🔥 DeepSeek Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s) for model ${internal}`);
+    } else {
+      // For other models - add screenshot capability system prompt
+      const screenshotSystemPrompt = {
+        role: "system",
+        content: `You are an AI assistant with screenshot capabilities. You can take screenshots of websites using the following format:
+
+To take a screenshot, you can use this URL format:
+https://s.wordpress.com/mshots/v1/[ENCODED_URL]?w=[WIDTH]&h=[HEIGHT]
+
+For example:
+- https://s.wordpress.com/mshots/v1/https%3A%2F%2Fgoogle.com?w=1920&h=1080
+- https://s.wordpress.com/mshots/v1/https%3A%2F%2Fgithub.com?w=1280&h=720
+
+When a user asks you to take a screenshot of a website, explain that you can capture it and provide the formatted URL. The URL must be properly URL-encoded.
+
+You have access to this screenshot functionality and should offer it when relevant to user requests.`
+      };
+      
+      // Check if there's already a system message, if not add ours at the beginning
+      const hasSystemMessage = modifiedBody.messages.some(msg => msg.role === "system");
+      if (!hasSystemMessage) {
+        modifiedBody.messages = [screenshotSystemPrompt, ...modifiedBody.messages];
+      }
     }
-    // For other models - use default app system prompts (no additional branding)
 
     let headers = { 
       "Content-Type": "application/json"
@@ -528,6 +554,13 @@ async function handleUrlAutomation(request, corsHeaders) {
         document.querySelector('${data.submitSelector}').click();
       `;
       break;
+    case 'take_screenshot':
+      const encodedUrl = encodeURIComponent(data.url || url);
+      const width = data.width || 1920;
+      const height = data.height || 1080;
+      automationResponse.screenshot_url = `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=${width}&h=${height}`;
+      automationResponse.message = `Screenshot URL generated for ${data.url || url}`;
+      break;
     default:
       automationResponse.success = false;
       automationResponse.message = `Unknown automation action: ${action}`;
@@ -536,4 +569,48 @@ async function handleUrlAutomation(request, corsHeaders) {
   return new Response(JSON.stringify(automationResponse), {
     headers: { "Content-Type": "application/json", ...corsHeaders }
   });
+}
+
+async function handleScreenshot(request, corsHeaders) {
+  const body = await request.json();
+  const { url, width = 1920, height = 1080 } = body;
+
+  if (!url) {
+    return new Response(JSON.stringify({ error: "URL parameter is required" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
+
+  try {
+    // Encode the URL for the WordPress mshots API
+    const encodedUrl = encodeURIComponent(url);
+    const screenshotUrl = `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=${width}&h=${height}`;
+    
+    // Fetch the screenshot
+    const screenshotResponse = await fetch(screenshotUrl);
+    
+    if (!screenshotResponse.ok) {
+      return new Response(JSON.stringify({ error: "Failed to capture screenshot" }), {
+        status: screenshotResponse.status,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+    }
+
+    // Return the screenshot image
+    return new Response(screenshotResponse.body, {
+      status: 200,
+      headers: {
+        "Content-Type": screenshotResponse.headers.get("Content-Type") || "image/png",
+        "Transfer-Encoding": "chunked",
+        ...corsHeaders
+      }
+    });
+
+  } catch (error) {
+    return new Response(JSON.stringify({ error: "Screenshot service unavailable" }), {
+      status: 503,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
 }
