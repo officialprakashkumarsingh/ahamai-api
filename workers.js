@@ -233,10 +233,10 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
     // Special handling for different models
     let modifiedBody = { ...requestBody };
     
-    if (internal.includes("DeepSeek") || internal.includes("deepseek")) {
-      // DeepSeek models - force uncensored mode by removing system prompts
+    if (internal === "NiansuhAI/DeepSeek-R1" || exposedModel === "deepseek-r1") {
+      // DeepSeek R1 - force uncensored mode by removing system prompts
       modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
-      console.log(`🔥 DeepSeek Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s) for model ${internal}`);
+      console.log(`🔥 DeepSeek R1 Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s)`);
     } else {
       // For other models - add screenshot capability system prompt
       const screenshotSystemPrompt = {

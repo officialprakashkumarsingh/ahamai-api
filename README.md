@@ -10,7 +10,7 @@ This Cloudflare Worker provides an OpenAI-compatible API that supports multiple 
 - **Model Management**: List available chat and image models
 - **Authentication**: Secure API key-based authentication
 - **OpenAI Compatible**: Works with any OpenAI-compatible client library
-- **Uncensored Models**: DeepSeek models operate without system prompt restrictions
+- **Uncensored Model**: DeepSeek R1 operates without system prompt restrictions
 
 ## Supported Models
 
