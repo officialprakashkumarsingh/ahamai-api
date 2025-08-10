@@ -1,0 +1,18 @@
+{
+  "api_url": "https://ahamai-api.officialprakashkrsingh.workers.dev",
+  "api_key": "ahamaibyprakash25",
+  "test_date": "2025-01-10",
+  "working_models": [
+    "gpt-4o",
+    "gpt-4o-mini",
+    "perplexed",
+    "felo",
+    "deepseek-r1"
+  ],
+  "statistics": {
+    "total_tested": 17,
+    "working": 5,
+    "non_working": 12,
+    "success_rate": "29.4%"
+  }
+}
