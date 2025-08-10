@@ -6,7 +6,7 @@ This Cloudflare Worker provides an OpenAI-compatible API that supports multiple 
 
 - **Chat Completions**: Support for multiple AI models with streaming capabilities
 - **Image Generation**: AI-powered image generation using Pollinations API
-- **Screenshot Capture**: Website screenshot functionality using WordPress mshots API
+- **Screenshot Capability**: AI models can generate screenshot URLs using WordPress mshots API
 - **Model Management**: List available chat and image models
 - **Authentication**: Secure API key-based authentication
 - **OpenAI Compatible**: Works with any OpenAI-compatible client library
@@ -60,23 +60,6 @@ curl -X POST https://your-worker-domain/v1/images/generations \
     "prompt": "A beautiful sunset over mountains",
     "width": 1024,
     "height": 1024
-  }'
-```
-
-### Screenshot Capture
-```
-POST /v1/screenshot
-```
-
-Example request:
-```bash
-curl -X POST https://your-worker-domain/v1/screenshot \
-  -H "Authorization: Bearer ahamaibyprakash25" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://google.com",
-    "width": 1920,
-    "height": 1080
   }'
 ```
 

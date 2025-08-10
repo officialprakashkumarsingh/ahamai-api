@@ -194,9 +194,6 @@ export default {
       return handleUrlAutomation(request, corsHeaders);
     }
 
-    if (path === "/v1/screenshot" && request.method === "POST") {
-      return handleScreenshot(request, corsHeaders);
-    }
 
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
@@ -571,46 +568,4 @@ async function handleUrlAutomation(request, corsHeaders) {
   });
 }
 
-async function handleScreenshot(request, corsHeaders) {
-  const body = await request.json();
-  const { url, width = 1920, height = 1080 } = body;
 
-  if (!url) {
-    return new Response(JSON.stringify({ error: "URL parameter is required" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
-  }
-
-  try {
-    // Encode the URL for the WordPress mshots API
-    const encodedUrl = encodeURIComponent(url);
-    const screenshotUrl = `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=${width}&h=${height}`;
-    
-    // Fetch the screenshot
-    const screenshotResponse = await fetch(screenshotUrl);
-    
-    if (!screenshotResponse.ok) {
-      return new Response(JSON.stringify({ error: "Failed to capture screenshot" }), {
-        status: screenshotResponse.status,
-        headers: { "Content-Type": "application/json", ...corsHeaders }
-      });
-    }
-
-    // Return the screenshot image
-    return new Response(screenshotResponse.body, {
-      status: 200,
-      headers: {
-        "Content-Type": screenshotResponse.headers.get("Content-Type") || "image/png",
-        "Transfer-Encoding": "chunked",
-        ...corsHeaders
-      }
-    });
-
-  } catch (error) {
-    return new Response(JSON.stringify({ error: "Screenshot service unavailable" }), {
-      status: 503,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
-  }
-}
