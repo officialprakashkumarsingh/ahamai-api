@@ -46,15 +46,7 @@ const modelRoutes = {
   "grok-3-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
-// Backup internal targets if primary route fails (e.g., proxy downtime)
-const backupInternalForExposed = {
-  "gpt-4o": "gpt-4o-mini",
-  "gpt-4o-mini": "gpt-4o",
-  "deepseek-chat": "NiansuhAI/DeepSeek-R1",
-  "deepseek-reasoner": "NiansuhAI/DeepSeek-R1",
-  "claude-3.5-haiku": "claude-sonnet-4",
-  "grok-3-mini": "grok-4"
-};
+
 
 const imageModelRoutes = {
   "flux": {
@@ -109,32 +101,7 @@ const defaultModels = {
   webSearch: "perplexed" // Default web search model
 };
 
-// Dynamic fallback system - automatically detect working models
-function getWorkingModels() {
-  // Models known to be reliable based on endpoint
-  const reliableModels = [];
-  
-  // Check which models use reliable endpoints
-  for (const [exposedModel, internalModel] of Object.entries(exposedToInternalMap)) {
-    const route = modelRoutes[internalModel];
-    if (route && (route.includes('samuraiapi.in') || route.includes('fast.typegpt.net') || route.includes('gpt-oss-openai-proxy.onrender.com'))) {
-      reliableModels.push(exposedModel);
-    }
-  }
-  
-  return reliableModels;
-}
 
-// Model categories for intelligent fallback
-const modelCategories = {
-  claude: ["claude-sonnet-4", "claude-opus-4", "claude-3.5-haiku"],
-  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4.1-nano", "gpt-4.1-mini"],
-  google: ["gemini-2.0-flash", "gemini-2.5-flash-proxy"],
-  xai: ["grok-4", "grok-3-mini"],
-  moonshot: ["kimi-k2-instruct"],
-  deepseek: ["deepseek-r1", "deepseek-chat", "deepseek-reasoner"],
-  search: ["perplexed", "felo"]
-};
 
 
 
@@ -202,130 +169,84 @@ export default {
   }
 };
 
-// Get intelligent fallback model based on the original model's category
-function getIntelligentFallback(originalModel) {
-  const workingModels = getWorkingModels();
-  
-  // Find which category the original model belongs to
-  for (const [category, models] of Object.entries(modelCategories)) {
-    if (models.includes(originalModel)) {
-      // Try other models in the same category first
-      for (const model of models) {
-        if (model !== originalModel && workingModels.includes(model)) {
-          return model;
-        }
-      }
-    }
-  }
-  // If no category match or no available models in category, use first working model
-  return workingModels[0];
-}
 
-// Try to make a request with fallback support
-async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
+
+// Make a request to the specified model only (no fallback)
+async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
   let internalModel = exposedToInternalMap[modelId];
   
-  const attemptOnce = async (internal) => {
-    if (!internal || !modelRoutes[internal]) {
-      return null;
+  if (!internalModel || !modelRoutes[internalModel]) {
+    throw new Error(`Model '${modelId}' is not supported or not configured.`);
+  }
+
+  // Special handling for different models
+  let modifiedBody = { ...requestBody };
+  
+  if (internalModel === "NiansuhAI/DeepSeek-R1" || modelId === "deepseek-r1") {
+    // DeepSeek R1 - force uncensored mode by removing system prompts
+    modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
+    console.log(`🔥 DeepSeek R1 Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s)`);
+  } else {
+    // For other models - remove all system prompts (no system prompt injection)
+    modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
+    if (requestBody.messages.length !== modifiedBody.messages.length) {
+      console.log(`🚫 Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s) from ${modelId} (${internalModel})`);
     }
+  }
 
-    // Special handling for different models
-    let modifiedBody = { ...requestBody };
-    
-    if (internal === "NiansuhAI/DeepSeek-R1" || modelId === "deepseek-r1") {
-      // DeepSeek R1 - force uncensored mode by removing system prompts
-      modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
-      console.log(`🔥 DeepSeek R1 Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s)`);
-    } else {
-      // For other models - remove all system prompts (no system prompt injection)
-      modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
-      if (requestBody.messages.length !== modifiedBody.messages.length) {
-        console.log(`🚫 Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s) from ${modelId} (${internal})`);
-      }
-    }
-
-    let headers = { 
-      "Content-Type": "application/json"
-    };
-
-    // Use different authentication for different endpoints
-    if (modelRoutes[internal].includes('fast.typegpt.net')) {
-      // For DeepSeek R1 endpoint
-      headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
-    } else if (modelRoutes[internal].includes('samuraiapi.in')) {
-      // For Samurai API endpoint
-      headers["Authorization"] = "Bearer sk-IvMBi9qmzLiWHl0RpJ9KbyJpczm9YSIHAnMU2aDBbkpbYLF8";
-    } else if (modelRoutes[internal].includes('gpt-oss-openai-proxy.onrender.com')) {
-      // For OpenAI-compatible onrender proxy
-      headers["Authorization"] = `Bearer ${API_KEY}`;
-    }
-
-    try {
-      const response = await fetch(modelRoutes[internal], {
-        method: "POST",
-        headers: headers,
-        body: JSON.stringify({ ...modifiedBody, model: internal })
-      });
-
-      // Check if response indicates an error
-      if (!response.ok || response.status >= 400) {
-        return null;
-      }
-
-      // For non-streaming, check if response has empty content or errors
-      if (!stream) {
-        const responseText = await response.text();
-        try {
-          const responseJson = JSON.parse(responseText);
-          // Check for various error conditions
-          if (responseJson.error || 
-              (responseJson.choices && responseJson.choices[0] && 
-               responseJson.choices[0].message && 
-               (responseJson.choices[0].message.content === "" || 
-                responseJson.choices[0].message.content.includes("I apologize, but I encountered an error")))) {
-            return null;
-          }
-          return new Response(responseText, {
-            status: 200,
-            headers: { "Content-Type": "application/json", ...corsHeaders }
-          });
-        } catch (e) {
-          return null;
-        }
-      }
-
-      // Return streaming response
-      return new Response(response.body, {
-        status: response.status,
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Transfer-Encoding": "chunked",
-          "Cache-Control": "no-cache",
-          ...corsHeaders
-        }
-      });
-
-    } catch (error) {
-      return null;
-    }
+  let headers = { 
+    "Content-Type": "application/json"
   };
 
-  // First attempt: primary internal model
-  let primaryResult = await attemptOnce(internalModel);
-  if (primaryResult) {
-    return primaryResult;
+  // Use different authentication for different endpoints
+  if (modelRoutes[internalModel].includes('fast.typegpt.net')) {
+    // For DeepSeek R1 endpoint
+    headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
+  } else if (modelRoutes[internalModel].includes('samuraiapi.in')) {
+    // For Samurai API endpoint
+    headers["Authorization"] = "Bearer sk-IvMBi9qmzLiWHl0RpJ9KbyJpczm9YSIHAnMU2aDBbkpbYLF8";
+  } else if (modelRoutes[internalModel].includes('gpt-oss-openai-proxy.onrender.com')) {
+    // For OpenAI-compatible onrender proxy
+    headers["Authorization"] = `Bearer ${API_KEY}`;
   }
 
-  // If failed and we have a backup internal route for this exposed model, try it
-  if (backupInternalForExposed[modelId]) {
-    const backupResult = await attemptOnce(backupInternalForExposed[modelId]);
-    if (backupResult) {
-      return backupResult;
+  const response = await fetch(modelRoutes[internalModel], {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify({ ...modifiedBody, model: internalModel })
+  });
+
+  // Check if response indicates an error
+  if (!response.ok) {
+    throw new Error(`Model '${modelId}' request failed with status ${response.status}: ${response.statusText}`);
+  }
+
+  // For non-streaming, return JSON response
+  if (!stream) {
+    const responseText = await response.text();
+    const responseJson = JSON.parse(responseText);
+    
+    // Check for API errors in response
+    if (responseJson.error) {
+      throw new Error(`Model '${modelId}' returned error: ${responseJson.error.message || responseJson.error}`);
     }
+    
+    return new Response(responseText, {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
   }
 
-  return null;
+  // Return streaming response
+  return new Response(response.body, {
+    status: response.status,
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Transfer-Encoding": "chunked",
+      "Cache-Control": "no-cache",
+      ...corsHeaders
+    }
+  });
 }
 
 async function handleChat(request, corsHeaders) {
@@ -340,40 +261,19 @@ async function handleChat(request, corsHeaders) {
     });
   }
 
-  // Try the requested model first
-  let result = await tryModelRequest(exposedModel, body, stream, corsHeaders);
-  if (result) {
-    return result;
+  try {
+    // Make request to the specified model only (no fallback)
+    return await makeModelRequest(exposedModel, body, stream, corsHeaders);
+  } catch (error) {
+    // Return error if model fails
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      model: exposedModel
+    }), {
+      status: 503,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
   }
-
-  // If original model failed, try intelligent fallback
-  const intelligentFallback = getIntelligentFallback(exposedModel);
-  if (intelligentFallback !== exposedModel) {
-    result = await tryModelRequest(intelligentFallback, body, stream, corsHeaders);
-    if (result) {
-      return result;
-    }
-  }
-
-  // If intelligent fallback failed, try all working models in order
-  const workingModels = getWorkingModels();
-  for (const fallbackModel of workingModels) {
-    if (fallbackModel !== exposedModel && fallbackModel !== intelligentFallback) {
-      result = await tryModelRequest(fallbackModel, body, stream, corsHeaders);
-      if (result) {
-        return result;
-      }
-    }
-  }
-
-  // If all models failed, return error
-  return new Response(JSON.stringify({ 
-    error: `Model '${exposedModel}' and all fallback models are currently unavailable. Please try again later.`,
-    attempted_fallbacks: workingModels 
-  }), {
-    status: 503,
-    headers: { "Content-Type": "application/json", ...corsHeaders }
-  });
 }
 
 
