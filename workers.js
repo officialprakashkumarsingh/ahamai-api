@@ -6,6 +6,8 @@ const exposedToInternalMap = {
   "gpt-4o-mini": "gpt-4o-mini",
   "perplexed": "perplexed",
   "felo": "felo",
+  "gpt-oss-20b": "gpt-oss-20b",
+  "gpt-oss-120b": "gpt-oss-120b",
   // DeepSeek R1 - Free & Uncensored (working)
   "deepseek-r1": "NiansuhAI/DeepSeek-R1"
 };
@@ -17,7 +19,9 @@ const modelRoutes = {
   "gpt-4o": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gpt-4o-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "perplexed": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
+  "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gpt-oss-20b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gpt-oss-120b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
 
