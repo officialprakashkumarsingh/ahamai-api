@@ -238,41 +238,10 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
       modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
       console.log(`🔥 DeepSeek R1 Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s)`);
     } else {
-          // For other models - add screenshot capability system prompt
-    const screenshotSystemPrompt = {
-      role: "system",
-      content: `When users ask for screenshots, generate a URL using this exact format: https://s.wordpress.com/mshots/v1/[ENCODED_URL]?w=1920&h=1080
-
-URL encoding examples:
-- google.com becomes https%3A%2F%2Fgoogle.com
-- github.com becomes https%3A%2F%2Fgithub.com
-- youtube.com becomes https%3A%2F%2Fyoutube.com
-
-If user asks "screenshot of google.com" respond:
-"Here's the screenshot URL: https://s.wordpress.com/mshots/v1/https%3A%2F%2Fgoogle.com?w=1920&h=1080"
-
-If user asks "screenshot of github.com" respond:
-"Here's the screenshot URL: https://s.wordpress.com/mshots/v1/https%3A%2F%2Fgithub.com?w=1920&h=1080"
-
-Always provide the URL when asked for screenshots.`
-    };
-      
-      // Force screenshot capability by merging with existing system prompts
-      const existingSystemIndex = modifiedBody.messages.findIndex(msg => msg.role === "system");
-      
-      if (existingSystemIndex >= 0) {
-        // Merge with existing system prompt
-        const existingContent = modifiedBody.messages[existingSystemIndex].content;
-        modifiedBody.messages[existingSystemIndex].content = `${screenshotSystemPrompt.content}
-
----
-
-${existingContent}`;
-        console.log(`📸 Screenshot capability merged with existing system prompt for ${modelId} (${internal})`);
-      } else {
-        // Add as new system prompt
-        modifiedBody.messages = [screenshotSystemPrompt, ...modifiedBody.messages];
-        console.log(`📸 Screenshot system prompt added to ${modelId} (${internal})`);
+      // For other models - remove all system prompts (no system prompt injection)
+      modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
+      if (requestBody.messages.length !== modifiedBody.messages.length) {
+        console.log(`🚫 Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s) from ${modelId} (${internal})`);
       }
     }
 
