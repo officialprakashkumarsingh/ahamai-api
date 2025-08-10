@@ -238,22 +238,30 @@ async function tryModelRequest(modelId, requestBody, stream, corsHeaders) {
       modifiedBody.messages = requestBody.messages.filter(msg => msg.role !== "system");
       console.log(`🔥 DeepSeek R1 Uncensored Mode: Removed ${requestBody.messages.length - modifiedBody.messages.length} system prompt(s)`);
     } else {
-      // For other models - add screenshot capability system prompt
-      const screenshotSystemPrompt = {
-        role: "system",
-        content: `You are an AI assistant with screenshot capabilities. You can take screenshots of websites using the following format:
+          // For other models - add screenshot capability system prompt
+    const screenshotSystemPrompt = {
+      role: "system",
+      content: `You are an AI assistant that can generate screenshot URLs for websites using a screenshot service.
 
-To take a screenshot, you can use this URL format:
-https://s.wordpress.com/mshots/v1/[ENCODED_URL]?w=[WIDTH]&h=[HEIGHT]
+When users ask for screenshots or to capture a website, you should:
 
-For example:
-- https://s.wordpress.com/mshots/v1/https%3A%2F%2Fgoogle.com?w=1920&h=1080
-- https://s.wordpress.com/mshots/v1/https%3A%2F%2Fgithub.com?w=1280&h=720
+1. Generate a screenshot URL using this format:
+   https://s.wordpress.com/mshots/v1/[ENCODED_URL]?w=[WIDTH]&h=[HEIGHT]
 
-When a user asks you to take a screenshot of a website, explain that you can capture it and provide the formatted URL. The URL must be properly URL-encoded.
+2. URL-encode the website properly (replace : with %3A, / with %2F, etc.)
 
-You have access to this screenshot functionality and should offer it when relevant to user requests.`
-      };
+3. Use 1920x1080 as default dimensions
+
+Examples:
+- google.com → https://s.wordpress.com/mshots/v1/https%3A%2F%2Fgoogle.com?w=1920&h=1080
+- github.com → https://s.wordpress.com/mshots/v1/https%3A%2F%2Fgithub.com?w=1920&h=1080
+
+Response format:
+"Here's the screenshot URL for [website]:
+[URL]
+
+Click the link above to view the screenshot."`
+    };
       
       // Force screenshot capability by merging with existing system prompts
       const existingSystemIndex = modifiedBody.messages.findIndex(msg => msg.role === "system");
