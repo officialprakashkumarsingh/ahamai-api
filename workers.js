@@ -157,14 +157,7 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
     throw new Error(`Model '${modelId}' is not supported or not configured.`);
   }
 
-  // Keep system prompts for ALL models to enable full AI capabilities
-  let modifiedBody = { ...requestBody };
-  modifiedBody.messages = requestBody.messages; // Keep all messages including system prompts
-  
-  const systemPromptCount = requestBody.messages.filter(msg => msg.role === "system").length;
-  if (systemPromptCount > 0) {
-    console.log(`✅ Keeping ${systemPromptCount} system prompt(s) for ${modelId} (${internalModel})`);
-  }
+
 
   let headers = { 
     "Content-Type": "application/json"
@@ -182,7 +175,7 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
   const response = await fetch(modelRoutes[internalModel], {
     method: "POST",
     headers: headers,
-    body: JSON.stringify({ ...modifiedBody, model: internalModel })
+    body: JSON.stringify({ ...requestBody, model: internalModel })
   });
 
   // Check if response indicates an error
