@@ -7,12 +7,14 @@
     "gpt-4o-mini",
     "perplexed",
     "felo",
+    "gpt-oss-20b",
+    "gpt-oss-120b",
     "deepseek-r1"
   ],
   "statistics": {
-    "total_tested": 17,
-    "working": 5,
-    "non_working": 12,
-    "success_rate": "29.4%"
+    "total_tested": 7,
+    "working": 7,
+    "non_working": 0,
+    "success_rate": "100%"
   }
 }
