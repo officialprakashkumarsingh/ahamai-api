@@ -9,19 +9,108 @@ const exposedToInternalMap = {
   "gpt-oss-20b": "gpt-oss-20b",
   "gpt-oss-120b": "gpt-oss-120b",
   // DeepSeek R1 - Free & Uncensored (working)
-  "deepseek-r1": "NiansuhAI/DeepSeek-R1"
+  "deepseek-r1": "NiansuhAI/DeepSeek-R1",
+  
+  // New models from Render endpoint (all tested and working with streaming)
+  "exaanswer": "exaanswer",
+  "grok-3-mini-beta": "grok-3-mini-beta",
+  
+  // Google Gemini Models
+  "gemini-2.0-flash": "gemini-2.0-flash",
+  "gemini-2.0-flash-exp-image-generation": "gemini-2.0-flash-exp-image-generation",
+  "gemini-2.0-flash-thinking-exp-01-21": "gemini-2.0-flash-thinking-exp-01-21",
+  "gemini-2.5-flash-lite-preview-06-17": "gemini-2.5-flash-lite-preview-06-17",
+  "gemini-2.0-pro-exp-02-05": "gemini-2.0-pro-exp-02-05",
+  "gemini-2.5-flash": "gemini-2.5-flash",
+  
+  // DeepSeek Models
+  "deepseek/deepseek-r1:free": "deepseek/deepseek-r1:free",
+  "deepseek/deepseek-chat-v3-0324:free": "deepseek/deepseek-chat-v3-0324:free",
+  "deepseek-r1-distill-llama-70b": "deepseek-r1-distill-llama-70b",
+  "deepseek-r1-distill-qwen-32b": "deepseek-r1-distill-qwen-32b",
+  
+  // Meta Llama Models
+  "meta-llama/llama-4-maverick:free": "meta-llama/llama-4-maverick:free",
+  "meta-llama/llama-4-scout-17b-16e-instruct": "meta-llama/llama-4-scout-17b-16e-instruct",
+  "llama-3.1-8b-instant": "llama-3.1-8b-instant",
+  "llama-3.2-1b-preview": "llama-3.2-1b-preview",
+  "llama-3.2-3b-preview": "llama-3.2-3b-preview",
+  "llama-3.2-90b-vision-preview": "llama-3.2-90b-vision-preview",
+  "llama-3.3-70b-specdec": "llama-3.3-70b-specdec",
+  "llama-3.3-70b-versatile": "llama-3.3-70b-versatile",
+  "llama3-70b-8192": "llama3-70b-8192",
+  "llama3-8b-8192": "llama3-8b-8192",
+  "llama3.1-8b": "llama3.1-8b",
+  "llama-3.3-70b": "llama-3.3-70b",
+  "llama-4-scout-17b-16e-instruct": "llama-4-scout-17b-16e-instruct",
+  
+  // Qwen Models
+  "qwen-2.5-32b": "qwen-2.5-32b",
+  "qwen-2.5-coder-32b": "qwen-2.5-coder-32b",
+  "qwen-qwq-32b": "qwen-qwq-32b",
+  "qwen-3-32b": "qwen-3-32b",
+  
+  // Other Provider Models
+  "mistralai/mistral-small-3.1-24b-instruct:free": "mistralai/mistral-small-3.1-24b-instruct:free",
+  "google/gemma-3-27b-it:free": "google/gemma-3-27b-it:free",
+  "gemma2-9b-it": "gemma2-9b-it"
 };
 
 const modelRoutes = {
   // DeepSeek R1 - keeping original route
   "NiansuhAI/DeepSeek-R1": "https://fast.typegpt.net/v1/chat/completions",
-  // Working OpenAI-compatible proxy models
+  
+  // Working OpenAI-compatible proxy models via Render
   "gpt-4o": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gpt-4o-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "perplexed": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gpt-oss-20b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "gpt-oss-120b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
+  "gpt-oss-120b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // New models from Render endpoint
+  "exaanswer": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "grok-3-mini-beta": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // Google Gemini Models
+  "gemini-2.0-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gemini-2.0-flash-exp-image-generation": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gemini-2.0-flash-thinking-exp-01-21": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gemini-2.5-flash-lite-preview-06-17": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gemini-2.0-pro-exp-02-05": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gemini-2.5-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // DeepSeek Models
+  "deepseek/deepseek-r1:free": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "deepseek/deepseek-chat-v3-0324:free": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "deepseek-r1-distill-llama-70b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "deepseek-r1-distill-qwen-32b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // Meta Llama Models
+  "meta-llama/llama-4-maverick:free": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "meta-llama/llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "llama-3.1-8b-instant": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "llama-3.2-1b-preview": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "llama-3.2-3b-preview": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "llama-3.2-90b-vision-preview": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "llama-3.3-70b-specdec": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "llama-3.3-70b-versatile": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "llama3-70b-8192": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "llama3-8b-8192": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "llama3.1-8b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "llama-3.3-70b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // Qwen Models
+  "qwen-2.5-32b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "qwen-2.5-coder-32b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "qwen-qwq-32b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "qwen-3-32b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // Other Provider Models
+  "mistralai/mistral-small-3.1-24b-instruct:free": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "google/gemma-3-27b-it:free": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gemma2-9b-it": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
 
