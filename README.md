@@ -10,15 +10,18 @@ This Cloudflare Worker provides an OpenAI-compatible API that supports multiple 
 - **Model Management**: List available chat and image models
 - **Authentication**: Secure API key-based authentication
 - **OpenAI Compatible**: Works with any OpenAI-compatible client library
-- **Uncensored Model**: DeepSeek R1 operates without system prompt restrictions
+
 
 ## Supported Models
 
 ### Chat Models
-- `claude-3-5-sonnet` - Anthropic Claude 3.5 Sonnet
-- `claude-3-7-sonnet` - Anthropic Claude 3.7 Sonnet  
-- `claude-sonnet-4` - Anthropic Claude Sonnet 4
-- `claude-3-5-sonnet-ashlynn` - Claude 3.5 Sonnet (via Ashlynn AI)
+- `gpt-4o` - GPT-4 Optimized
+- `gpt-4o-mini` - GPT-4 Optimized Mini
+- `perplexed` - Perplexed AI Model
+- `felo` - Felo AI Model
+- `gpt-oss-20b` - GPT OSS 20B Parameters
+- `gpt-oss-120b` - GPT OSS 120B Parameters
+- `deepseek-r1` - DeepSeek R1 Model
 
 ### Image Models
 - `flux` - High Quality Image Generation
@@ -37,7 +40,7 @@ curl -X POST https://your-worker-domain/v1/chat/completions \
   -H "Authorization: Bearer ahamaibyprakash25" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "claude-3-5-sonnet-ashlynn",
+    "model": "gpt-4o",
     "messages": [
       {"role": "user", "content": "Hello, how are you?"}
     ],
@@ -91,16 +94,16 @@ Authorization: Bearer ahamaibyprakash25
 4. Deploy the worker
 5. Configure your custom domain (optional)
 
-## Testing the Claude 3.5 Sonnet (Ashlynn) Model
+## Testing Chat Models
 
-You can test the Claude 3.5 Sonnet model via Ashlynn AI with this example:
+You can test any of the supported chat models with this example:
 
 ```bash
 curl -X POST https://your-worker-domain/v1/chat/completions \
   -H "Authorization: Bearer ahamaibyprakash25" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "claude-3-5-sonnet-ashlynn",
+    "model": "deepseek-r1",
     "messages": [
       {"role": "user", "content": "Explain quantum computing in simple terms"}
     ]
@@ -122,5 +125,5 @@ This worker supports:
 - ✅ Image generation
 - ✅ Model listing
 - ✅ Multiple AI providers
-- ✅ Ashlynn AI integration
+- ✅ Multiple AI model providers
 - ✅ Authentication and authorization

@@ -22,7 +22,7 @@ These models successfully responded to test requests:
 | **gpt-4o-mini** | ✅ Working | Successfully returns chat completions |
 | **perplexed** | ✅ Working | Successfully returns chat completions (verbose responses) |
 | **felo** | ✅ Working | Successfully returns chat completions |
-| **deepseek-r1** | ✅ Working | Successfully returns chat completions (with thinking tags) |
+| **deepseek-r1** | ✅ Working | Successfully returns chat completions |
 
 ---
 

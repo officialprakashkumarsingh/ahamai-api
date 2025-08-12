@@ -8,12 +8,10 @@ const exposedToInternalMap = {
   "felo": "felo",
   "gpt-oss-20b": "gpt-oss-20b",
   "gpt-oss-120b": "gpt-oss-120b",
-  // DeepSeek R1 - Free & Uncensored (working)
   "deepseek-r1": "NiansuhAI/DeepSeek-R1"
 };
 
 const modelRoutes = {
-  // DeepSeek R1 - keeping original route
   "NiansuhAI/DeepSeek-R1": "https://fast.typegpt.net/v1/chat/completions",
   // Working OpenAI-compatible proxy models
   "gpt-4o": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
@@ -165,10 +163,8 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
 
   // Use different authentication for different endpoints
   if (modelRoutes[internalModel].includes('fast.typegpt.net')) {
-    // For DeepSeek R1 endpoint
     headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
   } else if (modelRoutes[internalModel].includes('gpt-oss-openai-proxy.onrender.com')) {
-    // For OpenAI-compatible onrender proxy
     headers["Authorization"] = `Bearer ${API_KEY}`;
   }
 
