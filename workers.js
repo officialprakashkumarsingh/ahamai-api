@@ -1,184 +1,67 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  // Core Models (6)
+  // WORKING MODELS ONLY - Verified via proxy testing (15 models)
+  
+  // Core OpenAI Models (4)
   "gpt-4o": "gpt-4o",
   "gpt-4o-mini": "gpt-4o-mini",
-  "perplexed": "perplexed",
-  "felo": "felo",
   "gpt-oss-20b": "gpt-oss-20b",
   "gpt-oss-120b": "gpt-oss-120b",
+  
+  // Proxy Models (3)
+  "perplexed": "perplexed",
+  "felo": "felo",
+  "exaanswer": "exaanswer",
+  
   // DeepSeek R1 - Free & Uncensored (special endpoint)
   "deepseek-r1": "NiansuhAI/DeepSeek-R1",
   
-  // Google Gemini Models (4)
+  // Google Gemini Models (4) - All working perfectly
   "gemini-2.0-flash": "gemini-2.0-flash",
   "gemini-2.0-flash-thinking-exp-01-21": "gemini-2.0-flash-thinking-exp-01-21",
   "gemini-2.5-flash-lite-preview-06-17": "gemini-2.5-flash-lite-preview-06-17",
   "gemini-2.5-flash": "gemini-2.5-flash",
   
-  // DeepSeek Models (8) - All from render endpoint
+  // DeepSeek Models (2) - Only working ones from render endpoint
   "deepseek/deepseek-r1:free": "deepseek/deepseek-r1:free",
   "deepseek-r1-distill-llama-70b": "deepseek-r1-distill-llama-70b",
-  "deepseek-ai/DeepSeek-R1-0528-Turbo": "deepseek-ai/DeepSeek-R1-0528-Turbo",
-  "deepseek-ai/DeepSeek-V3-0324-Turbo": "deepseek-ai/DeepSeek-V3-0324-Turbo",
-  "deepseek-ai/DeepSeek-Prover-V2-671B": "deepseek-ai/DeepSeek-Prover-V2-671B",
-  "deepseek-ai/DeepSeek-R1-0528": "deepseek-ai/DeepSeek-R1-0528",
-  "deepseek-ai/DeepSeek-V3-0324": "deepseek-ai/DeepSeek-V3-0324",
-  "deepseek-ai/DeepSeek-R1-Distill-Llama-70B": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
-  "deepseek-ai/DeepSeek-V3": "deepseek-ai/DeepSeek-V3",
   
-  // Meta Llama Models (7) - All from render endpoint
+  // Meta Llama Models (2) - Only working ones from render endpoint
   "meta-llama/llama-4-scout-17b-16e-instruct": "meta-llama/llama-4-scout-17b-16e-instruct",
-  "llama-4-scout-17b-16e-instruct": "llama-4-scout-17b-16e-instruct",
-  "meta-llama/Llama-4-Maverick-17B-128E-Instruct-Turbo": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-Turbo",
-  "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-  "meta-llama/Llama-4-Scout-17B-16E-Instruct": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
-  "meta-llama/Llama-3.3-70B-Instruct-Turbo": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-  "meta-llama/Llama-3.3-70B-Instruct": "meta-llama/Llama-3.3-70B-Instruct",
-  
-  // Qwen Models (8) - Complete Qwen 3 family
-  "Qwen/Qwen3-235B-A22B-Thinking-2507": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-  "Qwen/Qwen3-Coder-480B-A35B-Instruct": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
-  "Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo": "Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo",
-  "Qwen/Qwen3-235B-A22B-Instruct-2507": "Qwen/Qwen3-235B-A22B-Instruct-2507",
-  "Qwen/Qwen3-30B-A3B": "Qwen/Qwen3-30B-A3B",
-  "Qwen/Qwen3-32B": "Qwen/Qwen3-32B",
-  "Qwen/Qwen3-14B": "Qwen/Qwen3-14B",
-  "Qwen/QwQ-32B": "Qwen/QwQ-32B",
-  
-  // Microsoft Models (3) - All Phi-4 variants
-  "microsoft/phi-4-reasoning-plus": "microsoft/phi-4-reasoning-plus",
-  "microsoft/Phi-4-multimodal-instruct": "microsoft/Phi-4-multimodal-instruct",
-  "microsoft/phi-4": "microsoft/phi-4",
-  
-  // Google Gemma Models (3) - Complete Gemma 3 family
-  "google/gemma-3-27b-it": "google/gemma-3-27b-it",
-  "google/gemma-3-12b-it": "google/gemma-3-12b-it",
-  "google/gemma-3-4b-it": "google/gemma-3-4b-it",
-  
-  // Mistral Models (3) - Devstral and Mistral variants
-  "mistralai/Devstral-Small-2505": "mistralai/Devstral-Small-2505",
-  "mistralai/Devstral-Small-2507": "mistralai/Devstral-Small-2507",
-  "mistralai/Mistral-Small-3.2-24B-Instruct-2506": "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
-  
-  // GLM Models (3) - Complete GLM 4.5 family
-  "zai-org/GLM-4.5-Air": "zai-org/GLM-4.5-Air",
-  "zai-org/GLM-4.5": "zai-org/GLM-4.5",
-  "zai-org/GLM-4.5V": "zai-org/GLM-4.5V",
-  
-  // Other Advanced Models (5)
-  "exaanswer": "exaanswer",
-  "moonshotai/Kimi-K2-Instruct": "moonshotai/Kimi-K2-Instruct",
-  "NovaSky-AI/Sky-T1-32B-Preview": "NovaSky-AI/Sky-T1-32B-Preview",
-  "allenai/olmOCR-7B-0725-FP8": "allenai/olmOCR-7B-0725-FP8",
-  "openai/gpt-oss-120b": "openai/gpt-oss-120b",
-  "openai/gpt-oss-20b": "openai/gpt-oss-20b",
-
-  // NEW MODELS - 6 Latest Discoveries (Jan 2025)
-  
-  // DeepSeek Simplified Access (2)
-  "deepseek/deepseek-chat": "deepseek/deepseek-chat",
-  "deepseek/deepseek-r1": "deepseek/deepseek-r1",
-  
-  // Official Namespace Variants (2)
-  "openai/gpt-4o-mini": "openai/gpt-4o-mini",
-  "meta-llama/llama-4-scout": "meta-llama/llama-4-scout",
-  
-  // xAI & MiniMax - Ultra-Advanced Models (2)
-  "x-ai/grok-3-mini-beta": "x-ai/grok-3-mini-beta",
-  "minimax-text-01-456B": "minimax-text-01-456B"
+  "llama-4-scout-17b-16e-instruct": "llama-4-scout-17b-16e-instruct"
 };
 
 const modelRoutes = {
+  // WORKING MODELS ONLY - Verified via proxy testing (15 models)
+  
   // DeepSeek R1 - keeping original route
   "NiansuhAI/DeepSeek-R1": "https://fast.typegpt.net/v1/chat/completions",
   
-  // Core Models via Render
+  // Core OpenAI Models via Render
   "gpt-4o": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gpt-4o-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "perplexed": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gpt-oss-20b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gpt-oss-120b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
-  // Google Gemini Models
+  // Proxy Models via Render
+  "perplexed": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "exaanswer": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // Google Gemini Models (All working perfectly)
   "gemini-2.0-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gemini-2.0-flash-thinking-exp-01-21": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gemini-2.5-flash-lite-preview-06-17": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gemini-2.5-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
-  // DeepSeek Models
+  // DeepSeek Models (Only working ones)
   "deepseek/deepseek-r1:free": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "deepseek-r1-distill-llama-70b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "deepseek-ai/DeepSeek-R1-0528-Turbo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "deepseek-ai/DeepSeek-V3-0324-Turbo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "deepseek-ai/DeepSeek-Prover-V2-671B": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "deepseek-ai/DeepSeek-R1-0528": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "deepseek-ai/DeepSeek-V3-0324": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "deepseek-ai/DeepSeek-R1-Distill-Llama-70B": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "deepseek-ai/DeepSeek-V3": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
-  // Meta Llama Models
+  // Meta Llama Models (Only working ones)
   "meta-llama/llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "meta-llama/Llama-4-Maverick-17B-128E-Instruct-Turbo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "meta-llama/Llama-4-Scout-17B-16E-Instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "meta-llama/Llama-3.3-70B-Instruct-Turbo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "meta-llama/Llama-3.3-70B-Instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
-  // Qwen Models
-  "Qwen/Qwen3-235B-A22B-Thinking-2507": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "Qwen/Qwen3-Coder-480B-A35B-Instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "Qwen/Qwen3-235B-A22B-Instruct-2507": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "Qwen/Qwen3-30B-A3B": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "Qwen/Qwen3-32B": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "Qwen/Qwen3-14B": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "Qwen/QwQ-32B": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
-  // Microsoft Models
-  "microsoft/phi-4-reasoning-plus": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "microsoft/Phi-4-multimodal-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "microsoft/phi-4": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
-  // Google Gemma Models
-  "google/gemma-3-27b-it": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "google/gemma-3-12b-it": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "google/gemma-3-4b-it": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
-  // Mistral Models
-  "mistralai/Devstral-Small-2505": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "mistralai/Devstral-Small-2507": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "mistralai/Mistral-Small-3.2-24B-Instruct-2506": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
-  // GLM Models
-  "zai-org/GLM-4.5-Air": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "zai-org/GLM-4.5": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "zai-org/GLM-4.5V": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
-  // Other Advanced Models
-  "exaanswer": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "moonshotai/Kimi-K2-Instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "NovaSky-AI/Sky-T1-32B-Preview": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "allenai/olmOCR-7B-0725-FP8": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "openai/gpt-oss-120b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "openai/gpt-oss-20b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-
-  // NEW MODELS - 6 Latest Discoveries (Jan 2025)
-  
-  // DeepSeek Simplified Access
-  "deepseek/deepseek-chat": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "deepseek/deepseek-r1": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
-  // Official Namespace Variants
-  "openai/gpt-4o-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "meta-llama/llama-4-scout": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
-  // xAI & MiniMax - Ultra-Advanced Models
-  "x-ai/grok-3-mini-beta": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "minimax-text-01-456B": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
+  "llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
 

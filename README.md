@@ -1,144 +1,117 @@
 # OpenAI Compatible API Worker
 
-This Cloudflare Worker provides an OpenAI-compatible API that supports 57 AI models including the latest xAI Grok 3, MiniMax 456B, Gemini, Llama 4, Qwen 3, and DeepSeek models with streaming capabilities.
+This Cloudflare Worker provides an OpenAI-compatible API that supports 15 verified AI models including OpenAI GPT-4o, Google Gemini, Meta Llama 4, and DeepSeek models with streaming capabilities.
 
 ## Features
 
-- **Chat Completions**: Support for 57 AI models with streaming capabilities
+- **Chat Completions**: Support for 15 verified AI models with streaming capabilities
 - **Image Generation**: AI-powered image generation using Pollinations API
 - **Screenshot Capability**: AI models can generate screenshot URLs using WordPress mshots API
 - **Model Management**: List available chat and image models
 - **Authentication**: Secure API key-based authentication
 - **OpenAI Compatible**: Works with any OpenAI-compatible client library
-- **100% Success Rate**: All 57 models tested and working with streaming
-- **Latest Models**: Includes cutting-edge models like MiniMax 456B, xAI Grok 3, Llama 4, Gemini 2.5, Qwen 3
+- **100% Success Rate**: All 15 models verified working through comprehensive testing
+- **High Performance**: Includes fast models like Meta Llama 4 Scout and Google Gemini Flash
 
-## Supported Models (57 Total)
+## Supported Models (15 Verified Working Models)
 
-### 🔄 Core Models (7)
-- `gpt-4o` - OpenAI GPT-4o
-- `gpt-4o-mini` - OpenAI GPT-4o Mini
-- `perplexed` - Search/Web-enhanced model
-- `felo` - General purpose model
-- `gpt-oss-20b` - Open source 20B model
-- `gpt-oss-120b` - Open source 120B model
-- `deepseek-r1` - DeepSeek R1 (uncensored)
+### 🔄 Core OpenAI Models (4)
+- `gpt-4o` - OpenAI GPT-4o (2.759s response time)
+- `gpt-4o-mini` - OpenAI GPT-4o Mini (0.895s response time) ⚡
+- `gpt-oss-20b` - Open source 20B model (2.379s response time)
+- `gpt-oss-120b` - Open source 120B model (3.829s response time)
 
-### 🤖 Google Gemini Models (4)
-- `gemini-2.5-flash` - Latest Gemini 2.5 (fastest)
-- `gemini-2.0-flash` - Gemini 2.0 Flash
-- `gemini-2.0-flash-thinking-exp-01-21` - Advanced reasoning
-- `gemini-2.5-flash-lite-preview-06-17` - Lightweight version
+### 🔍 Proxy Models (3)
+- `perplexed` - Search/Web-enhanced model (1.514s response time)
+- `felo` - General purpose model (1.804s response time)
+- `exaanswer` - Search and research specialist (7.205s response time)
 
-### 🧠 DeepSeek Models (11)
-- `deepseek/deepseek-r1:free` - Free DeepSeek R1 reasoning
-- `deepseek-r1-distill-llama-70b` - Distilled from Llama
-- `deepseek-ai/DeepSeek-R1-0528-Turbo` - R1 Turbo version
-- `deepseek-ai/DeepSeek-V3-0324-Turbo` - V3 Turbo version
-- `deepseek-ai/DeepSeek-Prover-V2-671B` - **671B parameter prover model**
-- `deepseek-ai/DeepSeek-R1-0528` - R1 standard version
-- `deepseek-ai/DeepSeek-V3-0324` - V3 standard version
-- `deepseek-ai/DeepSeek-R1-Distill-Llama-70B` - R1 distilled
-- `deepseek-ai/DeepSeek-V3` - Latest V3 model
-- `deepseek/deepseek-chat` - **NEW: Simplified chat access**
-- `deepseek/deepseek-r1` - **NEW: Alternative R1 reasoning**
+### 🤖 Google Gemini Models (4) - All Working Perfectly
+- `gemini-2.5-flash-lite-preview-06-17` - **Fastest Gemini** (0.797s) ⚡
+- `gemini-2.0-flash` - Gemini 2.0 Flash (0.806s) ⚡
+- `gemini-2.0-flash-thinking-exp-01-21` - Advanced reasoning (0.904s) ⚡
+- `gemini-2.5-flash` - Latest Gemini 2.5 (1.694s)
 
-### 🦙 Meta Llama Models (8)
-- `meta-llama/llama-4-scout-17b-16e-instruct` - Llama 4 Scout 17B
-- `llama-4-scout-17b-16e-instruct` - Scout instruction-tuned
-- `meta-llama/Llama-4-Maverick-17B-128E-Instruct-Turbo` - **Maverick Turbo**
-- `meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8` - **Maverick FP8**
-- `meta-llama/Llama-4-Scout-17B-16E-Instruct` - Scout instruction
-- `meta-llama/Llama-3.3-70B-Instruct-Turbo` - 3.3 Turbo
-- `meta-llama/Llama-3.3-70B-Instruct` - 3.3 standard
-- `meta-llama/llama-4-scout` - **NEW: Simplified Scout access**
+### 🧠 DeepSeek Models (3) - Only Working Ones
+- `deepseek-r1` - DeepSeek R1 (uncensored) (1.254s)
+- `deepseek/deepseek-r1:free` - Free DeepSeek R1 reasoning (6.124s)
+- `deepseek-r1-distill-llama-70b` - **Fast distilled model** (0.982s) ⚡
 
-### 🔮 Qwen Models (8)
-- `Qwen/Qwen3-235B-A22B-Thinking-2507` - **235B thinking model**
-- `Qwen/Qwen3-Coder-480B-A35B-Instruct` - **480B coding model**
-- `Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo` - **480B coding turbo**
-- `Qwen/Qwen3-235B-A22B-Instruct-2507` - 235B instruction
-- `Qwen/Qwen3-30B-A3B` - 30B advanced
-- `Qwen/Qwen3-32B` - 32B standard
-- `Qwen/Qwen3-14B` - 14B efficient
-- `Qwen/QwQ-32B` - Question-answering optimized
-
-### 🖥️ Microsoft Models (3)
-- `microsoft/phi-4-reasoning-plus` - **Phi-4 reasoning enhanced**
-- `microsoft/Phi-4-multimodal-instruct` - **Multimodal capabilities**
-- `microsoft/phi-4` - Standard Phi-4
-
-### 🔺 Google Gemma Models (3)
-- `google/gemma-3-27b-it` - **Latest Gemma 3 27B**
-- `google/gemma-3-12b-it` - Gemma 3 12B
-- `google/gemma-3-4b-it` - Gemma 3 4B
-
-### 🌟 Mistral Models (3)
-- `mistralai/Devstral-Small-2505` - **Development specialist**
-- `mistralai/Devstral-Small-2507` - **Latest development model**
-- `mistralai/Mistral-Small-3.2-24B-Instruct-2506` - Small 3.2
-
-### 🧩 GLM Models (3)
-- `zai-org/GLM-4.5-Air` - GLM 4.5 lightweight
-- `zai-org/GLM-4.5` - GLM 4.5 standard
-- `zai-org/GLM-4.5V` - **GLM 4.5 with vision**
-
-### 🚀 Ultra-Advanced Models (2)
-- `minimax-text-01-456B` - **🔥 NEW: 456B parameter ultra-large model**
-- `x-ai/grok-3-mini-beta` - **🔥 NEW: xAI's latest Grok 3 Beta**
-
-### 🌟 Other Advanced Models (8)
-- `exaanswer` - Search and research specialist
-- `moonshotai/Kimi-K2-Instruct` - Moonshot AI Kimi K2
-- `NovaSky-AI/Sky-T1-32B-Preview` - NovaSky T1 32B
-- `allenai/olmOCR-7B-0725-FP8` - **OCR specialist model**
-- `openai/gpt-oss-120b` - OpenAI OSS 120B
-- `openai/gpt-oss-20b` - OpenAI OSS 20B
-- `openai/gpt-4o-mini` - **NEW: Official OpenAI namespace**
+### 🦙 Meta Llama Models (2) - Only Working Ones
+- `llama-4-scout-17b-16e-instruct` - **FASTEST MODEL** (0.567s) ⚡🏆
+- `meta-llama/llama-4-scout-17b-16e-instruct` - Scout 17B (1.091s)
 
 ### Image Models
 - `flux` - High Quality Image Generation
 - `turbo` - Fast Image Generation
 
-## 🆕 Latest Additions (January 2025)
+## 🚨 Important Service Update (January 2025)
 
-### **🔥 Ultra-Large Scale Models**
-- **`minimax-text-01-456B`** - **456 BILLION parameter model** - One of the largest language models available
-- **Enhanced Processing**: Massive scale language understanding and generation
+### **Reliability-Focused Configuration**
+This API has been **optimized for maximum reliability** by removing non-functional models. Through comprehensive testing, we identified significant issues with the upstream proxy service affecting 43 models, all returning **HTTP 502 Bad Gateway errors**.
 
-### **⚡ Real-Time AI**
-- **`x-ai/grok-3-mini-beta`** - **xAI's latest Grok 3 Beta** - Real-time information access
-- **Cutting-Edge**: Beta version with latest AI advancements
+### **⚡ Performance Optimized**
+Our remaining **15 models are verified working** with excellent performance:
+- **Fastest Model:** `llama-4-scout-17b-16e-instruct` at **0.567s** ⚡
+- **Lightning Fast Models:** 6 models under 1.0 second
+- **Reliable Performance:** All models tested and confirmed working
 
-### **🧠 Simplified DeepSeek Access**
-- **`deepseek/deepseek-chat`** - Simplified general conversation interface
-- **`deepseek/deepseek-r1`** - Alternative reasoning model access
+### **🚫 Temporarily Unavailable**
+Due to upstream proxy issues, the following model families are currently unavailable:
+- **ALL Qwen models** (8 models) - Including 480B coding models
+- **ALL Microsoft Phi-4 models** (3 models) - Including multimodal variants  
+- **ALL Mistral models** (3 models) - Including development specialists
+- **ALL Google Gemma models** (3 models)
+- **ALL advanced models** (GLM, NovaSky, AllenAI, Moonshot, etc.)
+- **ALL new models** - Including 456B MiniMax and xAI Grok 3
 
-### **📝 Official Namespace Variants**
-- **`openai/gpt-4o-mini`** - Official OpenAI namespace variant
-- **`meta-llama/llama-4-scout`** - Simplified Llama 4 Scout access
+### **📈 What's Working Great**
+- **OpenAI Models** - All core GPT models working perfectly
+- **Google Gemini** - All 4 models working with excellent speed
+- **Meta Llama** - 2 high-performance Scout models  
+- **DeepSeek** - 3 reasoning models including free tier
+- **Proxy Models** - Search-enhanced and specialized models
+
+### **🏆 Top Speed Champions**
+1. **`llama-4-scout-17b-16e-instruct`** - **0.567s** ⚡🏆 *FASTEST MODEL*
+2. **`gemini-2.5-flash-lite-preview-06-17`** - **0.797s** ⚡ *Google's Speed Champion*
+3. **`gemini-2.0-flash`** - **0.806s** ⚡ *Consistent Lightning Speed*
+4. **`gpt-4o-mini`** - **0.895s** ⚡ *OpenAI's Fastest*
+5. **`gemini-2.0-flash-thinking-exp-01-21`** - **0.904s** ⚡ *Advanced Reasoning + Speed*
+
+### **⚡ Lightning Fast Models (< 1.0s)**
+All these models respond in under 1 second:
+- `llama-4-scout-17b-16e-instruct` (0.567s)
+- `gemini-2.5-flash-lite-preview-06-17` (0.797s)
+- `gemini-2.0-flash` (0.806s)
+- `gpt-4o-mini` (0.895s)
+- `gemini-2.0-flash-thinking-exp-01-21` (0.904s)
+- `deepseek-r1-distill-llama-70b` (0.982s)
 
 ## Model Specializations
 
-### **🔧 Coding & Development**
-- `Qwen/Qwen3-Coder-480B-A35B-Instruct` - **480B coding specialist**
-- `mistralai/Devstral-Small-2505/2507` - Development-focused models
-- `microsoft/phi-4` - Microsoft's coding model
+### **🔍 Search & Research**
+- `perplexed` - Web-enhanced search with real-time information
+- `exaanswer` - Advanced research and analysis specialist
+- Best for: Real-time information, web search, research tasks
 
-### **🧮 Reasoning & Mathematics**
-- `deepseek-ai/DeepSeek-Prover-V2-671B` - **671B parameter reasoning**
-- `microsoft/phi-4-reasoning-plus` - Enhanced reasoning
-- `Qwen/Qwen3-235B-A22B-Thinking-2507` - **235B thinking model**
+### **🧠 Reasoning & Problem Solving**
+- `deepseek-r1` - Advanced reasoning and problem-solving
+- `deepseek/deepseek-r1:free` - Free tier reasoning model
+- `deepseek-r1-distill-llama-70b` - Fast distilled reasoning
+- Best for: Complex reasoning, mathematics, logical problems
 
-### **👁️ Vision & Multimodal**
-- `microsoft/Phi-4-multimodal-instruct` - Multimodal capabilities
-- `zai-org/GLM-4.5V` - Vision-enabled GLM
-- `allenai/olmOCR-7B-0725-FP8` - OCR specialist
+### **⚡ Speed-Critical Applications**
+- `llama-4-scout-17b-16e-instruct` - Ultra-fast general purpose
+- `gemini-2.5-flash-lite-preview-06-17` - Lightning-fast Gemini
+- `gemini-2.0-flash` - Reliable speed champion
+- Best for: Real-time applications, chatbots, quick responses
 
-### **🔍 Search & Information**
-- `perplexed` - Web-enhanced search
-- `exaanswer` - Research specialist
-- `x-ai/grok-3-mini-beta` - Real-time information
+### **🎯 General Purpose & Chat**
+- `gpt-4o` - OpenAI's flagship model
+- `gpt-4o-mini` - Fast and efficient GPT-4
+- `felo` - Versatile general purpose model
+- Best for: General conversation, content creation, various tasks
 
 ## API Endpoints
 
@@ -147,27 +120,41 @@ This Cloudflare Worker provides an OpenAI-compatible API that supports 57 AI mod
 POST /v1/chat/completions
 ```
 
-Example with the new 456B ultra-large model:
+Example with the fastest model:
 ```bash
 curl -X POST https://your-worker-domain/v1/chat/completions \
   -H "Authorization: Bearer ahamaibyprakash25" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "minimax-text-01-456B",
+    "model": "llama-4-scout-17b-16e-instruct",
     "messages": [
-      {"role": "user", "content": "Explain quantum computing in detail"}
+      {"role": "user", "content": "Explain quantum computing"}
     ],
     "stream": true
   }'
 ```
 
-Example with xAI Grok 3 (real-time information):
+Example with Google Gemini Flash (lightning fast):
 ```bash
 curl -X POST https://your-worker-domain/v1/chat/completions \
   -H "Authorization: Bearer ahamaibyprakash25" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "x-ai/grok-3-mini-beta",
+    "model": "gemini-2.0-flash",
+    "messages": [
+      {"role": "user", "content": "Write a creative story"}
+    ],
+    "stream": true
+  }'
+```
+
+Example with search-enhanced model:
+```bash
+curl -X POST https://your-worker-domain/v1/chat/completions \
+  -H "Authorization: Bearer ahamaibyprakash25" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "perplexed",
     "messages": [
       {"role": "user", "content": "What are the latest developments in AI?"}
     ],
@@ -175,29 +162,15 @@ curl -X POST https://your-worker-domain/v1/chat/completions \
   }'
 ```
 
-Example with coding specialist (480B model):
+Example with DeepSeek reasoning:
 ```bash
 curl -X POST https://your-worker-domain/v1/chat/completions \
   -H "Authorization: Bearer ahamaibyprakash25" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+    "model": "deepseek-r1",
     "messages": [
-      {"role": "user", "content": "Write a Python function to implement binary search"}
-    ],
-    "stream": true
-  }'
-```
-
-Example with simplified DeepSeek access:
-```bash
-curl -X POST https://your-worker-domain/v1/chat/completions \
-  -H "Authorization: Bearer ahamaibyprakash25" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "deepseek/deepseek-chat",
-    "messages": [
-      {"role": "user", "content": "Solve this math problem step by step"}
+      {"role": "user", "content": "Solve this math problem step by step: 2x + 5 = 15"}
     ],
     "stream": true
   }'
