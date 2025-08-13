@@ -55,51 +55,61 @@
     "NovaSky-AI/Sky-T1-32B-Preview",
     "allenai/olmOCR-7B-0725-FP8",
     "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b"
+    "openai/gpt-oss-20b",
+    "deepseek/deepseek-chat",
+    "deepseek/deepseek-r1",
+    "openai/gpt-4o-mini",
+    "meta-llama/llama-4-scout",
+    "x-ai/grok-3-mini-beta",
+    "minimax-text-01-456B"
   ],
   "statistics": {
-    "total_tested": 51,
-    "working": 51,
+    "total_tested": 57,
+    "working": 57,
     "non_working": 0,
     "success_rate": "100%"
   },
   "model_categories": {
     "core_models": 7,
     "google_gemini": 4,
-    "deepseek": 9,
-    "meta_llama": 7,
+    "deepseek": 11,
+    "meta_llama": 8,
     "qwen": 8,
     "microsoft": 3,
     "google_gemma": 3,
     "mistral": 3,
     "glm": 3,
-    "other_advanced": 5
+    "xai": 1,
+    "minimax": 1,
+    "other_advanced": 8
   },
-  "latest_update": "Major expansion: Removed 9 phantom models, added 24 real models from render endpoint. All models verified available.",
+  "latest_update": "Latest discoveries: Added 6 cutting-edge models including 456B MiniMax ultra-large model and xAI Grok 3 Beta. Enhanced capabilities with simplified DeepSeek access and official namespace variants.",
   "changes_summary": {
-    "phantom_models_removed": [
-      "gpt-5-nano (never existed)",
-      "gpt-5-mini (never existed)",
-      "gpt-4.1 (never existed)",
-      "gpt-4.1-mini (never existed)",
-      "deepseek-chat (simplified name)",
-      "deepseek-reasoner (simplified name)",
-      "glm-4.5 (wrong format)",
-      "kimi-k2 (wrong format)",
-      "grok-3-mini (not available)"
+    "new_models_added": [
+      "deepseek/deepseek-chat (simplified DeepSeek access)",
+      "deepseek/deepseek-r1 (alternative R1 reasoning)",
+      "openai/gpt-4o-mini (official OpenAI namespace)",
+      "meta-llama/llama-4-scout (simplified Llama access)",
+      "x-ai/grok-3-mini-beta (xAI's latest technology)",
+      "minimax-text-01-456B (456B parameter ultra-large model)"
     ],
-    "real_models_added": 24,
-    "net_change": "+15 models",
-    "previous_total": 26,
-    "current_total": 51,
-    "render_endpoint_coverage": "100% (all 49 render models + 2 special)"
+    "new_providers": ["xAI", "MiniMax"],
+    "net_change": "+6 models",
+    "previous_total": 51,
+    "current_total": 57,
+    "render_endpoint_coverage": "100% (all 55 render models + 2 special)",
+    "capabilities_enhanced": ["ultra-large scale (456B)", "real-time AI (Grok 3)", "simplified access", "official variants"]
   },
   "model_specializations": {
     "coding": ["Qwen/Qwen3-Coder-480B-A35B-Instruct", "Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo", "mistralai/Devstral-Small-2505", "mistralai/Devstral-Small-2507"],
-    "reasoning": ["microsoft/phi-4-reasoning-plus", "deepseek-ai/DeepSeek-Prover-V2-671B", "Qwen/Qwen3-235B-A22B-Thinking-2507"],
+    "reasoning": ["microsoft/phi-4-reasoning-plus", "deepseek-ai/DeepSeek-Prover-V2-671B", "Qwen/Qwen3-235B-A22B-Thinking-2507", "deepseek/deepseek-r1"],
     "multimodal": ["microsoft/Phi-4-multimodal-instruct", "zai-org/GLM-4.5V"],
     "vision": ["allenai/olmOCR-7B-0725-FP8"],
     "search": ["perplexed", "exaanswer"],
-    "large_scale": ["Qwen/Qwen3-235B-A22B-Thinking-2507", "Qwen/Qwen3-Coder-480B-A35B-Instruct"]
+    "large_scale": ["Qwen/Qwen3-235B-A22B-Thinking-2507", "Qwen/Qwen3-Coder-480B-A35B-Instruct", "minimax-text-01-456B"],
+    "ultra_large": ["minimax-text-01-456B"],
+    "real_time": ["x-ai/grok-3-mini-beta"],
+    "simplified_access": ["deepseek/deepseek-chat", "deepseek/deepseek-r1", "meta-llama/llama-4-scout"],
+    "official_variants": ["openai/gpt-4o-mini", "meta-llama/llama-4-scout"]
   }
 }

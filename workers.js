@@ -73,7 +73,21 @@ const exposedToInternalMap = {
   "NovaSky-AI/Sky-T1-32B-Preview": "NovaSky-AI/Sky-T1-32B-Preview",
   "allenai/olmOCR-7B-0725-FP8": "allenai/olmOCR-7B-0725-FP8",
   "openai/gpt-oss-120b": "openai/gpt-oss-120b",
-  "openai/gpt-oss-20b": "openai/gpt-oss-20b"
+  "openai/gpt-oss-20b": "openai/gpt-oss-20b",
+
+  // NEW MODELS - 6 Latest Discoveries (Jan 2025)
+  
+  // DeepSeek Simplified Access (2)
+  "deepseek/deepseek-chat": "deepseek/deepseek-chat",
+  "deepseek/deepseek-r1": "deepseek/deepseek-r1",
+  
+  // Official Namespace Variants (2)
+  "openai/gpt-4o-mini": "openai/gpt-4o-mini",
+  "meta-llama/llama-4-scout": "meta-llama/llama-4-scout",
+  
+  // xAI & MiniMax - Ultra-Advanced Models (2)
+  "x-ai/grok-3-mini-beta": "x-ai/grok-3-mini-beta",
+  "minimax-text-01-456B": "minimax-text-01-456B"
 };
 
 const modelRoutes = {
@@ -150,7 +164,21 @@ const modelRoutes = {
   "NovaSky-AI/Sky-T1-32B-Preview": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "allenai/olmOCR-7B-0725-FP8": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "openai/gpt-oss-120b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "openai/gpt-oss-20b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
+  "openai/gpt-oss-20b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+
+  // NEW MODELS - 6 Latest Discoveries (Jan 2025)
+  
+  // DeepSeek Simplified Access
+  "deepseek/deepseek-chat": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "deepseek/deepseek-r1": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // Official Namespace Variants
+  "openai/gpt-4o-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "meta-llama/llama-4-scout": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // xAI & MiniMax - Ultra-Advanced Models
+  "x-ai/grok-3-mini-beta": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "minimax-text-01-456B": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
 
