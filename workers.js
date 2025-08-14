@@ -29,7 +29,16 @@ const exposedToInternalMap = {
   
   // Meta Llama Models (2) - Only working ones from render endpoint
   "meta-llama/llama-4-scout-17b-16e-instruct": "meta-llama/llama-4-scout-17b-16e-instruct",
-  "llama-4-scout-17b-16e-instruct": "llama-4-scout-17b-16e-instruct"
+  "llama-4-scout-17b-16e-instruct": "llama-4-scout-17b-16e-instruct",
+  
+  // FastAPI Free Models (7) - From api.free.fastapi.pro endpoint
+  "gpt-5-chat-latest": "gpt-5-chat-latest",
+  "claude-opus-4-20250514": "claude-opus-4-20250514",
+  "claude-sonnet-4-20250514": "claude-sonnet-4-20250514",
+  "gemini-2.5-flash-preview-04-17": "gemini-2.5-flash-preview-04-17",
+  "gpt-5": "gpt-5",
+  "gpt-5-mini": "gpt-5-mini",
+  "gpt-5-nano-2025-08-07": "gpt-5-nano-2025-08-07"
 };
 
 const modelRoutes = {
@@ -61,7 +70,16 @@ const modelRoutes = {
   
   // Meta Llama Models (Only working ones)
   "meta-llama/llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
+  "llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // FastAPI Free Models - From api.free.fastapi.pro endpoint
+  "gpt-5-chat-latest": "https://api.free.fastapi.pro/v1/chat/completions",
+  "claude-opus-4-20250514": "https://api.free.fastapi.pro/v1/chat/completions",
+  "claude-sonnet-4-20250514": "https://api.free.fastapi.pro/v1/chat/completions",
+  "gemini-2.5-flash-preview-04-17": "https://api.free.fastapi.pro/v1/chat/completions",
+  "gpt-5": "https://api.free.fastapi.pro/v1/chat/completions",
+  "gpt-5-mini": "https://api.free.fastapi.pro/v1/chat/completions",
+  "gpt-5-nano-2025-08-07": "https://api.free.fastapi.pro/v1/chat/completions"
 };
 
 
@@ -210,6 +228,9 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
   } else if (modelRoutes[internalModel].includes('gpt-oss-openai-proxy.onrender.com')) {
     // For OpenAI-compatible onrender proxy
     headers["Authorization"] = `Bearer ${API_KEY}`;
+  } else if (modelRoutes[internalModel].includes('api.free.fastapi.pro')) {
+    // For FastAPI free endpoint
+    headers["Authorization"] = "Bearer sk-FastAPIHc1M0KijyI7VaA3Nuj2cJ1GfA0VSFN5U4qOvm9gZH";
   }
 
   const response = await fetch(modelRoutes[internalModel], {
