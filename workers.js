@@ -31,14 +31,8 @@ const exposedToInternalMap = {
   "meta-llama/llama-4-scout-17b-16e-instruct": "meta-llama/llama-4-scout-17b-16e-instruct",
   "llama-4-scout-17b-16e-instruct": "llama-4-scout-17b-16e-instruct",
   
-  // FastAPI Free Models (7) - From api.free.fastapi.pro endpoint
-  "gpt-5-chat-latest": "gpt-5-chat-latest",
-  "claude-opus-4-20250514": "claude-opus-4-20250514",
-  "claude-sonnet-4-20250514": "claude-sonnet-4-20250514",
-  "gemini-2.5-flash-preview-04-17": "gemini-2.5-flash-preview-04-17",
-  "gpt-5": "gpt-5",
-  "gpt-5-mini": "gpt-5-mini",
-  "gpt-5-nano-2025-08-07": "gpt-5-nano-2025-08-07"
+  // FastAPI Free Models (1) - From api.free.fastapi.pro endpoint
+  "gemini-2.5-flash-preview-04-17": "gemini-2.5-flash-preview-04-17"
 };
 
 const modelRoutes = {
@@ -73,13 +67,7 @@ const modelRoutes = {
   "llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
   // FastAPI Free Models - From api.free.fastapi.pro endpoint
-  "gpt-5-chat-latest": "https://api.free.fastapi.pro/v1/chat/completions",
-  "claude-opus-4-20250514": "https://api.free.fastapi.pro/v1/chat/completions",
-  "claude-sonnet-4-20250514": "https://api.free.fastapi.pro/v1/chat/completions",
-  "gemini-2.5-flash-preview-04-17": "https://api.free.fastapi.pro/v1/chat/completions",
-  "gpt-5": "https://api.free.fastapi.pro/v1/chat/completions",
-  "gpt-5-mini": "https://api.free.fastapi.pro/v1/chat/completions",
-  "gpt-5-nano-2025-08-07": "https://api.free.fastapi.pro/v1/chat/completions"
+  "gemini-2.5-flash-preview-04-17": "https://api.free.fastapi.pro/v1/chat/completions"
 };
 
 
