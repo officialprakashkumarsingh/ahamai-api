@@ -1,13 +1,27 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  // WORKING MODELS ONLY - Verified via proxy testing (15 models)
+  // WORKING MODELS ONLY - Verified via proxy testing (28 models)
   
   // Core OpenAI Models (4)
   "gpt-4o": "gpt-4o",
   "gpt-4o-mini": "gpt-4o-mini",
   "gpt-oss-20b": "gpt-oss-20b",
   "gpt-oss-120b": "gpt-oss-120b",
+  
+  // Additional OpenAI Models via Render
+  "o4-mini": "o4-mini",
+  "gpt-4.1": "gpt-4.1",
+  "gpt-4.1-mini": "gpt-4.1-mini",
+  "gpt-4.1-nano": "gpt-4.1-nano",
+  "gpt-5": "gpt-5",
+  "gpt-5-mini": "gpt-5-mini",
+  "gpt-5-nano": "gpt-5-nano",
+  
+  // Claude Models via Render
+  "claude-sonnet-4": "claude-sonnet-4",
+  "claude-opus-4": "claude-opus-4",
+  "claude-opus-4.1": "claude-opus-4.1",
   
   // Proxy Models (3)
   "perplexed": "perplexed",
@@ -17,11 +31,13 @@ const exposedToInternalMap = {
   // DeepSeek R1 - Free & Uncensored (special endpoint)
   "deepseek-r1": "NiansuhAI/DeepSeek-R1",
   
-  // Google Gemini Models (4) - All working perfectly
+  // Google Gemini Models (6) - All working perfectly
   "gemini-2.0-flash": "gemini-2.0-flash",
   "gemini-2.0-flash-thinking-exp-01-21": "gemini-2.0-flash-thinking-exp-01-21",
   "gemini-2.5-flash-lite-preview-06-17": "gemini-2.5-flash-lite-preview-06-17",
   "gemini-2.5-flash": "gemini-2.5-flash",
+  "gemini-2.5-pro": "gemini-2.5-pro",
+  "gemini-2.5-pro-preview": "gemini-2.5-pro-preview",
   
   // DeepSeek Models (2) - Only working ones from render endpoint
   "deepseek/deepseek-r1:free": "deepseek/deepseek-r1:free",
@@ -36,7 +52,7 @@ const exposedToInternalMap = {
 };
 
 const modelRoutes = {
-  // WORKING MODELS ONLY - Verified via proxy testing (15 models)
+  // WORKING MODELS ONLY - Verified via proxy testing (28 models)
   
   // DeepSeek R1 - keeping original route
   "NiansuhAI/DeepSeek-R1": "https://fast.typegpt.net/v1/chat/completions",
@@ -46,6 +62,20 @@ const modelRoutes = {
   "gpt-4o-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gpt-oss-20b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gpt-oss-120b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // Additional OpenAI Models via Render
+  "o4-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gpt-4.1": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gpt-4.1-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gpt-4.1-nano": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gpt-5": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gpt-5-mini": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gpt-5-nano": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // Claude Models via Render
+  "claude-sonnet-4": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "claude-opus-4": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "claude-opus-4.1": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
   // Proxy Models via Render
   "perplexed": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
@@ -57,6 +87,8 @@ const modelRoutes = {
   "gemini-2.0-flash-thinking-exp-01-21": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gemini-2.5-flash-lite-preview-06-17": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gemini-2.5-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gemini-2.5-pro": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gemini-2.5-pro-preview": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
   // DeepSeek Models (Only working ones)
   "deepseek/deepseek-r1:free": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
