@@ -1,0 +1,390 @@
+{
+  "timestamp": "2025-08-18T07:28:19+00:00",
+  "api_url": "https://ahamai-api.officialprakashkrsingh.workers.dev",
+  "results": [
+    {
+      "model": "gpt-4o",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 000: "
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "gpt-4o-mini",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 000: "
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "gpt-oss-20b",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "Working"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "gpt-oss-120b",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "Working"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "o4-mini",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'o4-mini' request failed with status 502: Bad Gateway\",\"model\":\"o4-mini\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "gpt-4.1",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'gpt-4.1' request failed with status 502: Bad Gateway\",\"model\":\"gpt-4.1\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'gpt-4.1-mini' request failed with status 502: Bad Gateway\",\"model\":\"gpt-4.1-mini\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "gpt-4.1-nano",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'gpt-4.1-nano' request failed with status 502: Bad Gateway\",\"model\":\"gpt-4.1-nano\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "gpt-5",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'gpt-5' request failed with status 502: Bad Gateway\",\"model\":\"gpt-5\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "gpt-5-mini",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'gpt-5-mini' request failed with status 502: Bad Gateway\",\"model\":\"gpt-5-mini\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "gpt-5-nano",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'gpt-5-nano' request failed with status 502: Bad Gateway\",\"model\":\"gpt-5-nano\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'claude-sonnet-4' request failed with status 502: Bad Gateway\",\"model\":\"claude-sonnet-4\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "claude-opus-4",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'claude-opus-4' request failed with status 502: Bad Gateway\",\"model\":\"claude-opus-4\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "claude-opus-4.1",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'claude-opus-4.1' request failed with status 502: Bad Gateway\",\"model\":\"claude-opus-4.1\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "perplexed",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "A classic \"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "felo",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "Working"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "exaanswer",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "Working"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "deepseek-r1",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'deepseek-r1' request failed with status 404: Not Found\",\"model\":\"deepseek-r1\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "gemini-2.0-flash",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "Working\n"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "gemini-2.0-flash-thinking-exp-01-21",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "Working"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "gemini-2.5-flash-lite-preview-06-17",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "Working"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "gemini-2.5-flash",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "Working"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "gemini-2.5-pro",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'gemini-2.5-pro' request failed with status 502: Bad Gateway\",\"model\":\"gemini-2.5-pro\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "gemini-2.5-pro-preview",
+      "non_streaming": {
+        "status": "failed",
+        "response_time": 0.000,
+        "error": "HTTP 503: {\"error\":\"Model 'gemini-2.5-pro-preview' request failed with status 502: Bad Gateway\",\"model\":\"gemini-2.5-pro-preview\"}"
+      },
+      "streaming": {
+        "status": "skipped",
+        "supported": false,
+        "error": "Non-streaming failed"
+      }
+    },
+    {
+      "model": "deepseek/deepseek-r1:free",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "Working"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "deepseek-r1-distill-llama-70b",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "<think>\nOkay, so I need to figure out how to respond to this message. The user wrote, \"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "Working"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "llama-4-scout-17b-16e-instruct",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "Working"
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    },
+    {
+      "model": "gemini-2.5-flash-preview-04-17",
+      "non_streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "content": "Working."
+      },
+      "streaming": {
+        "status": "working",
+        "response_time": 0.000,
+        "supported": true
+      }
+    }
+  ],
+  "summary": {
+    "total_models": 29,
+    "working_models": 14,
+    "failed_models": 15,
+    "streaming_supported": 14,
+    "streaming_failed": 0
+  }
+}
