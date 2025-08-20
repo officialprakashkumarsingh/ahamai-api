@@ -1,7 +1,7 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (14 models)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (15 models)
   // All models support streaming ✅
   
   // Core OpenAI Models (2) - Working via Render
@@ -35,7 +35,7 @@ const exposedToInternalMap = {
 };
 
 const modelRoutes = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (14 models)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (15 models)
   // All models support streaming ✅
   
   // Core OpenAI Models via Render (2)
