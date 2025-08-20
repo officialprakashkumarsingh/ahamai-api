@@ -28,7 +28,10 @@ const exposedToInternalMap = {
   "llama-4-scout-17b-16e-instruct": "llama-4-scout-17b-16e-instruct",
   
   // FastAPI Free Models (1) - Working with streaming
-  "gemini-2.5-flash-preview-04-17": "gemini-2.5-flash-preview-04-17"
+  "gemini-2.5-flash-preview-04-17": "gemini-2.5-flash-preview-04-17",
+  
+  // DeepInfra Models (1) - Working with streaming (100 requests/day with IP rotation)
+  "qwen-3-coder-480b": "Qwen/Qwen3-Coder-480B-A35B-Instruct"
 };
 
 const modelRoutes = {
@@ -59,7 +62,10 @@ const modelRoutes = {
   "llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
   // FastAPI Free Models (1) - Working perfectly
-  "gemini-2.5-flash-preview-04-17": "https://api.free.fastapi.pro/v1/chat/completions"
+  "gemini-2.5-flash-preview-04-17": "https://api.free.fastapi.pro/v1/chat/completions",
+  
+  // DeepInfra Models (1) - Working perfectly with streaming (100 requests/day with IP rotation)
+  "Qwen/Qwen3-Coder-480B-A35B-Instruct": "https://api.deepinfra.com/v1/openai/chat/completions"
 };
 
 
