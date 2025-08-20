@@ -217,6 +217,9 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
   } else if (modelRoutes[internalModel].includes('api.free.fastapi.pro')) {
     // For FastAPI free endpoint
     headers["Authorization"] = "Bearer sk-FastAPIHc1M0KijyI7VaA3Nuj2cJ1GfA0VSFN5U4qOvm9gZH";
+  } else if (modelRoutes[internalModel].includes('api.deepinfra.com')) {
+    // For DeepInfra endpoint - no authentication required (100 requests/day with IP rotation)
+    // No Authorization header needed
   }
 
   const response = await fetch(modelRoutes[internalModel], {
