@@ -13,11 +13,12 @@ const exposedToInternalMap = {
   "felo": "felo",
   "exaanswer": "exaanswer",
   
-  // Google Gemini Models (4) - Working perfectly with streaming
+  // Google Gemini Models (5) - Working perfectly with streaming
   "gemini-2.0-flash": "gemini-2.0-flash",
   "gemini-2.0-flash-thinking-exp-01-21": "gemini-2.0-flash-thinking-exp-01-21",
   "gemini-2.5-flash-lite-preview-06-17": "gemini-2.5-flash-lite-preview-06-17",
   "gemini-2.5-flash": "gemini-2.5-flash",
+  "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",
   
   // DeepSeek Models (2) - Working with streaming
   "deepseek/deepseek-r1:free": "deepseek/deepseek-r1:free",
@@ -47,11 +48,12 @@ const modelRoutes = {
   "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "exaanswer": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
-  // Google Gemini Models (4) - All working perfectly
+  // Google Gemini Models (5) - All working perfectly
   "gemini-2.0-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gemini-2.0-flash-thinking-exp-01-21": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gemini-2.5-flash-lite-preview-06-17": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gemini-2.5-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "gemini-2.5-flash-lite": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
   
   // DeepSeek Models (2) - Working perfectly
   "deepseek/deepseek-r1:free": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
@@ -117,6 +119,20 @@ const imageModelRoutes = {
   }
 };
 
+// Vision models configuration
+const visionModels = {
+  "gemini-2.5-flash-lite": {
+    id: "gemini-2.5-flash-lite",
+    name: "Gemini 2.5 Flash Lite",
+    provider: "google",
+    apiKey: "AIzaSyBUiSSswKvLvEK7rydCCRPF50eIDI_KOGc",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+    capabilities: ["text", "image", "video"],
+    maxTokens: 8192,
+    supportedFormats: ["jpeg", "png", "webp", "heic", "heif", "mp4", "avi", "mov", "mpg", "mpeg", "wmv", "flv", "webm"]
+  }
+};
+
 // Default models configuration
 const defaultModels = {
   vision: "gpt-oss-20b", // Updated to verified working model
@@ -175,6 +191,10 @@ export default {
       return handleImageModelList(corsHeaders);
     }
 
+    if (path === "/v1/vision/models" && request.method === "GET") {
+      return handleVisionModelList(corsHeaders);
+    }
+
     if (path === "/v1/defaults" && request.method === "GET") {
       return handleDefaults(corsHeaders);
     }
@@ -193,6 +213,96 @@ export default {
 
 
 
+// Convert OpenAI chat completion format to Gemini format
+function convertToGeminiFormat(openaiRequest) {
+  const { messages, max_tokens, temperature, top_p } = openaiRequest;
+  
+  // Convert messages to Gemini format
+  const contents = messages.map(msg => {
+    if (msg.role === 'user') {
+      // Handle text and image content
+      if (typeof msg.content === 'string') {
+        return {
+          role: 'user',
+          parts: [{ text: msg.content }]
+        };
+      } else if (Array.isArray(msg.content)) {
+        const parts = msg.content.map(part => {
+          if (part.type === 'text') {
+            return { text: part.text };
+          } else if (part.type === 'image_url') {
+            // Extract base64 data from data URL
+            const base64Data = part.image_url.url.split(',')[1];
+            const mimeType = part.image_url.url.match(/data:([^;]+);/)[1];
+            return {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data
+              }
+            };
+          }
+          return part;
+        });
+        return {
+          role: 'user',
+          parts: parts
+        };
+      }
+    } else if (msg.role === 'assistant') {
+      return {
+        role: 'model',
+        parts: [{ text: msg.content }]
+      };
+    } else if (msg.role === 'system') {
+      // Convert system message to user message with instruction format
+      return {
+        role: 'user',
+        parts: [{ text: `System instruction: ${msg.content}` }]
+      };
+    }
+    return msg;
+  });
+
+  return {
+    contents: contents,
+    generationConfig: {
+      maxOutputTokens: max_tokens || 8192,
+      temperature: temperature || 0.7,
+      topP: top_p || 0.9
+    }
+  };
+}
+
+// Convert Gemini response to OpenAI format
+function convertFromGeminiFormat(geminiResponse, modelId) {
+  const candidate = geminiResponse.candidates?.[0];
+  if (!candidate) {
+    throw new Error('No response from Gemini API');
+  }
+
+  const text = candidate.content?.parts?.[0]?.text || '';
+  
+  return {
+    id: `chatcmpl-${Date.now()}`,
+    object: 'chat.completion',
+    created: Math.floor(Date.now() / 1000),
+    model: modelId,
+    choices: [{
+      index: 0,
+      message: {
+        role: 'assistant',
+        content: text
+      },
+      finish_reason: candidate.finishReason === 'STOP' ? 'stop' : 'length'
+    }],
+    usage: {
+      prompt_tokens: geminiResponse.usageMetadata?.promptTokenCount || 0,
+      completion_tokens: geminiResponse.usageMetadata?.candidatesTokenCount || 0,
+      total_tokens: geminiResponse.usageMetadata?.totalTokenCount || 0
+    }
+  };
+}
+
 // Make a request to the specified model only (no fallback)
 async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
   let internalModel = exposedToInternalMap[modelId];
@@ -203,6 +313,49 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
 
 
 
+  // Handle Gemini API separately
+  if (internalModel === "gemini-2.5-flash-lite") {
+    const visionModel = visionModels[internalModel];
+    if (!visionModel) {
+      throw new Error(`Vision model '${internalModel}' configuration not found.`);
+    }
+
+    // Convert OpenAI format to Gemini format
+    const geminiRequest = convertToGeminiFormat(requestBody);
+    
+    const geminiHeaders = {
+      "Content-Type": "application/json"
+    };
+
+    const geminiUrl = `${visionModel.baseUrl}?key=${visionModel.apiKey}`;
+    
+    const response = await fetch(geminiUrl, {
+      method: "POST",
+      headers: geminiHeaders,
+      body: JSON.stringify(geminiRequest)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini API request failed with status ${response.status}: ${response.statusText}`);
+    }
+
+    const geminiResponse = await response.json();
+    
+    // Check for API errors in response
+    if (geminiResponse.error) {
+      throw new Error(`Gemini API returned error: ${geminiResponse.error.message || geminiResponse.error}`);
+    }
+
+    // Convert Gemini response back to OpenAI format
+    const openaiResponse = convertFromGeminiFormat(geminiResponse, modelId);
+    
+    return new Response(JSON.stringify(openaiResponse), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
+
+  // Handle other models with existing logic
   let headers = { 
     "Content-Type": "application/json"
   };
@@ -390,6 +543,26 @@ function handleImageModelList(corsHeaders = {}) {
     name: meta.displayName,
     width: meta.width,
     height: meta.height,
+    owned_by: meta.provider
+  }));
+
+  return new Response(JSON.stringify({
+    object: "list",
+    data: models
+  }), {
+    headers: { "Content-Type": "application/json", ...corsHeaders }
+  });
+}
+
+function handleVisionModelList(corsHeaders = {}) {
+  const models = Object.entries(visionModels).map(([id, meta]) => ({
+    id,
+    object: "model",
+    provider: meta.provider,
+    name: meta.name,
+    capabilities: meta.capabilities,
+    max_tokens: meta.maxTokens,
+    supported_formats: meta.supportedFormats,
     owned_by: meta.provider
   }));
 
