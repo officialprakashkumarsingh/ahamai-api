@@ -119,13 +119,16 @@ const imageModelRoutes = {
   }
 };
 
-// Vision models configuration
+// Vision models configuration with multiple API keys for fallback
 const visionModels = {
   "gemini-2.5-flash-lite": {
     id: "gemini-2.5-flash-lite",
     name: "Gemini 2.5 Flash Lite",
     provider: "google",
-    apiKey: "AIzaSyBUiSSswKvLvEK7rydCCRPF50eIDI_KOGc",
+    apiKeys: [
+      "AIzaSyBUiSSswKvLvEK7rydCCRPF50eIDI_KOGc", // Primary API key
+      "AIzaSyD1UzgfcZQpVRGNpW4OHCutEGWuj-l2jrs"  // Fallback API key
+    ],
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
     capabilities: ["text", "image", "video"],
     maxTokens: 8192,
@@ -303,6 +306,84 @@ function convertFromGeminiFormat(geminiResponse, modelId) {
   };
 }
 
+// Make Gemini API request with fallback support
+async function makeGeminiRequestWithFallback(visionModel, geminiRequest, modelId) {
+  const apiKeys = visionModel.apiKeys;
+  let lastError = null;
+
+  for (let i = 0; i < apiKeys.length; i++) {
+    const apiKey = apiKeys[i];
+    const keyLabel = i === 0 ? 'primary' : 'fallback';
+    
+    try {
+      console.log(`Attempting Gemini API request with ${keyLabel} key (${i + 1}/${apiKeys.length})`);
+      
+      const geminiHeaders = {
+        "Content-Type": "application/json"
+      };
+
+      const geminiUrl = `${visionModel.baseUrl}?key=${apiKey}`;
+      
+      const response = await fetch(geminiUrl, {
+        method: "POST",
+        headers: geminiHeaders,
+        body: JSON.stringify(geminiRequest)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const error = new Error(`Gemini API ${keyLabel} key failed with status ${response.status}: ${response.statusText} - ${errorText}`);
+        
+        // Check if it's a quota/authentication error that should trigger fallback
+        if (response.status === 429 || response.status === 403 || response.status === 401) {
+          console.log(`${keyLabel} key failed with status ${response.status}, trying next key...`);
+          lastError = error;
+          continue;
+        }
+        
+        // For other errors, throw immediately
+        throw error;
+      }
+
+      const geminiResponse = await response.json();
+      
+      // Check for API errors in response
+      if (geminiResponse.error) {
+        const error = new Error(`Gemini API ${keyLabel} key returned error: ${geminiResponse.error.message || geminiResponse.error}`);
+        
+        // Check if it's a quota/authentication error
+        if (geminiResponse.error.code === 429 || geminiResponse.error.code === 403 || geminiResponse.error.code === 401) {
+          console.log(`${keyLabel} key failed with error code ${geminiResponse.error.code}, trying next key...`);
+          lastError = error;
+          continue;
+        }
+        
+        throw error;
+      }
+
+      console.log(`Gemini API request successful with ${keyLabel} key`);
+      
+      // Convert Gemini response back to OpenAI format
+      return convertFromGeminiFormat(geminiResponse, modelId);
+      
+    } catch (error) {
+      console.log(`${keyLabel} key failed:`, error.message);
+      lastError = error;
+      
+      // If it's the last key, we'll throw the error after the loop
+      if (i === apiKeys.length - 1) {
+        break;
+      }
+      
+      // Otherwise, continue to next key
+      continue;
+    }
+  }
+
+  // If we get here, all keys failed
+  throw new Error(`All Gemini API keys failed. Last error: ${lastError?.message || 'Unknown error'}`);
+}
+
 // Make a request to the specified model only (no fallback)
 async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
   let internalModel = exposedToInternalMap[modelId];
@@ -313,7 +394,7 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
 
 
 
-  // Handle Gemini API separately
+  // Handle Gemini API separately with fallback support
   if (internalModel === "gemini-2.5-flash-lite") {
     const visionModel = visionModels[internalModel];
     if (!visionModel) {
@@ -323,31 +404,8 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
     // Convert OpenAI format to Gemini format
     const geminiRequest = convertToGeminiFormat(requestBody);
     
-    const geminiHeaders = {
-      "Content-Type": "application/json"
-    };
-
-    const geminiUrl = `${visionModel.baseUrl}?key=${visionModel.apiKey}`;
-    
-    const response = await fetch(geminiUrl, {
-      method: "POST",
-      headers: geminiHeaders,
-      body: JSON.stringify(geminiRequest)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Gemini API request failed with status ${response.status}: ${response.statusText}`);
-    }
-
-    const geminiResponse = await response.json();
-    
-    // Check for API errors in response
-    if (geminiResponse.error) {
-      throw new Error(`Gemini API returned error: ${geminiResponse.error.message || geminiResponse.error}`);
-    }
-
-    // Convert Gemini response back to OpenAI format
-    const openaiResponse = convertFromGeminiFormat(geminiResponse, modelId);
+    // Use fallback mechanism to try multiple API keys
+    const openaiResponse = await makeGeminiRequestWithFallback(visionModel, geminiRequest, modelId);
     
     return new Response(JSON.stringify(openaiResponse), {
       status: 200,
