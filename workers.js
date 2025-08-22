@@ -430,38 +430,102 @@ function shouldProvideStockData(messages) {
 // Function to fetch stock data from Yahoo Finance
 async function fetchStockData(ticker) {
   try {
-    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`, {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`;
+    console.log(`[Stock Data] Fetching data for ${ticker}`);
+    
+    const response = await fetch(url, {
+      method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
       }
     });
     
     if (!response.ok) {
+      console.error(`[Stock Data] Failed to fetch: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch stock data: ${response.status}`);
     }
     
     const data = await response.json();
+    
+    // Check if we have valid data
+    if (!data.chart || !data.chart.result || !data.chart.result[0]) {
+      console.error('[Stock Data] Invalid response structure');
+      return null;
+    }
+    
     const result = data.chart.result[0];
     const meta = result.meta;
     
-    return {
-      symbol: meta.symbol,
-      name: meta.longName || meta.shortName,
-      price: meta.regularMarketPrice,
-      previousClose: meta.previousClose,
-      change: (meta.regularMarketPrice - meta.previousClose).toFixed(2),
-      changePercent: (((meta.regularMarketPrice - meta.previousClose) / meta.previousClose) * 100).toFixed(2),
-      dayHigh: meta.regularMarketDayHigh,
-      dayLow: meta.regularMarketDayLow,
-      volume: meta.regularMarketVolume,
-      fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
-      fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
-      currency: meta.currency,
-      exchange: meta.fullExchangeName,
-      marketTime: new Date(meta.regularMarketTime * 1000).toLocaleString()
+    // Ensure we have the required fields
+    if (!meta || !meta.regularMarketPrice) {
+      console.error('[Stock Data] Missing price data');
+      return null;
+    }
+    
+    const stockData = {
+      symbol: meta.symbol || ticker,
+      name: meta.longName || meta.shortName || ticker,
+      price: meta.regularMarketPrice.toFixed(2),
+      previousClose: meta.previousClose || meta.chartPreviousClose || 0,
+      change: (meta.regularMarketPrice - (meta.previousClose || meta.chartPreviousClose || 0)).toFixed(2),
+      changePercent: (((meta.regularMarketPrice - (meta.previousClose || meta.chartPreviousClose || 0)) / (meta.previousClose || meta.chartPreviousClose || 1)) * 100).toFixed(2),
+      dayHigh: meta.regularMarketDayHigh || meta.regularMarketPrice,
+      dayLow: meta.regularMarketDayLow || meta.regularMarketPrice,
+      volume: meta.regularMarketVolume || 0,
+      fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh || 0,
+      fiftyTwoWeekLow: meta.fiftyTwoWeekLow || 0,
+      currency: meta.currency || 'USD',
+      exchange: meta.fullExchangeName || meta.exchangeName || 'Unknown',
+      marketTime: new Date(meta.regularMarketTime * 1000).toLocaleString('en-US', {
+        timeZone: meta.exchangeTimezoneName || 'America/New_York',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      })
     };
+    
+    console.log(`[Stock Data] Successfully fetched ${ticker}: $${stockData.price}`);
+    return stockData;
+    
   } catch (error) {
-    console.error('Error fetching stock data:', error);
+    console.error('[Stock Data] Error:', error.message);
+    // Try alternate endpoint as fallback
+    try {
+      const fallbackUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}`;
+      const response = await fetch(fallbackUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const meta = data.chart?.result?.[0]?.meta;
+        if (meta?.regularMarketPrice) {
+          return {
+            symbol: ticker,
+            name: meta.shortName || ticker,
+            price: meta.regularMarketPrice.toFixed(2),
+            previousClose: meta.previousClose || 0,
+            change: (meta.regularMarketPrice - (meta.previousClose || 0)).toFixed(2),
+            changePercent: (((meta.regularMarketPrice - (meta.previousClose || 0)) / (meta.previousClose || 1)) * 100).toFixed(2),
+            currency: meta.currency || 'USD',
+            exchange: 'Yahoo Finance',
+            marketTime: 'Latest'
+          };
+        }
+      }
+    } catch (fallbackError) {
+      console.error('[Stock Data] Fallback also failed:', fallbackError.message);
+    }
+    
     return null;
   }
 }
@@ -1014,14 +1078,14 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
 
 REAL-TIME CAPABILITIES:
 - Web search for current information
-- Screenshot any website: https://s.wordpress.com/mshots/v1/[encoded-url]?w=1280&h=960
+- Screenshot any website: ![Name](https://s.wordpress.com/mshots/v1/[encoded-url]?w=1280&h=960)
 - Live stock data from Yahoo Finance
 
 BE PROACTIVE:
-- See a website mentioned? → Provide screenshot URL
+- See a website mentioned? → Embed screenshot: ![Site](URL)
 - Company discussed? → Share current stock price
 - Current event? → Search for latest info
-Don't wait to be asked - enhance every response with relevant visual and financial data.]`;
+Don't wait to be asked - enhance every response with visual embeds and financial data.]`;
       } else if (msg.role === "user") {
         if (systemContent) {
           // Include system content and conversation summary with user message
@@ -1060,11 +1124,11 @@ Don't wait to be asked - enhance every response with relevant visual and financi
 
 REAL-TIME CAPABILITIES YOU SHOULD USE PROACTIVELY:
 - Web search: Automatically search when discussing current events
-- Screenshots: When ANY website is mentioned, provide: https://s.wordpress.com/mshots/v1/[encoded-url]?w=1280&h=960
+- Screenshots: When ANY website is mentioned, embed: ![Website](https://s.wordpress.com/mshots/v1/[encoded-url]?w=1280&h=960)
 - Stock data: When ANY company is discussed, share current market data
 
 BE PROACTIVE - Don't wait for requests:
-• Website mentioned? → "Here's what it looks like: [screenshot URL]"
+• Website mentioned? → Embed image: ![Site Name](screenshot_url)
 • Company discussed? → "Currently trading at $X (±Y%)"
 • News/events? → Search and provide latest information
 
@@ -1284,11 +1348,11 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
         content: `You are a proactive assistant with REAL-TIME capabilities. You do NOT have a knowledge cutoff - you can access current information as of ${dateTimeInfo}.
 
 You also have:
-• Screenshot capability: Use https://s.wordpress.com/mshots/v1/[encoded-url] format
+• Screenshot capability: Embed with ![Name](https://s.wordpress.com/mshots/v1/[encoded-url]?w=1280&h=960)
 • Stock data access: Real-time market data from Yahoo Finance
 • Web search: Current information on any topic
 
-BE PROACTIVE: When discussing websites, automatically provide screenshots. When mentioning companies, automatically share stock data.${webSearchContext}`
+BE PROACTIVE: When discussing websites, automatically embed screenshots using ![Description](URL). When mentioning companies, automatically share stock data.${webSearchContext}`
       });
     }
     
@@ -1406,8 +1470,9 @@ BE PROACTIVE - Don't wait to be asked:
 
 SCREENSHOT CAPABILITY:
 • Format: https://s.wordpress.com/mshots/v1/[encoded-url]?w=1280&h=960
-• When discussing any website, proactively say "Let me show you what it looks like" and provide the screenshot URL
-• Works for any public website - use it liberally to enhance visual understanding
+• When discussing any website, embed the screenshot using: ![Screenshot](URL)
+• This displays the image inline in markdown-compatible clients
+• Example: ![Google Homepage](https://s.wordpress.com/mshots/v1/https%3A%2F%2Fwww.google.com?w=1280&h=960)
 
 STOCK DATA CAPABILITY:
 • You have real-time market data for all major stocks
@@ -1441,7 +1506,8 @@ REMEMBER: You're not just answering questions, you're actively enhancing respons
       if (systemMessageIndex >= 0) {
         body.messages[systemMessageIndex].content += `\n\n[WEBSITE CONTEXT AVAILABLE]: ${screenshotUrl}
 [Screenshot URL]: ${screenshotLink}
-[Instructions]: Since the user is discussing this website, proactively provide the screenshot URL to give them visual context. Mention that you can show them what the website looks like and provide the screenshot link naturally in your response.`;
+[Instructions]: Since the user is discussing this website, provide the screenshot as an embedded image using markdown format: ![Website Screenshot](${screenshotLink})
+This will display the actual screenshot inline. You can also add a clickable link if needed.`;
       }
     }
     
@@ -1458,15 +1524,15 @@ REMEMBER: You're not just answering questions, you're actively enhancing respons
 [REAL-TIME MARKET DATA AVAILABLE for ${stockData.symbol}]:
 Company: ${stockData.name}
 Current Price: $${stockData.price} ${stockData.currency}
-Change: ${stockData.change > 0 ? '+' : ''}${stockData.change} (${stockData.changePercent}%)
+Change: ${parseFloat(stockData.change) > 0 ? '+' : ''}$${stockData.change} (${parseFloat(stockData.changePercent) > 0 ? '+' : ''}${stockData.changePercent}%)
 Previous Close: $${stockData.previousClose}
 Day Range: $${stockData.dayLow} - $${stockData.dayHigh}
 52 Week Range: $${stockData.fiftyTwoWeekLow} - $${stockData.fiftyTwoWeekHigh}
-Volume: ${stockData.volume.toLocaleString()}
+Volume: ${typeof stockData.volume === 'number' ? stockData.volume.toLocaleString() : stockData.volume}
 Exchange: ${stockData.exchange}
 Last Updated: ${stockData.marketTime}
 
-[Instructions]: Since the user is discussing ${stockData.name}, naturally incorporate this real-time market data into your response. Don't wait to be asked - proactively share relevant financial insights.`;
+[Instructions]: Since the user is discussing ${stockData.name}, naturally incorporate this real-time market data into your response. Format prices clearly with $ symbol. Show the change with + or - sign. Don't wait to be asked - proactively share relevant financial insights.`;
           
           body.messages[systemMessageIndex].content += `\n\n${stockInfo}`;
         }
