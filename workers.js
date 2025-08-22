@@ -159,17 +159,79 @@ const defaultModels = {
   webSearch: "perplexed" // Default web search model (verified working)
 };
 
+// Keep-alive configuration for Render endpoint
+let lastPingTime = 0;
+const PING_INTERVAL = 30000; // 30 seconds
 
+// Function to send keep-alive ping to Render endpoint
+async function sendKeepAlivePing() {
+  try {
+    const keepAliveRequest = {
+      model: "gpt-oss-20b", // Use a lightweight model
+      messages: [{ role: "user", content: "ping" }],
+      max_tokens: 1,
+      temperature: 0,
+      stream: false
+    };
 
+    const response = await fetch("https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${API_KEY}`
+      },
+      body: JSON.stringify(keepAliveRequest),
+      // Add timeout to prevent hanging
+      signal: AbortSignal.timeout(5000)
+    });
 
+    if (response.ok) {
+      console.log(`[Keep-Alive] Render endpoint pinged successfully at ${new Date().toISOString()}`);
+      return true;
+    } else {
+      console.log(`[Keep-Alive] Ping failed with status ${response.status}`);
+      return false;
+    }
+  } catch (error) {
+    console.log(`[Keep-Alive] Error pinging Render endpoint: ${error.message}`);
+    return false;
+  }
+}
 
-
-
+// Function to check if we should send a keep-alive ping
+async function checkAndSendKeepAlive() {
+  const now = Date.now();
+  
+  // Send ping if it's been more than 30 seconds since last ping
+  if (now - lastPingTime > PING_INTERVAL) {
+    lastPingTime = now;
+    // Fire and forget - don't await to avoid blocking the main request
+    sendKeepAlivePing().catch(err => 
+      console.log(`[Keep-Alive] Background ping error: ${err.message}`)
+    );
+  }
+}
 
 export default {
-  async fetch(request) {
+  async fetch(request, env, ctx) {
+    // Check if we should send a keep-alive ping (non-blocking)
+    checkAndSendKeepAlive();
+    
     const url = new URL(request.url);
     const path = url.pathname;
+    
+    // Special endpoint to manually trigger keep-alive
+    if (path === "/keep-alive" && request.method === "POST") {
+      const result = await sendKeepAlivePing();
+      return new Response(JSON.stringify({ 
+        success: result,
+        message: result ? "Render endpoint pinged successfully" : "Failed to ping Render endpoint",
+        timestamp: new Date().toISOString()
+      }), {
+        status: result ? 200 : 500,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
 
     // CORS headers
     const corsHeaders = {
@@ -186,7 +248,7 @@ export default {
       });
     }
 
-    // Auth check
+    // Auth check (skip for keep-alive endpoint)
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || authHeader !== `Bearer ${API_KEY}`) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -228,6 +290,14 @@ export default {
       status: 404,
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
+  },
+  
+  // Scheduled handler for periodic keep-alive
+  async scheduled(event, env, ctx) {
+    console.log(`[Scheduled] Running keep-alive at ${new Date().toISOString()}`);
+    
+    // Wait for the keep-alive ping to complete
+    ctx.waitUntil(sendKeepAlivePing());
   }
 };
 
