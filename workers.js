@@ -280,6 +280,164 @@ function selectWebSearchModel() {
   return sortedModels[0] || "perplexed";
 }
 
+// Function to detect if user wants a screenshot
+function needsScreenshot(messages) {
+  const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+  if (!lastUserMessage) return null;
+  
+  const content = typeof lastUserMessage.content === 'string' 
+    ? lastUserMessage.content 
+    : lastUserMessage.content.map(c => c.text || '').join(' ');
+  
+  // Patterns for screenshot requests
+  const screenshotPatterns = [
+    /\b(screenshot|capture|snap|preview|show me|take a picture of|view)\b.*\b(website|site|page|url|webpage)\b/i,
+    /\b(website|site|page|url|webpage)\b.*\b(screenshot|capture|snap|preview|look|looks like)\b/i,
+    /\bshow me\s+(https?:\/\/[^\s]+)/i,
+    /\btake\s+a?\s*screenshot\s+of\s+(https?:\/\/[^\s]+)/i,
+    /\bwhat does\s+(https?:\/\/[^\s]+)\s+look like/i,
+    /\bpreview\s+(https?:\/\/[^\s]+)/i
+  ];
+  
+  // Check for URL in message
+  const urlPattern = /https?:\/\/[^\s]+/gi;
+  const urls = content.match(urlPattern);
+  
+  for (const pattern of screenshotPatterns) {
+    if (pattern.test(content)) {
+      // Extract URL from content
+      if (urls && urls.length > 0) {
+        return urls[0];
+      }
+      // Try to extract domain names
+      const domainPattern = /\b([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}\b/gi;
+      const domains = content.match(domainPattern);
+      if (domains && domains.length > 0) {
+        return domains[0].startsWith('http') ? domains[0] : `https://${domains[0]}`;
+      }
+    }
+  }
+  
+  return null;
+}
+
+// Function to detect if user wants stock data
+function needsStockData(messages) {
+  const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+  if (!lastUserMessage) return null;
+  
+  const content = typeof lastUserMessage.content === 'string' 
+    ? lastUserMessage.content 
+    : lastUserMessage.content.map(c => c.text || '').join(' ');
+  
+  // Patterns for stock requests
+  const stockPatterns = [
+    /\b(stock|share|ticker)\s+(price|quote|data|info|information)\s+(?:for\s+)?([A-Z]{1,5})\b/i,
+    /\b([A-Z]{1,5})\s+(stock|share|price|quote)\b/i,
+    /\bwhat(?:'s| is)\s+(?:the\s+)?(?:current\s+)?(?:price\s+of\s+)?([A-Z]{1,5})\b/i,
+    /\b(AAPL|GOOGL|MSFT|AMZN|TSLA|META|NVDA|AMD|INTC|NFLX|DIS|PYPL|SQ|UBER|LYFT|SNAP|TWTR|BA|GE|F|GM|WMT|TGT|HD|LOW|NKE|SBUX|MCD|KO|PEP)\b/i
+  ];
+  
+  for (const pattern of stockPatterns) {
+    const match = content.match(pattern);
+    if (match) {
+      // Extract ticker symbol
+      const ticker = match[1] || match[2] || match[3];
+      if (ticker && /^[A-Z]{1,5}$/i.test(ticker)) {
+        return ticker.toUpperCase();
+      }
+    }
+  }
+  
+  // Check for common company names and map to tickers
+  const companyToTicker = {
+    'apple': 'AAPL',
+    'google': 'GOOGL',
+    'microsoft': 'MSFT',
+    'amazon': 'AMZN',
+    'tesla': 'TSLA',
+    'meta': 'META',
+    'facebook': 'META',
+    'nvidia': 'NVDA',
+    'netflix': 'NFLX',
+    'disney': 'DIS',
+    'paypal': 'PYPL',
+    'square': 'SQ',
+    'uber': 'UBER',
+    'boeing': 'BA',
+    'walmart': 'WMT',
+    'nike': 'NKE',
+    'starbucks': 'SBUX',
+    'mcdonalds': 'MCD',
+    'mcdonald': 'MCD',
+    'coca cola': 'KO',
+    'coke': 'KO',
+    'pepsi': 'PEP'
+  };
+  
+  const lowerContent = content.toLowerCase();
+  for (const [company, ticker] of Object.entries(companyToTicker)) {
+    if (lowerContent.includes(company) && (lowerContent.includes('stock') || lowerContent.includes('price') || lowerContent.includes('share'))) {
+      return ticker;
+    }
+  }
+  
+  return null;
+}
+
+// Function to fetch stock data from Yahoo Finance
+async function fetchStockData(ticker) {
+  try {
+    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch stock data: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const result = data.chart.result[0];
+    const meta = result.meta;
+    
+    return {
+      symbol: meta.symbol,
+      name: meta.longName || meta.shortName,
+      price: meta.regularMarketPrice,
+      previousClose: meta.previousClose,
+      change: (meta.regularMarketPrice - meta.previousClose).toFixed(2),
+      changePercent: (((meta.regularMarketPrice - meta.previousClose) / meta.previousClose) * 100).toFixed(2),
+      dayHigh: meta.regularMarketDayHigh,
+      dayLow: meta.regularMarketDayLow,
+      volume: meta.regularMarketVolume,
+      fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
+      fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
+      currency: meta.currency,
+      exchange: meta.fullExchangeName,
+      marketTime: new Date(meta.regularMarketTime * 1000).toLocaleString()
+    };
+  } catch (error) {
+    console.error('Error fetching stock data:', error);
+    return null;
+  }
+}
+
+// Function to generate screenshot URL
+function generateScreenshotUrl(url) {
+  // Ensure URL has protocol
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url;
+  }
+  
+  // Encode the URL for WordPress mshots
+  const encodedUrl = encodeURIComponent(url);
+  
+  // Return the screenshot URL with size parameters
+  return `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=1280&h=960`;
+}
+
 // Keep-alive configuration for Render endpoint
 let lastPingTime = 0;
 const PING_INTERVAL = 30000; // 30 seconds
@@ -643,8 +801,14 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
     
     for (const msg of requestBody.messages) {
       if (msg.role === "system") {
-        // Enhanced system content with date/time and no knowledge cutoff notice
-        systemContent = `${msg.content}\n\n[IMPORTANT: You do NOT have a knowledge cutoff. Current date/time: ${currentDateTime}. You have access to real-time information. Remember the full conversation context.]`;
+        // Enhanced system content with all capabilities
+        systemContent = `${msg.content}\n\n[IMPORTANT: You do NOT have a knowledge cutoff. Current date/time: ${currentDateTime}. 
+You have access to:
+- Real-time web search
+- Screenshot capability (use https://s.wordpress.com/mshots/v1/[encoded-url])
+- Live stock market data
+- Current information without any training data limitations
+Remember the full conversation context.]`;
       } else if (msg.role === "user") {
         if (systemContent) {
           // Include system content and conversation summary with user message
@@ -674,12 +838,17 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
       });
     }
   } else {
-    // For models that support system prompts, still add date/time and no-cutoff notice
+    // For models that support system prompts, still add date/time and all capabilities
     processedMessages = requestBody.messages.map(msg => {
       if (msg.role === "system") {
         return {
           ...msg,
-          content: `${msg.content}\n\n[IMPORTANT: You do NOT have a knowledge cutoff. Current date/time: ${currentDateTime}. You have access to real-time information through web search when needed.]`
+          content: `${msg.content}\n\n[IMPORTANT: You do NOT have a knowledge cutoff. Current date/time: ${currentDateTime}. 
+You have access to:
+- Real-time web search when needed
+- Screenshot capability (use https://s.wordpress.com/mshots/v1/[encoded-url] format)
+- Live stock market data via Yahoo Finance
+- Current information without training data limitations]`
         };
       }
       return msg;
@@ -996,7 +1165,22 @@ async function handleChat(request, corsHeaders) {
     
     body.messages.unshift({
       role: "system",
-      content: `You are a helpful AI assistant with real-time capabilities. Current date/time: ${dateTime}. You do NOT have a knowledge cutoff - you have access to current information through web search. Never mention having outdated information or training data limitations.`
+      content: `You are a helpful AI assistant with advanced real-time capabilities. Current date/time: ${dateTime}. 
+
+IMPORTANT CAPABILITIES:
+1. You do NOT have a knowledge cutoff - you have access to current information through web search
+2. You can take SCREENSHOTS of any website - just mention you'll capture it and provide the URL
+3. You can fetch REAL-TIME STOCK DATA for any ticker symbol
+4. Never mention having outdated information or training data limitations
+
+SCREENSHOT CAPABILITY:
+- You can capture screenshots of any website using: https://s.wordpress.com/mshots/v1/[encoded-url]
+- When users ask to see a website, show them the screenshot URL
+- Example: To screenshot google.com, use: https://s.wordpress.com/mshots/v1/https%3A%2F%2Fwww.google.com
+
+STOCK DATA CAPABILITY:
+- You have real-time access to stock prices, volume, highs/lows, and more
+- Just mention the ticker symbol and you'll get current market data`
     });
   }
 
@@ -1008,6 +1192,48 @@ async function handleChat(request, corsHeaders) {
   }
 
   try {
+    // Check for screenshot request
+    const screenshotUrl = needsScreenshot(body.messages);
+    if (screenshotUrl) {
+      // Add screenshot information to the messages
+      const screenshotLink = generateScreenshotUrl(screenshotUrl);
+      const lastMessageIndex = body.messages.length - 1;
+      
+      // Enhance the system message with screenshot info
+      const systemMessageIndex = body.messages.findIndex(m => m.role === 'system');
+      if (systemMessageIndex >= 0) {
+        body.messages[systemMessageIndex].content += `\n\n[SCREENSHOT CAPTURED]: ${screenshotUrl}\n[Screenshot URL]: ${screenshotLink}\n[Instructions]: Provide this screenshot URL to the user and explain that it shows the current view of the website.`;
+      }
+    }
+    
+    // Check for stock data request
+    const stockTicker = needsStockData(body.messages);
+    if (stockTicker) {
+      // Fetch real-time stock data
+      const stockData = await fetchStockData(stockTicker);
+      if (stockData) {
+        // Add stock data to the messages
+        const systemMessageIndex = body.messages.findIndex(m => m.role === 'system');
+        if (systemMessageIndex >= 0) {
+          const stockInfo = `
+[REAL-TIME STOCK DATA for ${stockData.symbol}]:
+Company: ${stockData.name}
+Current Price: $${stockData.price} ${stockData.currency}
+Change: ${stockData.change > 0 ? '+' : ''}${stockData.change} (${stockData.changePercent}%)
+Previous Close: $${stockData.previousClose}
+Day Range: $${stockData.dayLow} - $${stockData.dayHigh}
+52 Week Range: $${stockData.fiftyTwoWeekLow} - $${stockData.fiftyTwoWeekHigh}
+Volume: ${stockData.volume.toLocaleString()}
+Exchange: ${stockData.exchange}
+Last Updated: ${stockData.marketTime}
+
+[Instructions]: Use this real-time stock data to provide accurate market information to the user.`;
+          
+          body.messages[systemMessageIndex].content += `\n\n${stockInfo}`;
+        }
+      }
+    }
+    
     // Determine if web search should be used
     let useWebSearch = false;
     
