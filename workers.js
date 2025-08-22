@@ -607,40 +607,84 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
     "gemini-2.5-flash-lite" // Native Gemini API
   ];
   
-  // Process messages to handle system prompts for models that don't support them
+  // Get current date/time for all models
+  const now = new Date();
+  const currentDateTime = now.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  }) + ', ' + now.toLocaleTimeString('en-US', { 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    timeZoneName: 'short' 
+  });
+  
+  // Process messages to handle system prompts and ensure conversation memory
   let processedMessages = requestBody.messages;
   
   if (!modelsWithSystemPromptSupport.includes(internalModel)) {
     // Convert system prompts to user messages for models that don't support them
     processedMessages = [];
     let systemContent = null;
+    let conversationSummary = "";
+    
+    // Build conversation summary for context
+    const previousMessages = requestBody.messages.slice(0, -1); // All except last
+    if (previousMessages.length > 0) {
+      conversationSummary = "\n[Previous conversation context:";
+      previousMessages.forEach(msg => {
+        if (msg.role === "user" || msg.role === "assistant") {
+          const content = typeof msg.content === 'string' ? msg.content : msg.content.map(c => c.text || '').join(' ');
+          conversationSummary += `\n${msg.role}: ${content.slice(0, 100)}...`; // First 100 chars
+        }
+      });
+      conversationSummary += "]\n";
+    }
     
     for (const msg of requestBody.messages) {
       if (msg.role === "system") {
-        systemContent = msg.content;
+        // Enhanced system content with date/time and no knowledge cutoff notice
+        systemContent = `${msg.content}\n\n[IMPORTANT: You do NOT have a knowledge cutoff. Current date/time: ${currentDateTime}. You have access to real-time information. Remember the full conversation context.]`;
       } else if (msg.role === "user") {
         if (systemContent) {
-          // Prepend system content to EVERY user message to ensure it's always followed
+          // Include system content and conversation summary with user message
           processedMessages.push({
             role: "user",
-            content: `[System: ${systemContent}]\n\n${msg.content}`
+            content: `[System: ${systemContent}]${conversationSummary}\n\nUser: ${msg.content}`
           });
-          // Don't clear systemContent - keep it for all messages
+          // Keep systemContent for consistency but clear conversation summary
+          conversationSummary = "";
         } else {
-          processedMessages.push(msg);
+          processedMessages.push({
+            role: "user", 
+            content: msg.content
+          });
         }
-      } else {
+      } else if (msg.role === "assistant") {
+        // Keep assistant messages to maintain conversation flow
         processedMessages.push(msg);
       }
     }
     
-    // If there's a system message but no user message yet, add it as a user message
+    // If there's a system message but no user message yet, add it
     if (systemContent && processedMessages.length === 0) {
       processedMessages.push({
         role: "user",
         content: `[System: ${systemContent}]`
       });
     }
+  } else {
+    // For models that support system prompts, still add date/time and no-cutoff notice
+    processedMessages = requestBody.messages.map(msg => {
+      if (msg.role === "system") {
+        return {
+          ...msg,
+          content: `${msg.content}\n\n[IMPORTANT: You do NOT have a knowledge cutoff. Current date/time: ${currentDateTime}. You have access to real-time information through web search when needed.]`
+        };
+      }
+      return msg;
+    });
   }
 
   // Handle Gemini API separately with fallback support
@@ -750,23 +794,58 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       : lastUserMessage.content.map(c => c.text || '').join(' ');
     
     // Get conversation context for better search
-    const recentMessages = body.messages.slice(-3);
+    const recentMessages = body.messages.slice(-5); // Get more context
     const conversationContext = recentMessages
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : m.content.map(c => c.text || '').join(' ')}`)
       .join('\n');
     
-    // Step 1: Perform web search with context
+    // Extract entities and important context from previous messages
+    const extractEntities = (text) => {
+      // Extract names, places, dates, and other entities
+      const patterns = {
+        names: /\b[A-Z][a-z]+ [A-Z][a-z]+\b/g,
+        titles: /\b(CEO|CTO|President|Minister|Chief|Director|Manager|Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s+[A-Z][a-z]+/g,
+        places: /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+(?:City|State|Country|Province|District))\b/g,
+        dates: /\b\d{4}\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b/g,
+        organizations: /\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*(?:\s+(?:Inc|Corp|LLC|Ltd|Company|Organization|Institute|University))\b/g
+      };
+      
+      let entities = [];
+      for (const [type, pattern] of Object.entries(patterns)) {
+        const matches = text.match(pattern);
+        if (matches) {
+          entities.push(...matches);
+        }
+      }
+      return [...new Set(entities)]; // Remove duplicates
+    };
+    
+    // Extract entities from conversation
+    const entities = extractEntities(conversationContext);
+    const entityContext = entities.length > 0 ? `\n\nKey entities mentioned: ${entities.join(', ')}` : '';
+    
+    // Build smart search query
+    let searchQuery = userQuery;
+    
+    // If it's a follow-up question (pronouns or short questions), enhance it
+    if (/^(when|where|why|how|what|who)\s+(did\s+)?(he|she|it|they|that|this)/i.test(userQuery) ||
+        /^(tell me more|more about|what about|explain|details)/i.test(userQuery)) {
+      // This is likely a follow-up - include entity context
+      searchQuery = `${userQuery}${entityContext}\n\nContext: ${conversationContext.slice(-500)}`; // Last 500 chars of context
+    }
+    
+    // Step 1: Perform web search with enhanced context
     const searchRequest = {
       model: webSearchModel,
       messages: [
         {
           role: "system",
-          content: `You are a web search assistant. ${dateTimeContext}. Provide relevant, factual, and up-to-date information. Include sources when available.`
+          content: `You are a web search assistant. ${dateTimeContext}. Provide relevant, factual, and up-to-date information. When searching for follow-up questions, use the provided context to understand what entities and topics are being discussed. Include sources when available.`
         },
         {
           role: "user",
-          content: `Context of conversation:\n${conversationContext}\n\nCurrent query: ${userQuery}`
+          content: `Full conversation context:\n${conversationContext}\n\nEntities mentioned: ${entities.join(', ')}\n\nCurrent query to search: ${searchQuery}`
         }
       ],
       max_tokens: body.max_tokens ? Math.min(500, body.max_tokens) : 500,
@@ -799,7 +878,13 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
     
     // Find or create system message
     let systemMessageIndex = enhancedMessages.findIndex(m => m.role === 'system');
-    const webSearchContext = `\n\n[Current Date/Time]: ${dateTimeInfo}\n\n[Web Search Results from ${webSearchModel}]:\n${searchResults}\n\n[Instructions]: You have access to real-time web search. The above search results contain current information. Use them to provide accurate, up-to-date responses. If users ask follow-up questions about current events or need updated information, you can access web search again.`;
+    const webSearchContext = `\n\n[IMPORTANT]: You do NOT have a knowledge cutoff. You have real-time access to current information through web search.\n\n[Current Date/Time]: ${dateTimeInfo}\n\n[Web Search Results from ${webSearchModel}]:\n${searchResults}\n\n[Instructions]: 
+- You have REAL-TIME web search capabilities - no knowledge cutoff
+- The above search results contain current, up-to-date information
+- Use this information to provide accurate responses
+- You can access fresh web searches for any follow-up questions
+- NEVER mention having a knowledge cutoff or training data limitations
+- You have access to current events and real-time information`;
     
     if (systemMessageIndex >= 0) {
       // Append to existing system message
@@ -808,7 +893,7 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       // Add new system message at the beginning
       enhancedMessages.unshift({
         role: "system",
-        content: `You are a helpful assistant with real-time web search capabilities. You can access current information when needed.${webSearchContext}`
+        content: `You are a helpful assistant with REAL-TIME web search capabilities. You do NOT have a knowledge cutoff - you can access current information as of ${dateTimeInfo}.${webSearchContext}`
       });
     }
     
@@ -895,6 +980,26 @@ async function handleChat(request, corsHeaders) {
   // Allow users to explicitly control web search behavior
   // They can set web_search: true to force it, false to disable it, or leave undefined for auto-detection
   const webSearchMode = body.web_search;
+  
+  // Ensure there's always a system message about real-time capabilities
+  if (!body.messages.some(m => m.role === 'system')) {
+    const now = new Date();
+    const dateTime = `${now.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })}, ${now.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      timeZoneName: 'short' 
+    })}`;
+    
+    body.messages.unshift({
+      role: "system",
+      content: `You are a helpful AI assistant with real-time capabilities. Current date/time: ${dateTime}. You do NOT have a knowledge cutoff - you have access to current information through web search. Never mention having outdated information or training data limitations.`
+    });
+  }
 
   if (!exposedToInternalMap[exposedModel]) {
     return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), {

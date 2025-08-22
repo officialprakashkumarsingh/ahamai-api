@@ -12,6 +12,9 @@ The API now includes **automatic intelligent web search** capabilities for all c
 - Seamlessly integrates search results into responses
 - **Works on follow-up messages** - Maintains context across conversations
 - **Includes current date/time** - Models know the exact time when responding
+- **No knowledge cutoff** - Models never mention training data limitations
+- **Smart entity extraction** - Remembers names, places, and topics from conversation
+- **Enhanced conversation memory** - All models maintain full context
 
 ### ⚡ Fast Search Models
 The system automatically selects the fastest available search model:
@@ -137,7 +140,13 @@ For streaming requests, you'll see:
 
 ## Examples
 
-### Example 1: Current Events
+### Example 1: Smart Follow-up Questions (NEW)
+**User:** "Who is the chief minister of Delhi?"
+**AI:** "The Chief Minister of Delhi is Arvind Kejriwal..."
+**User:** "When did he become CM?"
+**System:** Automatically searches for "Arvind Kejriwal Delhi Chief Minister when became" instead of just "when did he become CM"
+
+### Example 2: Current Events
 **Request:**
 ```json
 {
@@ -149,7 +158,7 @@ For streaming requests, you'll see:
 ```
 **Result:** Automatically performs web search and provides current market data.
 
-### Example 2: General Knowledge (No Search)
+### Example 3: General Knowledge (No Search)
 **Request:**
 ```json
 {
@@ -161,7 +170,7 @@ For streaming requests, you'll see:
 ```
 **Result:** Answers directly without web search (not needed for static facts).
 
-### Example 3: Forced Search
+### Example 4: Forced Search
 **Request:**
 ```json
 {
@@ -177,11 +186,12 @@ For streaming requests, you'll see:
 ## Technical Details
 
 ### How It Works
-1. **Query Analysis**: Analyzes last 3 messages for context, detecting patterns in conversation flow
-2. **Search Execution**: If needed, the fastest available search model is used with full conversation context
-3. **Context Enhancement**: Search results are merged with current date/time and conversation history
-4. **Response Generation**: The model knows it has web search capabilities and current time context
-5. **Follow-up Support**: Maintains context across messages, detecting when follow-ups need fresh searches
+1. **Query Analysis**: Analyzes last 5 messages for context, detecting patterns in conversation flow
+2. **Entity Extraction**: Identifies names, places, dates, and organizations from conversation
+3. **Smart Search**: Enhances follow-up queries with entity context (e.g., "when did she become CM" → includes "Rekha Gupta Delhi Chief Minister")
+4. **Context Enhancement**: Search results merged with date/time, entities, and conversation history
+5. **Response Generation**: Models know they have NO knowledge cutoff and real-time access
+6. **Memory Persistence**: All models maintain conversation context, even those without native system prompt support
 
 ### Performance
 - Search adds ~1-2 seconds to response time
