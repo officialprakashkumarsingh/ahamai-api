@@ -10,6 +10,8 @@ The API now includes **automatic intelligent web search** capabilities for all c
 - **No keywords required** - The system intelligently detects when web search is needed
 - Works with **ALL chat models** (gpt-4o, gemini, v0, llama, etc.)
 - Seamlessly integrates search results into responses
+- **Works on follow-up messages** - Maintains context across conversations
+- **Includes current date/time** - Models know the exact time when responding
 
 ### ⚡ Fast Search Models
 The system automatically selects the fastest available search model:
@@ -81,6 +83,12 @@ You can explicitly control web search behavior using the `web_search` parameter:
 
 The system automatically detects these patterns:
 
+### Follow-up Patterns (NEW)
+- "tell me more", "more about", "what about"
+- "any updates", "latest on that", "current status"
+- "and what about", "also", "additionally"
+- Maintains context from previous messages
+
 ### 1. Temporal Queries
 - "latest", "recent", "current", "today", "yesterday"
 - "this week", "this month", "this year"
@@ -113,6 +121,7 @@ The system automatically detects these patterns:
 When web search is performed, responses include:
 ```
 [Web search performed using exaanswer]
+[Current: Monday, January 27, 2025, 10:30 AM EST]
 
 [Your enhanced response with current information...]
 ```
@@ -120,7 +129,8 @@ When web search is performed, responses include:
 ### Streaming Responses
 For streaming requests, you'll see:
 ```
-[Performing web search...]
+[Performing web search with exaanswer...]
+[Current: Monday, January 27, 2025, 10:30 AM EST]
 
 [Followed by the enhanced response...]
 ```
@@ -167,10 +177,11 @@ For streaming requests, you'll see:
 ## Technical Details
 
 ### How It Works
-1. **Query Analysis**: Incoming messages are analyzed for patterns indicating need for current information
-2. **Search Execution**: If needed, the fastest available search model is used
-3. **Context Enhancement**: Search results are intelligently merged with the original query
-4. **Response Generation**: The chosen model generates a response using both its knowledge and search results
+1. **Query Analysis**: Analyzes last 3 messages for context, detecting patterns in conversation flow
+2. **Search Execution**: If needed, the fastest available search model is used with full conversation context
+3. **Context Enhancement**: Search results are merged with current date/time and conversation history
+4. **Response Generation**: The model knows it has web search capabilities and current time context
+5. **Follow-up Support**: Maintains context across messages, detecting when follow-ups need fresh searches
 
 ### Performance
 - Search adds ~1-2 seconds to response time

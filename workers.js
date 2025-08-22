@@ -212,26 +212,56 @@ const webSearchPatterns = [
 
 // Function to determine if a query needs web search
 function needsWebSearch(messages) {
-  // Get the last user message
+  // Get the last few messages for context (not just the last one)
+  const recentMessages = messages.slice(-3); // Check last 3 messages
+  
+  // Combine recent user and assistant messages for context
+  const conversationContext = recentMessages
+    .map(m => {
+      if (m.role === 'user' || m.role === 'assistant') {
+        return typeof m.content === 'string' 
+          ? m.content 
+          : m.content.map(c => c.text || '').join(' ');
+      }
+      return '';
+    })
+    .join(' ');
+  
+  // Get the last user message specifically
   const lastUserMessage = messages.filter(m => m.role === 'user').pop();
   if (!lastUserMessage) return false;
   
-  const content = typeof lastUserMessage.content === 'string' 
+  const lastUserContent = typeof lastUserMessage.content === 'string' 
     ? lastUserMessage.content 
     : lastUserMessage.content.map(c => c.text || '').join(' ');
   
-  // Check if any pattern matches
+  // Check if any pattern matches in the recent conversation context
   for (const pattern of webSearchPatterns) {
-    if (pattern.test(content)) {
+    if (pattern.test(conversationContext)) {
       return true;
     }
   }
   
-  // Additional heuristics
-  // Check for question words at the beginning
-  if (/^(what|who|where|when|why|how|is|are|does|do|can|could|would|will)\b/i.test(content.trim())) {
+  // Check for follow-up questions that might need web search
+  const followUpPatterns = [
+    /\b(tell me more|more about|what about|how about|and what|also|additionally)\b/i,
+    /\b(update|latest on that|current status|now)\b/i,
+    /\b(any news|any updates|anything new)\b/i
+  ];
+  
+  for (const pattern of followUpPatterns) {
+    if (pattern.test(lastUserContent)) {
+      // Check if previous messages mentioned something that needs current info
+      if (/\b(news|weather|stock|price|event|match|score|release|update)\b/i.test(conversationContext)) {
+        return true;
+      }
+    }
+  }
+  
+  // Additional heuristics for questions
+  if (/^(what|who|where|when|why|how|is|are|does|do|can|could|would|will)\b/i.test(lastUserContent.trim())) {
     // Check if it's asking about something that might need current information
-    if (/\b(now|today|current|latest|new|2024|2025)\b/i.test(content)) {
+    if (/\b(now|today|current|latest|new|2024|2025)\b/i.test(lastUserContent)) {
       return true;
     }
   }
@@ -700,23 +730,43 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
     // Select the best web search model
     const webSearchModel = selectWebSearchModel();
     
+    // Get current date and time
+    const now = new Date();
+    const dateTimeContext = `Current date and time: ${now.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })}, ${now.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      timeZoneName: 'short' 
+    })}`;
+    
     // Get the last user message for context
     const lastUserMessage = body.messages.filter(m => m.role === 'user').pop();
     const userQuery = typeof lastUserMessage.content === 'string' 
       ? lastUserMessage.content 
       : lastUserMessage.content.map(c => c.text || '').join(' ');
     
-    // Step 1: Perform web search
+    // Get conversation context for better search
+    const recentMessages = body.messages.slice(-3);
+    const conversationContext = recentMessages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : m.content.map(c => c.text || '').join(' ')}`)
+      .join('\n');
+    
+    // Step 1: Perform web search with context
     const searchRequest = {
       model: webSearchModel,
       messages: [
         {
           role: "system",
-          content: "You are a web search assistant. Provide relevant, factual, and up-to-date information. Include sources when available."
+          content: `You are a web search assistant. ${dateTimeContext}. Provide relevant, factual, and up-to-date information. Include sources when available.`
         },
         {
           role: "user",
-          content: userQuery
+          content: `Context of conversation:\n${conversationContext}\n\nCurrent query: ${userQuery}`
         }
       ],
       max_tokens: body.max_tokens ? Math.min(500, body.max_tokens) : 500,
@@ -734,9 +784,22 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
     // Step 2: Prepare enhanced context for the original model
     const enhancedMessages = [...body.messages];
     
+    // Get current date and time for the model
+    const now = new Date();
+    const dateTimeInfo = `${now.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })}, ${now.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      timeZoneName: 'short' 
+    })}`;
+    
     // Find or create system message
     let systemMessageIndex = enhancedMessages.findIndex(m => m.role === 'system');
-    const webSearchContext = `\n\n[Web Search Results]:\n${searchResults}\n\n[Instructions]: Use the above web search results to provide accurate and current information. If the search results are relevant, incorporate them into your response.`;
+    const webSearchContext = `\n\n[Current Date/Time]: ${dateTimeInfo}\n\n[Web Search Results from ${webSearchModel}]:\n${searchResults}\n\n[Instructions]: You have access to real-time web search. The above search results contain current information. Use them to provide accurate, up-to-date responses. If users ask follow-up questions about current events or need updated information, you can access web search again.`;
     
     if (systemMessageIndex >= 0) {
       // Append to existing system message
@@ -745,7 +808,7 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       // Add new system message at the beginning
       enhancedMessages.unshift({
         role: "system",
-        content: `You are a helpful assistant with access to current web information.${webSearchContext}`
+        content: `You are a helpful assistant with real-time web search capabilities. You can access current information when needed.${webSearchContext}`
       });
     }
     
@@ -761,7 +824,8 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       const encoder = new TextEncoder();
       const streamResponse = new ReadableStream({
         async start(controller) {
-          // Send initial web search notification
+          // Send initial web search notification with date/time
+          const searchNotification = `[Performing web search with ${webSearchModel}...]\n[Current: ${dateTimeInfo}]\n\n`;
           const initialChunk = {
             id: `chatcmpl-${Date.now()}`,
             object: "chat.completion.chunk",
@@ -769,7 +833,7 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
             model: originalModel,
             choices: [{
               index: 0,
-              delta: { content: "[Performing web search...]\n\n" },
+              delta: { content: searchNotification },
               finish_reason: null
             }]
           };
@@ -804,10 +868,10 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       const response = await makeModelRequest(originalModel, enhancedBody, false, corsHeaders);
       const responseData = await response.json();
       
-      // Add metadata about web search
+      // Add metadata about web search and date/time
       if (responseData.choices && responseData.choices[0]) {
         responseData.choices[0].message.content = 
-          `[Web search performed using ${webSearchModel}]\n\n${responseData.choices[0].message.content}`;
+          `[Web search performed using ${webSearchModel}]\n[Current: ${dateTimeInfo}]\n\n${responseData.choices[0].message.content}`;
       }
       
       return new Response(JSON.stringify(responseData), {
