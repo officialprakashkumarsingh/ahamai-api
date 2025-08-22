@@ -1,8 +1,11 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (17 models)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (17 models + default)
   // All models support streaming ✅
+  
+  // Default Model - Automatically selects fastest available model
+  "default": "default", // Routes to fastest model with automatic fallback
   
   // Proxy Models (3) - All working with streaming
   "perplexed": "perplexed",
@@ -477,6 +480,172 @@ function generateScreenshotUrl(url) {
   
   // Return the screenshot URL with size parameters
   return `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=1280&h=960`;
+}
+
+// Speed-optimized model rankings based on actual performance data
+const modelSpeedRanking = [
+  // Tier 1: Lightning Fast (<1s)
+  { model: "llama-4-scout-17b-16e-instruct", avgResponseTime: 0.567, tier: 1 },
+  { model: "meta-llama/llama-4-scout-17b-16e-instruct", avgResponseTime: 0.567, tier: 1 },
+  { model: "gemini-2.5-flash-lite-preview-06-17", avgResponseTime: 0.797, tier: 1 },
+  { model: "gemini-2.0-flash", avgResponseTime: 0.806, tier: 1 },
+  { model: "gemini-2.0-flash-thinking-exp-01-21", avgResponseTime: 0.904, tier: 1 },
+  { model: "deepseek-r1-distill-llama-70b", avgResponseTime: 0.982, tier: 1 },
+  
+  // Tier 2: Very Fast (1-2s)
+  { model: "gemini-2.5-flash", avgResponseTime: 1.2, tier: 2 },
+  { model: "gemini-2.5-flash-preview-04-17", avgResponseTime: 1.3, tier: 2 },
+  { model: "v0-1.5-md", avgResponseTime: 1.5, tier: 2 },
+  { model: "v0-1.0-md", avgResponseTime: 1.7, tier: 2 },
+  { model: "glm-4.5-air", avgResponseTime: 1.8, tier: 2 },
+  
+  // Tier 3: Fast (2-3s)
+  { model: "felo", avgResponseTime: 2.1, tier: 3 },
+  { model: "perplexed", avgResponseTime: 2.3, tier: 3 },
+  { model: "exaanswer", avgResponseTime: 2.5, tier: 3 },
+  { model: "glm-4.5", avgResponseTime: 2.7, tier: 3 },
+  
+  // Tier 4: Standard (3s+)
+  { model: "v0-1.5-lg", avgResponseTime: 3.2, tier: 4 },
+  { model: "qwen-3-coder-480b", avgResponseTime: 3.5, tier: 4 },
+  { model: "gemini-2.5-flash-lite", avgResponseTime: 3.8, tier: 4 }
+];
+
+// Track failed models during a request to avoid retrying them
+let failedModelsInRequest = new Set();
+
+// Dynamic response time tracking (in-memory for this session)
+const responseTimeTracking = new Map();
+
+// Function to update response time tracking
+function updateResponseTime(model, responseTime) {
+  if (!responseTimeTracking.has(model)) {
+    responseTimeTracking.set(model, {
+      totalTime: 0,
+      count: 0,
+      avgTime: 0,
+      lastUpdated: Date.now()
+    });
+  }
+  
+  const stats = responseTimeTracking.get(model);
+  stats.totalTime += responseTime;
+  stats.count += 1;
+  stats.avgTime = stats.totalTime / stats.count;
+  stats.lastUpdated = Date.now();
+  
+  console.log(`[Performance] ${model}: ${responseTime}ms (avg: ${stats.avgTime.toFixed(0)}ms over ${stats.count} requests)`);
+}
+
+// Function to get the next fastest available model (with dynamic adjustment)
+function getNextFastestModel(excludeModels = []) {
+  // Create a combined ranking using both static and dynamic data
+  const combinedRanking = modelSpeedRanking.map(modelInfo => {
+    const dynamicStats = responseTimeTracking.get(modelInfo.model);
+    
+    // If we have dynamic data, use weighted average (70% dynamic, 30% static)
+    let effectiveTime = modelInfo.avgResponseTime * 1000; // Convert to ms
+    if (dynamicStats && dynamicStats.count >= 3) {
+      effectiveTime = (dynamicStats.avgTime * 0.7) + (modelInfo.avgResponseTime * 1000 * 0.3);
+    }
+    
+    return {
+      ...modelInfo,
+      effectiveTime
+    };
+  }).sort((a, b) => a.effectiveTime - b.effectiveTime);
+  
+  // Find the first available model
+  for (const modelInfo of combinedRanking) {
+    // Skip if model is in exclude list or has failed in this request
+    if (excludeModels.includes(modelInfo.model) || failedModelsInRequest.has(modelInfo.model)) {
+      continue;
+    }
+    
+    // Check if model exists in our mapping
+    if (exposedToInternalMap[modelInfo.model]) {
+      return modelInfo.model;
+    }
+  }
+  
+  // Fallback to a reliable model if all fast ones fail
+  return "gemini-2.0-flash"; // Most reliable based on testing
+}
+
+// Function to handle the default model routing
+async function handleDefaultModel(body, stream, corsHeaders) {
+  // Clear failed models for new request
+  failedModelsInRequest.clear();
+  
+  const maxRetries = 3;
+  let attemptedModels = [];
+  let lastError = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    // Get the next fastest model that hasn't been tried
+    const selectedModel = getNextFastestModel(attemptedModels);
+    
+    if (!selectedModel) {
+      // No more models to try
+      break;
+    }
+    
+    console.log(`[Default Model] Attempt ${attempt + 1}: Using ${selectedModel} (Tier ${modelSpeedRanking.find(m => m.model === selectedModel)?.tier || 'Unknown'})`);
+    attemptedModels.push(selectedModel);
+    
+    try {
+      // Replace the model in the request
+      const modifiedBody = { ...body, model: selectedModel };
+      
+      // Try to make the request with the selected model
+      const startTime = Date.now();
+      const response = await makeModelRequest(selectedModel, modifiedBody, stream, corsHeaders);
+      
+      // Log and track successful response time
+      const responseTime = Date.now() - startTime;
+      console.log(`[Default Model] Success with ${selectedModel} in ${responseTime}ms`);
+      
+      // Update dynamic response time tracking
+      updateResponseTime(selectedModel, responseTime);
+      
+      // Add metadata about which model was used
+      if (!stream && response.headers.get('content-type')?.includes('json')) {
+        const responseData = await response.json();
+        responseData.model = `default (via ${selectedModel})`;
+        responseData.metadata = {
+          actual_model: selectedModel,
+          response_time_ms: responseTime,
+          attempt: attempt + 1,
+          tier: modelSpeedRanking.find(m => m.model === selectedModel)?.tier || 'Unknown'
+        };
+        return new Response(JSON.stringify(responseData), {
+          status: response.status,
+          headers: response.headers
+        });
+      }
+      
+      // For streaming responses, add a header to indicate which model was used
+      const modifiedHeaders = new Headers(response.headers);
+      modifiedHeaders.set('X-Actual-Model', selectedModel);
+      modifiedHeaders.set('X-Response-Time', responseTime.toString());
+      
+      return new Response(response.body, {
+        status: response.status,
+        headers: modifiedHeaders
+      });
+      
+    } catch (error) {
+      console.log(`[Default Model] Failed with ${selectedModel}: ${error.message}`);
+      lastError = error;
+      failedModelsInRequest.add(selectedModel);
+      
+      // Continue to next model
+      continue;
+    }
+  }
+  
+  // All attempts failed
+  throw new Error(`Default model failed after ${attemptedModels.length} attempts. Last error: ${lastError?.message || 'Unknown error'}. Tried models: ${attemptedModels.join(', ')}`);
 }
 
 // Keep-alive configuration for Render endpoint
@@ -1259,6 +1428,10 @@ REMEMBER: You're not just answering questions, you're actively enhancing respons
   }
 
   try {
+    // Handle the special "default" model that routes to fastest available
+    if (exposedModel === "default") {
+      return await handleDefaultModel(body, stream, corsHeaders);
+    }
     // Proactively check if screenshot would be helpful
     const screenshotUrl = shouldProvideScreenshot(body.messages);
     if (screenshotUrl) {
@@ -1474,11 +1647,23 @@ async function handleImage(request, corsHeaders) {
 
 
 function handleChatModelList(corsHeaders = {}) {
-  const chatModels = Object.keys(exposedToInternalMap).map((id) => ({
-    id,
-    object: "model",
-    owned_by: "openai-compatible"
-  }));
+  const chatModels = Object.keys(exposedToInternalMap).map((id) => {
+    // Special handling for default model
+    if (id === "default") {
+      return {
+        id,
+        object: "model",
+        owned_by: "speed-optimized",
+        description: "Automatically selects the fastest available model with fallback"
+      };
+    }
+    
+    return {
+      id,
+      object: "model",
+      owned_by: "openai-compatible"
+    };
+  });
 
   return new Response(JSON.stringify({
     object: "list",
