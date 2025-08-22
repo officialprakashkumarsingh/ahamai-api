@@ -280,79 +280,67 @@ function selectWebSearchModel() {
   return sortedModels[0] || "perplexed";
 }
 
-// Function to detect if user wants a screenshot
-function needsScreenshot(messages) {
-  const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-  if (!lastUserMessage) return null;
+// Function to detect when screenshot would be helpful
+function shouldProvideScreenshot(messages) {
+  const recentMessages = messages.slice(-3);
+  const conversationText = recentMessages
+    .map(m => typeof m.content === 'string' ? m.content : m.content.map(c => c.text || '').join(' '))
+    .join(' ').toLowerCase();
   
-  const content = typeof lastUserMessage.content === 'string' 
-    ? lastUserMessage.content 
-    : lastUserMessage.content.map(c => c.text || '').join(' ');
+  // Extract URLs and domains from conversation
+  const urlPattern = /(?:https?:\/\/)?(?:www\.)?([a-z0-9]+(?:[-.]?[a-z0-9]+)*\.[a-z]{2,}(?:\/[^\s]*)?)/gi;
+  const matches = conversationText.match(urlPattern);
   
-  // Patterns for screenshot requests
-  const screenshotPatterns = [
-    /\b(screenshot|capture|snap|preview|show me|take a picture of|view)\b.*\b(website|site|page|url|webpage)\b/i,
-    /\b(website|site|page|url|webpage)\b.*\b(screenshot|capture|snap|preview|look|looks like)\b/i,
-    /\bshow me\s+(https?:\/\/[^\s]+)/i,
-    /\btake\s+a?\s*screenshot\s+of\s+(https?:\/\/[^\s]+)/i,
-    /\bwhat does\s+(https?:\/\/[^\s]+)\s+look like/i,
-    /\bpreview\s+(https?:\/\/[^\s]+)/i
+  if (!matches) return null;
+  
+  // Topics where visual context is helpful
+  const visualContextPatterns = [
+    /\b(design|layout|interface|ui|ux|looks?|appearance|visual|style|color|theme)\b/i,
+    /\b(homepage|landing page|website|web ?site|webpage|web ?page|portal|platform)\b/i,
+    /\b(compare|comparison|versus|vs|difference|similar)\b/i,
+    /\b(analyze|review|check|examine|explore|investigate)\b/i,
+    /\b(what is|tell me about|explain|describe|show)\b/i
   ];
   
-  // Check for URL in message
-  const urlPattern = /https?:\/\/[^\s]+/gi;
-  const urls = content.match(urlPattern);
-  
-  for (const pattern of screenshotPatterns) {
-    if (pattern.test(content)) {
-      // Extract URL from content
-      if (urls && urls.length > 0) {
-        return urls[0];
+  // Check if discussing websites/platforms where visual would help
+  for (const pattern of visualContextPatterns) {
+    if (pattern.test(conversationText)) {
+      // Return the most recent URL/domain mentioned
+      const lastUrl = matches[matches.length - 1];
+      if (!lastUrl.startsWith('http')) {
+        return `https://${lastUrl.replace(/^www\./i, '')}`;
       }
-      // Try to extract domain names
-      const domainPattern = /\b([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}\b/gi;
-      const domains = content.match(domainPattern);
-      if (domains && domains.length > 0) {
-        return domains[0].startsWith('http') ? domains[0] : `https://${domains[0]}`;
-      }
+      return lastUrl;
     }
   }
   
   return null;
 }
 
-// Function to detect if user wants stock data
-function needsStockData(messages) {
-  const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-  if (!lastUserMessage) return null;
+// Function to detect when stock data would be helpful
+function shouldProvideStockData(messages) {
+  const recentMessages = messages.slice(-3);
+  const conversationText = recentMessages
+    .map(m => typeof m.content === 'string' ? m.content : m.content.map(c => c.text || '').join(' '))
+    .join(' ');
   
-  const content = typeof lastUserMessage.content === 'string' 
-    ? lastUserMessage.content 
-    : lastUserMessage.content.map(c => c.text || '').join(' ');
-  
-  // Patterns for stock requests
-  const stockPatterns = [
-    /\b(stock|share|ticker)\s+(price|quote|data|info|information)\s+(?:for\s+)?([A-Z]{1,5})\b/i,
-    /\b([A-Z]{1,5})\s+(stock|share|price|quote)\b/i,
-    /\bwhat(?:'s| is)\s+(?:the\s+)?(?:current\s+)?(?:price\s+of\s+)?([A-Z]{1,5})\b/i,
-    /\b(AAPL|GOOGL|MSFT|AMZN|TSLA|META|NVDA|AMD|INTC|NFLX|DIS|PYPL|SQ|UBER|LYFT|SNAP|TWTR|BA|GE|F|GM|WMT|TGT|HD|LOW|NKE|SBUX|MCD|KO|PEP)\b/i
+  // Financial/business context indicators
+  const financialContext = [
+    /\b(invest|investment|trading|market|financial|earnings|revenue|profit|valuation)\b/i,
+    /\b(performance|growth|decline|rally|crash|bubble|volatility)\b/i,
+    /\b(buy|sell|hold|analyst|recommendation|target price)\b/i,
+    /\b(worth|value|expensive|cheap|overvalued|undervalued)\b/i,
+    /\b(competitor|comparison|versus|portfolio)\b/i
   ];
   
-  for (const pattern of stockPatterns) {
-    const match = content.match(pattern);
-    if (match) {
-      // Extract ticker symbol
-      const ticker = match[1] || match[2] || match[3];
-      if (ticker && /^[A-Z]{1,5}$/i.test(ticker)) {
-        return ticker.toUpperCase();
-      }
-    }
-  }
+  // Check if in financial context
+  const isFinancialContext = financialContext.some(pattern => pattern.test(conversationText));
   
-  // Check for common company names and map to tickers
+  // Company to ticker mapping
   const companyToTicker = {
     'apple': 'AAPL',
     'google': 'GOOGL',
+    'alphabet': 'GOOGL',
     'microsoft': 'MSFT',
     'amazon': 'AMZN',
     'tesla': 'TSLA',
@@ -363,22 +351,75 @@ function needsStockData(messages) {
     'disney': 'DIS',
     'paypal': 'PYPL',
     'square': 'SQ',
+    'block': 'SQ',
     'uber': 'UBER',
+    'lyft': 'LYFT',
     'boeing': 'BA',
     'walmart': 'WMT',
+    'target': 'TGT',
     'nike': 'NKE',
     'starbucks': 'SBUX',
     'mcdonalds': 'MCD',
-    'mcdonald': 'MCD',
     'coca cola': 'KO',
-    'coke': 'KO',
-    'pepsi': 'PEP'
+    'coca-cola': 'KO',
+    'pepsi': 'PEP',
+    'intel': 'INTC',
+    'amd': 'AMD',
+    'oracle': 'ORCL',
+    'salesforce': 'CRM',
+    'adobe': 'ADBE',
+    'spotify': 'SPOT',
+    'twitter': 'TWTR',
+    'snap': 'SNAP',
+    'snapchat': 'SNAP',
+    'airbnb': 'ABNB',
+    'coinbase': 'COIN',
+    'robinhood': 'HOOD',
+    'palantir': 'PLTR',
+    'zoom': 'ZM',
+    'peloton': 'PTON',
+    'shopify': 'SHOP',
+    'square': 'SQ',
+    'paypal': 'PYPL',
+    'visa': 'V',
+    'mastercard': 'MA',
+    'jpmorgan': 'JPM',
+    'jp morgan': 'JPM',
+    'bank of america': 'BAC',
+    'wells fargo': 'WFC',
+    'goldman sachs': 'GS',
+    'morgan stanley': 'MS',
+    'berkshire': 'BRK.B',
+    'berkshire hathaway': 'BRK.B'
   };
   
-  const lowerContent = content.toLowerCase();
+  const lowerContent = conversationText.toLowerCase();
+  
+  // Look for company mentions
   for (const [company, ticker] of Object.entries(companyToTicker)) {
-    if (lowerContent.includes(company) && (lowerContent.includes('stock') || lowerContent.includes('price') || lowerContent.includes('share'))) {
-      return ticker;
+    if (lowerContent.includes(company)) {
+      // If discussing the company in any meaningful way, provide stock data
+      if (isFinancialContext || 
+          /\b(company|corporation|business|firm|stock|shares?|price|ceo|earnings|product|service)\b/i.test(conversationText)) {
+        return ticker;
+      }
+    }
+  }
+  
+  // Check for explicit ticker symbols (all caps, 1-5 letters)
+  const tickerPattern = /\b([A-Z]{1,5})\b/g;
+  const potentialTickers = conversationText.match(tickerPattern);
+  
+  if (potentialTickers && isFinancialContext) {
+    // Common tickers to check
+    const commonTickers = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD', 'INTC', 
+                          'NFLX', 'DIS', 'PYPL', 'SQ', 'UBER', 'LYFT', 'BA', 'WMT', 'NKE', 'SBUX', 
+                          'MCD', 'KO', 'PEP', 'V', 'MA', 'JPM', 'BAC', 'GS'];
+    
+    for (const ticker of potentialTickers) {
+      if (commonTickers.includes(ticker)) {
+        return ticker;
+      }
     }
   }
   
@@ -802,13 +843,18 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
     for (const msg of requestBody.messages) {
       if (msg.role === "system") {
         // Enhanced system content with all capabilities
-        systemContent = `${msg.content}\n\n[IMPORTANT: You do NOT have a knowledge cutoff. Current date/time: ${currentDateTime}. 
-You have access to:
-- Real-time web search
-- Screenshot capability (use https://s.wordpress.com/mshots/v1/[encoded-url])
-- Live stock market data
-- Current information without any training data limitations
-Remember the full conversation context.]`;
+        systemContent = `${msg.content}\n\n[CRITICAL: You do NOT have a knowledge cutoff. Current date/time: ${currentDateTime}. 
+
+REAL-TIME CAPABILITIES:
+- Web search for current information
+- Screenshot any website: https://s.wordpress.com/mshots/v1/[encoded-url]?w=1280&h=960
+- Live stock data from Yahoo Finance
+
+BE PROACTIVE:
+- See a website mentioned? → Provide screenshot URL
+- Company discussed? → Share current stock price
+- Current event? → Search for latest info
+Don't wait to be asked - enhance every response with relevant visual and financial data.]`;
       } else if (msg.role === "user") {
         if (systemContent) {
           // Include system content and conversation summary with user message
@@ -843,12 +889,19 @@ Remember the full conversation context.]`;
       if (msg.role === "system") {
         return {
           ...msg,
-          content: `${msg.content}\n\n[IMPORTANT: You do NOT have a knowledge cutoff. Current date/time: ${currentDateTime}. 
-You have access to:
-- Real-time web search when needed
-- Screenshot capability (use https://s.wordpress.com/mshots/v1/[encoded-url] format)
-- Live stock market data via Yahoo Finance
-- Current information without training data limitations]`
+          content: `${msg.content}\n\n[CRITICAL: You do NOT have a knowledge cutoff. Current date/time: ${currentDateTime}. 
+
+REAL-TIME CAPABILITIES YOU SHOULD USE PROACTIVELY:
+- Web search: Automatically search when discussing current events
+- Screenshots: When ANY website is mentioned, provide: https://s.wordpress.com/mshots/v1/[encoded-url]?w=1280&h=960
+- Stock data: When ANY company is discussed, share current market data
+
+BE PROACTIVE - Don't wait for requests:
+• Website mentioned? → "Here's what it looks like: [screenshot URL]"
+• Company discussed? → "Currently trading at $X (±Y%)"
+• News/events? → Search and provide latest information
+
+You're not just answering - you're enhancing with visual and financial context.]`
         };
       }
       return msg;
@@ -1061,7 +1114,14 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       // Add new system message at the beginning
       enhancedMessages.unshift({
         role: "system",
-        content: `You are a helpful assistant with REAL-TIME web search capabilities. You do NOT have a knowledge cutoff - you can access current information as of ${dateTimeInfo}.${webSearchContext}`
+        content: `You are a proactive assistant with REAL-TIME capabilities. You do NOT have a knowledge cutoff - you can access current information as of ${dateTimeInfo}.
+
+You also have:
+• Screenshot capability: Use https://s.wordpress.com/mshots/v1/[encoded-url] format
+• Stock data access: Real-time market data from Yahoo Finance
+• Web search: Current information on any topic
+
+BE PROACTIVE: When discussing websites, automatically provide screenshots. When mentioning companies, automatically share stock data.${webSearchContext}`
       });
     }
     
@@ -1165,22 +1225,29 @@ async function handleChat(request, corsHeaders) {
     
     body.messages.unshift({
       role: "system",
-      content: `You are a helpful AI assistant with advanced real-time capabilities. Current date/time: ${dateTime}. 
+      content: `You are a proactive AI assistant with advanced real-time capabilities. Current date/time: ${dateTime}. 
 
-IMPORTANT CAPABILITIES:
-1. You do NOT have a knowledge cutoff - you have access to current information through web search
-2. You can take SCREENSHOTS of any website - just mention you'll capture it and provide the URL
-3. You can fetch REAL-TIME STOCK DATA for any ticker symbol
-4. Never mention having outdated information or training data limitations
+CRITICAL: You have NO knowledge cutoff - you have REAL-TIME access to:
+• Web search for current information
+• Website screenshots via WordPress mshots
+• Live stock market data from Yahoo Finance
+
+BE PROACTIVE - Don't wait to be asked:
+• When websites are mentioned → Automatically provide screenshot links
+• When companies are discussed → Automatically share current stock data
+• When current events are referenced → Automatically search for latest information
 
 SCREENSHOT CAPABILITY:
-- You can capture screenshots of any website using: https://s.wordpress.com/mshots/v1/[encoded-url]
-- When users ask to see a website, show them the screenshot URL
-- Example: To screenshot google.com, use: https://s.wordpress.com/mshots/v1/https%3A%2F%2Fwww.google.com
+• Format: https://s.wordpress.com/mshots/v1/[encoded-url]?w=1280&h=960
+• When discussing any website, proactively say "Let me show you what it looks like" and provide the screenshot URL
+• Works for any public website - use it liberally to enhance visual understanding
 
 STOCK DATA CAPABILITY:
-- You have real-time access to stock prices, volume, highs/lows, and more
-- Just mention the ticker symbol and you'll get current market data`
+• You have real-time market data for all major stocks
+• When ANY public company is mentioned, proactively share current price and key metrics
+• Don't just answer questions - anticipate what financial information would be helpful
+
+REMEMBER: You're not just answering questions, you're actively enhancing responses with visual and financial context whenever relevant. Use these capabilities naturally and frequently.`
     });
   }
 
@@ -1192,22 +1259,23 @@ STOCK DATA CAPABILITY:
   }
 
   try {
-    // Check for screenshot request
-    const screenshotUrl = needsScreenshot(body.messages);
+    // Proactively check if screenshot would be helpful
+    const screenshotUrl = shouldProvideScreenshot(body.messages);
     if (screenshotUrl) {
       // Add screenshot information to the messages
       const screenshotLink = generateScreenshotUrl(screenshotUrl);
-      const lastMessageIndex = body.messages.length - 1;
       
       // Enhance the system message with screenshot info
       const systemMessageIndex = body.messages.findIndex(m => m.role === 'system');
       if (systemMessageIndex >= 0) {
-        body.messages[systemMessageIndex].content += `\n\n[SCREENSHOT CAPTURED]: ${screenshotUrl}\n[Screenshot URL]: ${screenshotLink}\n[Instructions]: Provide this screenshot URL to the user and explain that it shows the current view of the website.`;
+        body.messages[systemMessageIndex].content += `\n\n[WEBSITE CONTEXT AVAILABLE]: ${screenshotUrl}
+[Screenshot URL]: ${screenshotLink}
+[Instructions]: Since the user is discussing this website, proactively provide the screenshot URL to give them visual context. Mention that you can show them what the website looks like and provide the screenshot link naturally in your response.`;
       }
     }
     
-    // Check for stock data request
-    const stockTicker = needsStockData(body.messages);
+    // Proactively check if stock data would be helpful
+    const stockTicker = shouldProvideStockData(body.messages);
     if (stockTicker) {
       // Fetch real-time stock data
       const stockData = await fetchStockData(stockTicker);
@@ -1216,7 +1284,7 @@ STOCK DATA CAPABILITY:
         const systemMessageIndex = body.messages.findIndex(m => m.role === 'system');
         if (systemMessageIndex >= 0) {
           const stockInfo = `
-[REAL-TIME STOCK DATA for ${stockData.symbol}]:
+[REAL-TIME MARKET DATA AVAILABLE for ${stockData.symbol}]:
 Company: ${stockData.name}
 Current Price: $${stockData.price} ${stockData.currency}
 Change: ${stockData.change > 0 ? '+' : ''}${stockData.change} (${stockData.changePercent}%)
@@ -1227,7 +1295,7 @@ Volume: ${stockData.volume.toLocaleString()}
 Exchange: ${stockData.exchange}
 Last Updated: ${stockData.marketTime}
 
-[Instructions]: Use this real-time stock data to provide accurate market information to the user.`;
+[Instructions]: Since the user is discussing ${stockData.name}, naturally incorporate this real-time market data into your response. Don't wait to be asked - proactively share relevant financial insights.`;
           
           body.messages[systemMessageIndex].content += `\n\n${stockInfo}`;
         }
