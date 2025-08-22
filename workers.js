@@ -185,7 +185,6 @@ const webSearchPatterns = [
   
   // Real-time information
   /\b(weather|temperature|forecast|climate)\b/i,
-  /\b(stock|price|market|trading|cryptocurrency|bitcoin|ethereum)\b/i,
   /\b(score|match|game|sports|tournament|championship)\b/i,
   
   // Factual queries
