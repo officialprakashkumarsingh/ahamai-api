@@ -478,7 +478,48 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
     throw new Error(`Model '${modelId}' is not supported or not configured.`);
   }
 
-
+  // Models that properly support system prompts
+  const modelsWithSystemPromptSupport = [
+    "gemini-2.5-flash-preview-04-17",
+    "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+    "gemini-2.5-flash-lite" // Native Gemini API
+  ];
+  
+  // Process messages to handle system prompts for models that don't support them
+  let processedMessages = requestBody.messages;
+  
+  if (!modelsWithSystemPromptSupport.includes(internalModel)) {
+    // Convert system prompts to user messages for models that don't support them
+    processedMessages = [];
+    let systemContent = null;
+    
+    for (const msg of requestBody.messages) {
+      if (msg.role === "system") {
+        systemContent = msg.content;
+      } else if (msg.role === "user") {
+        if (systemContent) {
+          // Prepend system content to the first user message
+          processedMessages.push({
+            role: "user",
+            content: `[System: ${systemContent}]\n\n${msg.content}`
+          });
+          systemContent = null; // Clear after using
+        } else {
+          processedMessages.push(msg);
+        }
+      } else {
+        processedMessages.push(msg);
+      }
+    }
+    
+    // If there's a system message but no user message yet, add it as a user message
+    if (systemContent) {
+      processedMessages.push({
+        role: "user",
+        content: `[System: ${systemContent}]`
+      });
+    }
+  }
 
   // Handle Gemini API separately with fallback support
   if (internalModel === "gemini-2.5-flash-lite") {
@@ -487,7 +528,7 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
       throw new Error(`Vision model '${internalModel}' configuration not found.`);
     }
 
-    // Convert OpenAI format to Gemini format
+    // Convert OpenAI format to Gemini format (it handles system prompts properly)
     const geminiRequest = convertToGeminiFormat(requestBody);
     
     // Use fallback mechanism to try multiple API keys
@@ -522,7 +563,7 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
   const response = await fetch(modelRoutes[internalModel], {
     method: "POST",
     headers: headers,
-    body: JSON.stringify({ ...requestBody, model: internalModel })
+    body: JSON.stringify({ ...requestBody, messages: processedMessages, model: internalModel })
   });
 
   // Check if response indicates an error
