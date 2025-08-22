@@ -4,8 +4,8 @@ const exposedToInternalMap = {
   // WORKING MODELS ONLY - Verified via comprehensive testing (17 models + default)
   // All models support streaming ✅
   
-  // Default Model - Automatically selects fastest available model
-  "default": "default", // Routes to fastest model with automatic fallback
+  // PRIMARY MODEL - Automatically selects fastest available model
+  "default": "default", // 🚀 RECOMMENDED: Always fastest response with automatic fallback
   
   // Proxy Models (3) - All working with streaming
   "perplexed": "perplexed",
@@ -1651,19 +1651,26 @@ function handleChatModelList(corsHeaders = {}) {
     // Special handling for default model
     if (id === "default") {
       return {
-        id,
+        id: "default",
+        name: "Default (Speed-Optimized)",
         object: "model",
         owned_by: "speed-optimized",
-        description: "Automatically selects the fastest available model with fallback"
+        description: "🚀 RECOMMENDED: Automatically selects the fastest available model with intelligent fallback",
+        priority: 0 // Highest priority
       };
     }
     
     return {
       id,
+      name: id,
       object: "model",
-      owned_by: "openai-compatible"
+      owned_by: "openai-compatible",
+      priority: 1
     };
   });
+
+  // Sort to ensure default appears first
+  chatModels.sort((a, b) => a.priority - b.priority);
 
   return new Response(JSON.stringify({
     object: "list",
