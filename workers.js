@@ -480,14 +480,14 @@ async function fetchStockData(ticker) {
       fiftyTwoWeekLow: meta.fiftyTwoWeekLow || 0,
       currency: meta.currency || 'USD',
       exchange: meta.fullExchangeName || meta.exchangeName || 'Unknown',
-      marketTime: new Date(meta.regularMarketTime * 1000).toLocaleString('en-US', {
-        timeZone: meta.exchangeTimezoneName || 'America/New_York',
+      marketTime: new Date(meta.regularMarketTime * 1000).toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        timeZoneName: 'short'
-      })
+        hour12: true
+      }) + ' IST'
     };
     
     console.log(`[Stock Data] Successfully fetched ${ticker}: $${stockData.price}`);
@@ -518,7 +518,14 @@ async function fetchStockData(ticker) {
             changePercent: (((meta.regularMarketPrice - (meta.previousClose || 0)) / (meta.previousClose || 1)) * 100).toFixed(2),
             currency: meta.currency || 'USD',
             exchange: 'Yahoo Finance',
-            marketTime: 'Latest'
+            marketTime: new Date().toLocaleString('en-IN', {
+              timeZone: 'Asia/Kolkata',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            }) + ' IST'
           };
         }
       }
@@ -1036,18 +1043,20 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
     "gemini-2.5-flash-lite" // Native Gemini API
   ];
   
-  // Get current date/time for all models
+  // Get current date/time for all models (in IST)
   const now = new Date();
-  const currentDateTime = now.toLocaleDateString('en-US', { 
+  const currentDateTime = now.toLocaleDateString('en-IN', { 
     weekday: 'long', 
     year: 'numeric', 
     month: 'long', 
-    day: 'numeric' 
-  }) + ', ' + now.toLocaleTimeString('en-US', { 
+    day: 'numeric',
+    timeZone: 'Asia/Kolkata'
+  }) + ', ' + now.toLocaleTimeString('en-IN', { 
     hour: '2-digit', 
-    minute: '2-digit', 
-    timeZoneName: 'short' 
-  });
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata'
+  }) + ' IST';
   
   // Process messages to handle system prompts and ensure conversation memory
   let processedMessages = requestBody.messages;
@@ -1075,7 +1084,7 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
       if (msg.role === "system") {
         // Enhanced system content with all capabilities
         systemContent = `${msg.content}\n\n🚨 CRITICAL INSTRUCTIONS 🚨
-Current date/time: ${currentDateTime}
+Current date/time (IST): ${currentDateTime}
 
 📋 MANDATORY RULES:
 • NO knowledge cutoff - you have REAL-TIME data access
@@ -1130,7 +1139,7 @@ Current date/time: ${currentDateTime}
         return {
           ...msg,
           content: `${msg.content}\n\n🚨 MANDATORY INSTRUCTIONS - READ CAREFULLY 🚨
-📅 Current: ${currentDateTime}
+📅 Current Time (IST): ${currentDateTime}
 
 🎯 CRITICAL RULES:
 • NO knowledge cutoff - ONLY use REAL-TIME data
@@ -1247,18 +1256,20 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
     // Select the best web search model
     const webSearchModel = selectWebSearchModel();
     
-    // Get current date and time
+    // Get current date and time (in IST)
     const now = new Date();
-    const dateTimeContext = `Current date and time: ${now.toLocaleDateString('en-US', { 
+    const dateTimeContext = `Current date and time: ${now.toLocaleDateString('en-IN', { 
       weekday: 'long', 
       year: 'numeric', 
       month: 'long', 
-      day: 'numeric' 
-    })}, ${now.toLocaleTimeString('en-US', { 
+      day: 'numeric',
+      timeZone: 'Asia/Kolkata'
+    })}, ${now.toLocaleTimeString('en-IN', { 
       hour: '2-digit', 
       minute: '2-digit', 
-      timeZoneName: 'short' 
-    })}`;
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
+    })} IST`;
     
     // Get the last user message for context
     const lastUserMessage = body.messages.filter(m => m.role === 'user').pop();
@@ -1336,18 +1347,20 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
     // Step 2: Prepare enhanced context for the original model
     const enhancedMessages = [...body.messages];
     
-    // Get current date and time for the model
+    // Get current date and time for the model (in IST)
     const currentTime = new Date();
-    const dateTimeInfo = `${currentTime.toLocaleDateString('en-US', { 
+    const dateTimeInfo = `${currentTime.toLocaleDateString('en-IN', { 
       weekday: 'long', 
       year: 'numeric', 
       month: 'long', 
-      day: 'numeric' 
-    })}, ${currentTime.toLocaleTimeString('en-US', { 
+      day: 'numeric',
+      timeZone: 'Asia/Kolkata'
+    })}, ${currentTime.toLocaleTimeString('en-IN', { 
       hour: '2-digit', 
-      minute: '2-digit', 
-      timeZoneName: 'short' 
-    })}`;
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
+    })} IST`;
     
     // Find or create system message
     let systemMessageIndex = enhancedMessages.findIndex(m => m.role === 'system');
@@ -1367,7 +1380,7 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
               enhancedMessages.unshift({
           role: "system",
           content: `🌟 You are a proactive assistant with REAL-TIME capabilities 🌟
-📅 Current: ${dateTimeInfo}
+📅 Current Time (IST): ${dateTimeInfo}
 
 🚨 CRITICAL RULES:
 • NO knowledge cutoff - REAL-TIME access only
@@ -1476,20 +1489,22 @@ async function handleChat(request, corsHeaders) {
   // Ensure there's always a system message about real-time capabilities
   if (!body.messages.some(m => m.role === 'system')) {
     const now = new Date();
-    const dateTime = `${now.toLocaleDateString('en-US', { 
+    const dateTime = `${now.toLocaleDateString('en-IN', { 
       weekday: 'long', 
       year: 'numeric', 
       month: 'long', 
-      day: 'numeric' 
-    })}, ${now.toLocaleTimeString('en-US', { 
+      day: 'numeric',
+      timeZone: 'Asia/Kolkata'
+    })}, ${now.toLocaleTimeString('en-IN', { 
       hour: '2-digit', 
-      minute: '2-digit', 
-      timeZoneName: 'short' 
-    })}`;
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
+    })} IST`;
     
     body.messages.unshift({
       role: "system",
-      content: `You are a proactive AI assistant with advanced real-time capabilities. Current date/time: ${dateTime}. 
+      content: `You are a proactive AI assistant with advanced real-time capabilities. Current date/time (IST): ${dateTime}. 
 
 🎯 CRITICAL RULES:
 • You have NO knowledge cutoff - REAL-TIME access only
