@@ -116,6 +116,13 @@ const imageModelRoutes = {
     displayName: "Gemini 2.0 - Image Generation",
     width: 1024,
     height: 1024
+  },
+  "nsfw-gen": {
+    provider: "hideme",
+    baseUrl: "https://hideme.eu.org/nsfw-gen/",
+    displayName: "NSFW-Gen - Unrestricted Image Generation",
+    width: 1024,
+    height: 1024
   }
 };
 
@@ -545,6 +552,64 @@ async function handleImage(request, corsHeaders) {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
+  } else if (provider === "hideme") {
+    // Handle hideme/nsfw-gen API with OpenAI-compatible response
+    const encodedPrompt = encodeURIComponent(prompt);
+    const imageUrl = `${baseUrl}?prompt=${encodedPrompt}`;
+    
+    try {
+      const imageRes = await fetch(imageUrl);
+      
+      if (!imageRes.ok) {
+        return new Response(JSON.stringify({ error: "Failed to generate image" }), {
+          status: imageRes.status,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      }
+      
+      // Get the image as a buffer
+      const imageBuffer = await imageRes.arrayBuffer();
+      const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+      const dataUrl = `data:image/jpeg;base64,${base64Image}`;
+      
+      // Return OpenAI-compatible response format
+      const openAIResponse = {
+        created: Math.floor(Date.now() / 1000),
+        data: [
+          {
+            url: dataUrl,
+            revised_prompt: prompt
+          }
+        ]
+      };
+      
+      // Support multiple images if requested
+      const n = body.n || 1;
+      if (n > 1) {
+        // Generate additional images
+        for (let i = 1; i < n; i++) {
+          const additionalRes = await fetch(imageUrl);
+          if (additionalRes.ok) {
+            const additionalBuffer = await additionalRes.arrayBuffer();
+            const additionalBase64 = btoa(String.fromCharCode(...new Uint8Array(additionalBuffer)));
+            openAIResponse.data.push({
+              url: `data:image/jpeg;base64,${additionalBase64}`,
+              revised_prompt: prompt
+            });
+          }
+        }
+      }
+      
+      return new Response(JSON.stringify(openAIResponse), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+    } catch (error) {
+      return new Response(JSON.stringify({ error: `Failed to generate image: ${error.message}` }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+    }
   } else {
     // Handle pollinations API (existing flux/turbo models)
     const encodedPrompt = encodeURIComponent(prompt);
