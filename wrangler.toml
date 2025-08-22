@@ -5,8 +5,3 @@ compatibility_date = "2025-07-18"
 [triggers]
 crons = ["* * * * *"]  # Run every minute to keep Render endpoint active
 
-[[kv_namespaces]]
-binding = "CONVERSATIONS"
-id = "conversations_kv_id"  # This will be replaced with actual ID when you create the namespace
-preview_id = "conversations_preview_id"  # For local development
-
