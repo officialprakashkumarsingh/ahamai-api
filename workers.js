@@ -157,6 +157,100 @@ const defaultModels = {
   webSearch: "perplexed" // Default web search model (verified working)
 };
 
+// Web search models configuration with performance metrics
+const webSearchModels = {
+  "exaanswer": {
+    priority: 1,  // Highest priority (fastest)
+    avgResponseTime: 1.2,  // seconds
+    reliability: 0.95
+  },
+  "perplexed": {
+    priority: 2,
+    avgResponseTime: 1.5,
+    reliability: 0.98
+  },
+  "felo": {
+    priority: 3,
+    avgResponseTime: 1.8,
+    reliability: 0.92
+  }
+};
+
+// Query patterns that indicate web search is needed
+const webSearchPatterns = [
+  // Current events and news
+  /\b(latest|recent|current|today|yesterday|this week|this month|this year|news|update|announcement)\b/i,
+  /\b(what happened|what's happening|what is happening)\b/i,
+  /\b(20\d{2})\b/,  // Years from 2000 onwards
+  
+  // Real-time information
+  /\b(weather|temperature|forecast|climate)\b/i,
+  /\b(stock|price|market|trading|cryptocurrency|bitcoin|ethereum)\b/i,
+  /\b(score|match|game|sports|tournament|championship)\b/i,
+  
+  // Factual queries
+  /\b(who is|what is|where is|when is|when was|how much|how many)\b/i,
+  /\b(statistics|data|facts|figures|numbers)\b/i,
+  /\b(population|gdp|economy|inflation)\b/i,
+  
+  // Product and service information
+  /\b(review|rating|comparison|best|top|recommended)\b/i,
+  /\b(price of|cost of|how much does|where to buy|where can I)\b/i,
+  
+  // Location and travel
+  /\b(directions|route|distance|travel|flight|hotel|restaurant)\b/i,
+  /\b(open now|hours|schedule|timetable)\b/i,
+  
+  // Technology and updates
+  /\b(version|release|update|patch|changelog)\b/i,
+  /\b(download|install|setup|configure)\b/i,
+  
+  // Specific entities that often need current info
+  /\b(president|prime minister|ceo|election|government)\b/i,
+  /\b(company|corporation|startup|ipo)\b/i
+];
+
+// Function to determine if a query needs web search
+function needsWebSearch(messages) {
+  // Get the last user message
+  const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+  if (!lastUserMessage) return false;
+  
+  const content = typeof lastUserMessage.content === 'string' 
+    ? lastUserMessage.content 
+    : lastUserMessage.content.map(c => c.text || '').join(' ');
+  
+  // Check if any pattern matches
+  for (const pattern of webSearchPatterns) {
+    if (pattern.test(content)) {
+      return true;
+    }
+  }
+  
+  // Additional heuristics
+  // Check for question words at the beginning
+  if (/^(what|who|where|when|why|how|is|are|does|do|can|could|would|will)\b/i.test(content.trim())) {
+    // Check if it's asking about something that might need current information
+    if (/\b(now|today|current|latest|new|2024|2025)\b/i.test(content)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Function to select the best available web search model
+function selectWebSearchModel() {
+  // Sort models by priority (lower is better)
+  const sortedModels = Object.entries(webSearchModels)
+    .sort((a, b) => a[1].priority - b[1].priority)
+    .map(([name]) => name);
+  
+  // Return the first available model
+  // In production, you might want to check model availability
+  return sortedModels[0] || "perplexed";
+}
+
 // Keep-alive configuration for Render endpoint
 let lastPingTime = 0;
 const PING_INTERVAL = 30000; // 30 seconds
@@ -600,10 +694,143 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
   });
 }
 
+// Function to handle chat with integrated web search
+async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders) {
+  try {
+    // Select the best web search model
+    const webSearchModel = selectWebSearchModel();
+    
+    // Get the last user message for context
+    const lastUserMessage = body.messages.filter(m => m.role === 'user').pop();
+    const userQuery = typeof lastUserMessage.content === 'string' 
+      ? lastUserMessage.content 
+      : lastUserMessage.content.map(c => c.text || '').join(' ');
+    
+    // Step 1: Perform web search
+    const searchRequest = {
+      model: webSearchModel,
+      messages: [
+        {
+          role: "system",
+          content: "You are a web search assistant. Provide relevant, factual, and up-to-date information. Include sources when available."
+        },
+        {
+          role: "user",
+          content: userQuery
+        }
+      ],
+      max_tokens: body.max_tokens ? Math.min(500, body.max_tokens) : 500,
+      temperature: 0.3,
+      stream: false  // Always non-streaming for search
+    };
+    
+    // Execute web search
+    const searchResponse = await makeModelRequest(webSearchModel, searchRequest, false, {});
+    const searchData = await searchResponse.json();
+    
+    // Extract search results
+    const searchResults = searchData.choices?.[0]?.message?.content || "";
+    
+    // Step 2: Prepare enhanced context for the original model
+    const enhancedMessages = [...body.messages];
+    
+    // Find or create system message
+    let systemMessageIndex = enhancedMessages.findIndex(m => m.role === 'system');
+    const webSearchContext = `\n\n[Web Search Results]:\n${searchResults}\n\n[Instructions]: Use the above web search results to provide accurate and current information. If the search results are relevant, incorporate them into your response.`;
+    
+    if (systemMessageIndex >= 0) {
+      // Append to existing system message
+      enhancedMessages[systemMessageIndex].content += webSearchContext;
+    } else {
+      // Add new system message at the beginning
+      enhancedMessages.unshift({
+        role: "system",
+        content: `You are a helpful assistant with access to current web information.${webSearchContext}`
+      });
+    }
+    
+    // Step 3: Make request to the original model with enhanced context
+    const enhancedBody = {
+      ...body,
+      messages: enhancedMessages
+    };
+    
+    // If streaming is requested, add a note about web search being performed
+    if (stream) {
+      // Send initial message about web search
+      const encoder = new TextEncoder();
+      const streamResponse = new ReadableStream({
+        async start(controller) {
+          // Send initial web search notification
+          const initialChunk = {
+            id: `chatcmpl-${Date.now()}`,
+            object: "chat.completion.chunk",
+            created: Math.floor(Date.now() / 1000),
+            model: originalModel,
+            choices: [{
+              index: 0,
+              delta: { content: "[Performing web search...]\n\n" },
+              finish_reason: null
+            }]
+          };
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(initialChunk)}\n\n`));
+          
+          // Make the actual request
+          const response = await makeModelRequest(originalModel, enhancedBody, true, corsHeaders);
+          const reader = response.body.getReader();
+          
+          // Pass through the stream
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            controller.enqueue(value);
+          }
+          
+          controller.close();
+        }
+      });
+      
+      return new Response(streamResponse, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          ...corsHeaders
+        }
+      });
+    } else {
+      // Non-streaming response
+      const response = await makeModelRequest(originalModel, enhancedBody, false, corsHeaders);
+      const responseData = await response.json();
+      
+      // Add metadata about web search
+      if (responseData.choices && responseData.choices[0]) {
+        responseData.choices[0].message.content = 
+          `[Web search performed using ${webSearchModel}]\n\n${responseData.choices[0].message.content}`;
+      }
+      
+      return new Response(JSON.stringify(responseData), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+    }
+    
+  } catch (error) {
+    console.error("Web search integration error:", error);
+    // Fallback to regular model without web search
+    return await makeModelRequest(originalModel, body, stream, corsHeaders);
+  }
+}
+
 async function handleChat(request, corsHeaders) {
   const body = await request.json();
   const exposedModel = body.model;
   const stream = body.stream === true;
+  
+  // Allow users to explicitly control web search behavior
+  // They can set web_search: true to force it, false to disable it, or leave undefined for auto-detection
+  const webSearchMode = body.web_search;
 
   if (!exposedToInternalMap[exposedModel]) {
     return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), {
@@ -613,8 +840,28 @@ async function handleChat(request, corsHeaders) {
   }
 
   try {
-    // Make request to the specified model only (no fallback)
-    return await makeModelRequest(exposedModel, body, stream, corsHeaders);
+    // Determine if web search should be used
+    let useWebSearch = false;
+    
+    if (webSearchMode === true) {
+      // User explicitly wants web search
+      useWebSearch = true;
+    } else if (webSearchMode === false) {
+      // User explicitly disabled web search
+      useWebSearch = false;
+    } else {
+      // Auto-detect based on query content
+      useWebSearch = needsWebSearch(body.messages);
+    }
+    
+    // If web search is needed and the model is not already a web search model
+    if (useWebSearch && !['perplexed', 'felo', 'exaanswer'].includes(exposedModel)) {
+      // Perform web search integration
+      return await handleChatWithWebSearch(exposedModel, body, stream, corsHeaders);
+    } else {
+      // Make regular request without web search
+      return await makeModelRequest(exposedModel, body, stream, corsHeaders);
+    }
   } catch (error) {
     // Return error if model fails
     return new Response(JSON.stringify({ 
