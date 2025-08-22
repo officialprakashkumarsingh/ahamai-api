@@ -1,7 +1,7 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (15 models)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (18 models)
   // All models support streaming ✅
   
   // Core OpenAI Models (2) - Working via Render
@@ -32,11 +32,16 @@ const exposedToInternalMap = {
   "gemini-2.5-flash-preview-04-17": "gemini-2.5-flash-preview-04-17",
   
   // DeepInfra Models (1) - Working with streaming (100 requests/day with IP rotation)
-  "qwen-3-coder-480b": "Qwen/Qwen3-Coder-480B-A35B-Instruct"
+  "qwen-3-coder-480b": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+  
+  // GLM Models (3) - Available via Render proxy
+  "glm-4.5-air": "zai-org/GLM-4.5-Air",
+  "glm-4.5": "zai-org/GLM-4.5",
+  "glm-4.5v": "zai-org/GLM-4.5V"  // Note: Vision model, may have availability issues
 };
 
 const modelRoutes = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (15 models)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (18 models)
   // All models support streaming ✅
   
   // Core OpenAI Models via Render (2)
@@ -67,7 +72,12 @@ const modelRoutes = {
   "gemini-2.5-flash-preview-04-17": "https://api.free.fastapi.pro/v1/chat/completions",
   
   // DeepInfra Models (1) - Working perfectly with streaming (100 requests/day with IP rotation)
-  "Qwen/Qwen3-Coder-480B-A35B-Instruct": "https://api.deepinfra.com/v1/openai/chat/completions"
+  "Qwen/Qwen3-Coder-480B-A35B-Instruct": "https://api.deepinfra.com/v1/openai/chat/completions",
+  
+  // GLM Models (3) - Available via Render proxy
+  "zai-org/GLM-4.5-Air": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "zai-org/GLM-4.5": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "zai-org/GLM-4.5V": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
 
