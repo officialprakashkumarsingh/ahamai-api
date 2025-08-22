@@ -1,12 +1,8 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (18 models)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (14 models)
   // All models support streaming ✅
-  
-  // Core OpenAI Models (2) - Working via Render
-  "gpt-oss-20b": "gpt-oss-20b",
-  "gpt-oss-120b": "gpt-oss-120b",
   
   // Proxy Models (3) - All working with streaming
   "perplexed": "perplexed",
@@ -20,8 +16,7 @@ const exposedToInternalMap = {
   "gemini-2.5-flash": "gemini-2.5-flash",
   "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",  // Uses native Gemini API format (not OpenAI format)
   
-  // DeepSeek Models (2) - Working with streaming
-  "deepseek/deepseek-r1:free": "deepseek/deepseek-r1:free",
+  // DeepSeek Models (1) - Working with streaming
   "deepseek-r1-distill-llama-70b": "deepseek-r1-distill-llama-70b",
   
   // Meta Llama Models (2) - Working with streaming
@@ -34,19 +29,14 @@ const exposedToInternalMap = {
   // DeepInfra Models (1) - Working with streaming (100 requests/day with IP rotation)
   "qwen-3-coder-480b": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
   
-  // GLM Models (3) - Available via Render proxy - All working with streaming ✅
+  // GLM Models (2) - Available via Render proxy - Working with streaming ✅
   "glm-4.5-air": "zai-org/GLM-4.5-Air",
-  "glm-4.5": "zai-org/GLM-4.5",
-  "glm-4.5v": "zai-org/GLM-4.5V"
+  "glm-4.5": "zai-org/GLM-4.5"
 };
 
 const modelRoutes = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (18 models)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (14 models)
   // All models support streaming ✅
-  
-  // Core OpenAI Models via Render (2)
-  "gpt-oss-20b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "gpt-oss-120b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
   // Proxy Models via Render (3)
   "perplexed": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
@@ -60,8 +50,7 @@ const modelRoutes = {
   "gemini-2.5-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gemini-2.5-flash-lite": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
   
-  // DeepSeek Models (2) - Working perfectly
-  "deepseek/deepseek-r1:free": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  // DeepSeek Models (1) - Working perfectly
   "deepseek-r1-distill-llama-70b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
   // Meta Llama Models (2) - Working perfectly
@@ -74,10 +63,9 @@ const modelRoutes = {
   // DeepInfra Models (1) - Working perfectly with streaming (100 requests/day with IP rotation)
   "Qwen/Qwen3-Coder-480B-A35B-Instruct": "https://api.deepinfra.com/v1/openai/chat/completions",
   
-  // GLM Models (3) - Available via Render proxy
+  // GLM Models (2) - Available via Render proxy
   "zai-org/GLM-4.5-Air": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "zai-org/GLM-4.5": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "zai-org/GLM-4.5V": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
+  "zai-org/GLM-4.5": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
 
@@ -155,7 +143,7 @@ const visionModels = {
 
 // Default models configuration
 const defaultModels = {
-  vision: "gpt-oss-20b", // Updated to verified working model
+  vision: "gemini-2.0-flash", // Updated to verified working model
   webSearch: "perplexed" // Default web search model (verified working)
 };
 
