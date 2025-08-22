@@ -212,6 +212,146 @@ async function checkAndSendKeepAlive() {
   }
 }
 
+// ============================================
+// Conversation Memory System
+// ============================================
+
+const MAX_CONVERSATION_HISTORY = 10; // Store up to 10 previous messages (5 user + 5 assistant)
+const CONVERSATION_TTL = 86400; // 24 hours in seconds
+
+// Generate a user ID from request headers for conversation tracking
+function getUserId(request) {
+  // Try to get user ID from various sources
+  const authHeader = request.headers.get("Authorization");
+  const clientIp = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For") || "unknown";
+  const userAgent = request.headers.get("User-Agent") || "unknown";
+  
+  // Create a consistent user ID based on auth token and client info
+  const userString = `${authHeader}-${clientIp}-${userAgent}`;
+  
+  // Simple hash function to create a consistent ID
+  let hash = 0;
+  for (let i = 0; i < userString.length; i++) {
+    const char = userString.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  
+  return `user_${Math.abs(hash)}`;
+}
+
+// Get conversation history from KV storage
+async function getConversationHistory(env, userId, conversationId = "default") {
+  if (!env.CONVERSATIONS) {
+    console.log("[Memory] KV namespace not configured");
+    return [];
+  }
+  
+  try {
+    const key = `${userId}:${conversationId}`;
+    const stored = await env.CONVERSATIONS.get(key, { type: "json" });
+    return stored?.messages || [];
+  } catch (error) {
+    console.log(`[Memory] Error retrieving conversation: ${error.message}`);
+    return [];
+  }
+}
+
+// Save conversation history to KV storage
+async function saveConversationHistory(env, userId, messages, conversationId = "default") {
+  if (!env.CONVERSATIONS) {
+    console.log("[Memory] KV namespace not configured");
+    return;
+  }
+  
+  try {
+    const key = `${userId}:${conversationId}`;
+    
+    // Keep only the last MAX_CONVERSATION_HISTORY messages
+    const trimmedMessages = messages.slice(-MAX_CONVERSATION_HISTORY);
+    
+    const data = {
+      userId,
+      conversationId,
+      messages: trimmedMessages,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    // Store with TTL
+    await env.CONVERSATIONS.put(key, JSON.stringify(data), {
+      expirationTtl: CONVERSATION_TTL
+    });
+    
+    console.log(`[Memory] Saved ${trimmedMessages.length} messages for ${userId}`);
+  } catch (error) {
+    console.log(`[Memory] Error saving conversation: ${error.message}`);
+  }
+}
+
+// Clear conversation history for a user
+async function clearConversationHistory(env, userId, conversationId = "default") {
+  if (!env.CONVERSATIONS) {
+    return { success: false, message: "KV namespace not configured" };
+  }
+  
+  try {
+    const key = `${userId}:${conversationId}`;
+    await env.CONVERSATIONS.delete(key);
+    console.log(`[Memory] Cleared conversation for ${userId}`);
+    return { success: true, message: "Conversation history cleared" };
+  } catch (error) {
+    console.log(`[Memory] Error clearing conversation: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
+// Get all conversation IDs for a user
+async function getUserConversations(env, userId) {
+  if (!env.CONVERSATIONS) {
+    return [];
+  }
+  
+  try {
+    const prefix = `${userId}:`;
+    const list = await env.CONVERSATIONS.list({ prefix });
+    
+    return list.keys.map(key => {
+      const conversationId = key.name.replace(prefix, "");
+      return {
+        conversationId,
+        key: key.name,
+        lastUpdated: key.metadata?.lastUpdated
+      };
+    });
+  } catch (error) {
+    console.log(`[Memory] Error listing conversations: ${error.message}`);
+    return [];
+  }
+}
+
+// Merge conversation history with current messages
+function mergeWithHistory(history, currentMessages, includeSystemPrompt = true) {
+  const merged = [];
+  
+  // Add system prompt if needed and present in current messages
+  if (includeSystemPrompt) {
+    const systemMessage = currentMessages.find(m => m.role === "system");
+    if (systemMessage) {
+      merged.push(systemMessage);
+    }
+  }
+  
+  // Add conversation history (excluding any system messages)
+  const historyWithoutSystem = history.filter(m => m.role !== "system");
+  merged.push(...historyWithoutSystem);
+  
+  // Add current messages (excluding system message if already added)
+  const currentWithoutSystem = currentMessages.filter(m => m.role !== "system");
+  merged.push(...currentWithoutSystem);
+  
+  return merged;
+}
+
 export default {
   async fetch(request, env, ctx) {
     // Check if we should send a keep-alive ping (non-blocking)
@@ -258,7 +398,7 @@ export default {
     }
 
     if (path === "/v1/chat/completions" && request.method === "POST") {
-      return handleChat(request, corsHeaders);
+      return handleChat(request, env, corsHeaders);
     }
 
     if (path === "/v1/images/generations" && request.method === "POST") {
@@ -284,7 +424,83 @@ export default {
     if (path === "/v1/automation/url" && request.method === "POST") {
       return handleUrlAutomation(request, corsHeaders);
     }
-
+    
+    // Conversation memory management endpoints
+    if (path === "/v1/conversations" && request.method === "GET") {
+      // Get user's conversation list
+      const userId = getUserId(request);
+      const conversations = await getUserConversations(env, userId);
+      
+      return new Response(JSON.stringify({
+        user_id: userId,
+        conversations: conversations,
+        total: conversations.length
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+    }
+    
+    if (path === "/v1/conversations/history" && request.method === "GET") {
+      // Get conversation history
+      const userId = getUserId(request);
+      const conversationId = url.searchParams.get("conversation_id") || "default";
+      const history = await getConversationHistory(env, userId, conversationId);
+      
+      return new Response(JSON.stringify({
+        user_id: userId,
+        conversation_id: conversationId,
+        messages: history,
+        message_count: history.length
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+    }
+    
+    if (path === "/v1/conversations/clear" && request.method === "POST") {
+      // Clear conversation history
+      const userId = getUserId(request);
+      const body = await request.json().catch(() => ({}));
+      const conversationId = body.conversation_id || "default";
+      
+      const result = await clearConversationHistory(env, userId, conversationId);
+      
+      return new Response(JSON.stringify({
+        user_id: userId,
+        conversation_id: conversationId,
+        ...result
+      }), {
+        status: result.success ? 200 : 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+    }
+    
+    if (path === "/v1/conversations/info" && request.method === "GET") {
+      // Get conversation memory info
+      return new Response(JSON.stringify({
+        memory_enabled: !!env.CONVERSATIONS,
+        max_history: MAX_CONVERSATION_HISTORY,
+        ttl_seconds: CONVERSATION_TTL,
+        features: {
+          use_memory: "Include previous messages in context (default: true)",
+          clear_memory: "Clear history before processing (default: false)",
+          conversation_id: "Separate conversation threads (default: 'default')"
+        },
+        usage: {
+          example_request: {
+            model: "gpt-oss-20b",
+            messages: [{ role: "user", content: "Hello" }],
+            use_memory: true,
+            conversation_id: "chat-123",
+            clear_memory: false
+          }
+        }
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+    }
 
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
@@ -559,10 +775,15 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
   });
 }
 
-async function handleChat(request, corsHeaders) {
+async function handleChat(request, env, corsHeaders) {
   const body = await request.json();
   const exposedModel = body.model;
   const stream = body.stream === true;
+  
+  // Extract conversation parameters
+  const conversationId = body.conversation_id || "default";
+  const useMemory = body.use_memory !== false; // Default to true
+  const clearMemory = body.clear_memory === true;
 
   if (!exposedToInternalMap[exposedModel]) {
     return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), {
@@ -572,8 +793,67 @@ async function handleChat(request, corsHeaders) {
   }
 
   try {
-    // Make request to the specified model only (no fallback)
-    return await makeModelRequest(exposedModel, body, stream, corsHeaders);
+    // Get user ID for conversation tracking
+    const userId = getUserId(request);
+    
+    // Handle memory clear request
+    if (clearMemory) {
+      const clearResult = await clearConversationHistory(env, userId, conversationId);
+      console.log(`[Memory] Clear request for ${userId}: ${clearResult.message}`);
+    }
+    
+    let messagesWithHistory = body.messages;
+    
+    // If memory is enabled, merge with conversation history
+    if (useMemory && env.CONVERSATIONS) {
+      const history = await getConversationHistory(env, userId, conversationId);
+      
+      if (history.length > 0) {
+        console.log(`[Memory] Retrieved ${history.length} messages from history for ${userId}`);
+        messagesWithHistory = mergeWithHistory(history, body.messages);
+      }
+    }
+    
+    // Create modified request body with conversation history
+    const modifiedBody = {
+      ...body,
+      messages: messagesWithHistory
+    };
+    
+    // Make request to the specified model with conversation context
+    const response = await makeModelRequest(exposedModel, modifiedBody, stream, corsHeaders);
+    
+    // Save conversation to memory if enabled and successful
+    if (useMemory && env.CONVERSATIONS && response.ok) {
+      // Parse response to extract assistant's reply
+      const responseClone = response.clone();
+      
+      try {
+        if (!stream) {
+          const responseData = await responseClone.json();
+          
+          if (responseData.choices?.[0]?.message) {
+            // Add the user's message and assistant's response to history
+            const newMessages = [
+              ...body.messages, // Original user messages (without history)
+              responseData.choices[0].message // Assistant's response
+            ];
+            
+            // Combine with existing history and save
+            const updatedHistory = [...(await getConversationHistory(env, userId, conversationId)), ...newMessages];
+            await saveConversationHistory(env, userId, updatedHistory, conversationId);
+          }
+        } else {
+          // For streaming responses, we'll save after streaming completes
+          // This is more complex and would require buffering the stream
+          console.log("[Memory] Streaming response - conversation not saved");
+        }
+      } catch (error) {
+        console.log(`[Memory] Error processing response for storage: ${error.message}`);
+      }
+    }
+    
+    return response;
   } catch (error) {
     // Return error if model fails
     return new Response(JSON.stringify({ 
