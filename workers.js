@@ -1,7 +1,7 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (14 models)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (17 models)
   // All models support streaming ✅
   
   // Proxy Models (3) - All working with streaming
@@ -31,11 +31,16 @@ const exposedToInternalMap = {
   
   // GLM Models (2) - Available via Render proxy - Working with streaming ✅
   "glm-4.5-air": "zai-org/GLM-4.5-Air",
-  "glm-4.5": "zai-org/GLM-4.5"
+  "glm-4.5": "zai-org/GLM-4.5",
+  
+  // v0.dev Models (3) - Vercel's AI models - Working with streaming ✅
+  "v0-1.0-md": "v0-1.0-md",
+  "v0-1.5-md": "v0-1.5-md",
+  "v0-1.5-lg": "v0-1.5-lg"
 };
 
 const modelRoutes = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (14 models)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (17 models)
   // All models support streaming ✅
   
   // Proxy Models via Render (3)
@@ -65,7 +70,12 @@ const modelRoutes = {
   
   // GLM Models (2) - Available via Render proxy
   "zai-org/GLM-4.5-Air": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "zai-org/GLM-4.5": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
+  "zai-org/GLM-4.5": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  
+  // v0.dev Models (3) - Vercel's AI models
+  "v0-1.0-md": "https://api.v0.dev/v1/chat/completions",
+  "v0-1.5-md": "https://api.v0.dev/v1/chat/completions",
+  "v0-1.5-lg": "https://api.v0.dev/v1/chat/completions"
 };
 
 
@@ -546,6 +556,9 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
   } else if (modelRoutes[internalModel].includes('api.deepinfra.com')) {
     // For DeepInfra endpoint - no authentication required (100 requests/day with IP rotation)
     // No Authorization header needed
+  } else if (modelRoutes[internalModel].includes('api.v0.dev')) {
+    // For v0.dev endpoint - Vercel's AI models
+    headers["Authorization"] = "Bearer v1:team_m5jgJm4W1wUMbgEjKzSQVapS:1QFTMtR5LJB9gqjdafPGyct1";
   }
 
   const response = await fetch(modelRoutes[internalModel], {
