@@ -382,8 +382,6 @@ function shouldProvideStockData(messages) {
     'zoom': 'ZM',
     'peloton': 'PTON',
     'shopify': 'SHOP',
-    'square': 'SQ',
-    'paypal': 'PYPL',
     'visa': 'V',
     'mastercard': 'MA',
     'jpmorgan': 'JPM',
@@ -1254,13 +1252,13 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
     const enhancedMessages = [...body.messages];
     
     // Get current date and time for the model
-    const now = new Date();
-    const dateTimeInfo = `${now.toLocaleDateString('en-US', { 
+    const currentTime = new Date();
+    const dateTimeInfo = `${currentTime.toLocaleDateString('en-US', { 
       weekday: 'long', 
       year: 'numeric', 
       month: 'long', 
       day: 'numeric' 
-    })}, ${now.toLocaleTimeString('en-US', { 
+    })}, ${currentTime.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit', 
       timeZoneName: 'short' 
