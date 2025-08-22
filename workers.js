@@ -108,13 +108,6 @@ const imageModelRoutes = {
   },
   // Note: qwen-image model not available with current Samurai API key
   // Removed old qwen text model as requested
-  "gemini2.0": {
-    provider: "infip",
-    baseUrl: "https://api.infip.pro/v1/images/generations",
-    displayName: "Gemini 2.0 - Image Generation",
-    width: 1024,
-    height: 1024
-  },
   "qwen": {
     provider: "infip",
     baseUrl: "https://api.infip.pro/v1/images/generations",
