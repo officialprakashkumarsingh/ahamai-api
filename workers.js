@@ -115,6 +115,13 @@ const imageModelRoutes = {
     width: 1024,
     height: 1024
   },
+  "qwen": {
+    provider: "infip",
+    baseUrl: "https://api.infip.pro/v1/images/generations",
+    displayName: "Qwen - Image Generation",
+    width: 1024,
+    height: 1024
+  },
   "nsfw-gen": {
     provider: "hideme",
     baseUrl: "https://hideme.eu.org/nsfw-gen/",
