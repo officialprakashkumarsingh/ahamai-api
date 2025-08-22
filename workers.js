@@ -486,12 +486,12 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
         systemContent = msg.content;
       } else if (msg.role === "user") {
         if (systemContent) {
-          // Prepend system content to the first user message
+          // Prepend system content to EVERY user message to ensure it's always followed
           processedMessages.push({
             role: "user",
             content: `[System: ${systemContent}]\n\n${msg.content}`
           });
-          systemContent = null; // Clear after using
+          // Don't clear systemContent - keep it for all messages
         } else {
           processedMessages.push(msg);
         }
@@ -501,7 +501,7 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
     }
     
     // If there's a system message but no user message yet, add it as a user message
-    if (systemContent) {
+    if (systemContent && processedMessages.length === 0) {
       processedMessages.push({
         role: "user",
         content: `[System: ${systemContent}]`
