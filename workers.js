@@ -187,6 +187,11 @@ const webSearchModels = {
 
 // Query patterns that indicate web search is needed
 const webSearchPatterns = [
+  // EXPLICIT USER REQUESTS FOR WEB SEARCH
+  /\b(search|google|look up|find online|search online|web search|internet search|search the web|search for)\b/i,
+  /\b(search about|google about|find information about|look for information)\b/i,
+  /\b(can you search|please search|could you search|search and tell)\b/i,
+  
   // Current events and news
   /\b(latest|recent|current|today|yesterday|this week|this month|this year|news|update|announcement)\b/i,
   /\b(what happened|what's happening|what is happening)\b/i,
@@ -287,6 +292,69 @@ function selectWebSearchModel() {
   // Return the first available model
   // In production, you might want to check model availability
   return sortedModels[0] || "perplexed";
+}
+
+// Function to format thinking/reasoning tags in responses
+function formatThinkingContent(content) {
+  if (!content || typeof content !== 'string') return content;
+  
+  // Patterns for thinking/reasoning tags
+  const thinkingPatterns = [
+    // Standard XML-style tags
+    { start: '<thinking>', end: '</thinking>', label: '🤔 Thinking Process' },
+    { start: '<think>', end: '</think>', label: '🤔 Thinking' },
+    { start: '<thoughts>', end: '</thoughts>', label: '💭 Thoughts' },
+    { start: '<thought>', end: '</thought>', label: '💭 Thought' },
+    { start: '<reasoning>', end: '</reasoning>', label: '🧠 Reasoning' },
+    { start: '<reason>', end: '</reason>', label: '🧠 Reasoning' },
+    { start: '<reflection>', end: '</reflection>', label: '🔍 Reflection' },
+    { start: '<analysis>', end: '</analysis>', label: '📊 Analysis' },
+    { start: '<planning>', end: '</planning>', label: '📝 Planning' },
+    { start: '<scratch>', end: '</scratch>', label: '📋 Scratch Pad' }
+  ];
+  
+  let formattedContent = content;
+  let hasThinkingContent = false;
+  
+  // Process each pattern
+  for (const pattern of thinkingPatterns) {
+    const regex = new RegExp(`${pattern.start}([\\s\\S]*?)${pattern.end}`, 'gi');
+    
+    if (regex.test(formattedContent)) {
+      hasThinkingContent = true;
+      formattedContent = formattedContent.replace(regex, (match, thinkingContent) => {
+        // Create a formatted panel for thinking content
+        const panel = `
+<details style="background-color: #f0f4f8; border: 1px solid #d1d9e6; border-radius: 8px; padding: 12px; margin: 10px 0;">
+  <summary style="font-weight: bold; cursor: pointer; color: #4a5568;">
+    ${pattern.label}
+  </summary>
+  <div style="margin-top: 10px; padding: 10px; background-color: #ffffff; border-radius: 4px; font-family: monospace; white-space: pre-wrap; color: #2d3748;">
+${thinkingContent.trim()}
+  </div>
+</details>`;
+        return panel;
+      });
+    }
+  }
+  
+  // If content had thinking tags, add a separator before main response
+  if (hasThinkingContent) {
+    // Find where the actual response starts (after all thinking panels)
+    const responseStart = formattedContent.lastIndexOf('</details>');
+    if (responseStart !== -1) {
+      const beforeResponse = formattedContent.substring(0, responseStart + 10);
+      const afterResponse = formattedContent.substring(responseStart + 10).trim();
+      
+      if (afterResponse) {
+        formattedContent = beforeResponse + '\n\n---\n\n' + afterResponse;
+      } else {
+        formattedContent = beforeResponse;
+      }
+    }
+  }
+  
+  return formattedContent;
 }
 
 // Function to detect when screenshot would be helpful
@@ -1221,14 +1289,71 @@ Make every response visually rich and engaging! 🚀]`
       throw new Error(`Model '${modelId}' returned error: ${responseJson.error.message || responseJson.error}`);
     }
     
-    return new Response(responseText, {
+    // Format thinking/reasoning tags in the response
+    if (responseJson.choices && responseJson.choices[0] && responseJson.choices[0].message) {
+      responseJson.choices[0].message.content = formatThinkingContent(responseJson.choices[0].message.content);
+    }
+    
+    return new Response(JSON.stringify(responseJson), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
   }
 
-  // Return streaming response
-  return new Response(response.body, {
+  // For streaming responses, we need to process chunks and format thinking tags
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  
+  const transformStream = new TransformStream({
+    buffer: '',
+    
+    async transform(chunk, controller) {
+      const text = decoder.decode(chunk, { stream: true });
+      this.buffer += text;
+      
+      // Process complete SSE messages
+      const lines = this.buffer.split('\n');
+      this.buffer = lines.pop() || ''; // Keep incomplete line in buffer
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            controller.enqueue(encoder.encode(line + '\n'));
+            continue;
+          }
+          
+          try {
+            const json = JSON.parse(data);
+            
+            // Format thinking tags in streaming chunks
+            if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
+              // For streaming, we'll collect content and format at the end
+              // This is complex for streaming, so we'll just pass through for now
+              // The thinking tags will be visible but not formatted in streaming mode
+            }
+            
+            controller.enqueue(encoder.encode(line + '\n'));
+          } catch (e) {
+            // Not JSON, pass through as-is
+            controller.enqueue(encoder.encode(line + '\n'));
+          }
+        } else {
+          controller.enqueue(encoder.encode(line + '\n'));
+        }
+      }
+    },
+    
+    flush(controller) {
+      // Process any remaining buffer
+      if (this.buffer) {
+        controller.enqueue(encoder.encode(this.buffer));
+      }
+    }
+  });
+  
+  // Return streaming response with transform
+  return new Response(response.body.pipeThrough(transformStream), {
     status: response.status,
     headers: {
       "Content-Type": "text/event-stream",
@@ -1447,8 +1572,11 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       const response = await makeModelRequest(originalModel, enhancedBody, false, corsHeaders);
       const responseData = await response.json();
       
-      // Add metadata about web search and date/time
+      // Add metadata about web search and date/time, and format thinking tags
       if (responseData.choices && responseData.choices[0]) {
+        // First format thinking tags
+        responseData.choices[0].message.content = formatThinkingContent(responseData.choices[0].message.content);
+        // Then add web search metadata
         responseData.choices[0].message.content = 
           `[Google web search performed (20 results)]\n[Current: ${dateTimeInfo}]\n\n${responseData.choices[0].message.content}`;
       }
