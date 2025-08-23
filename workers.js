@@ -946,10 +946,11 @@ YOUR CAPABILITIES:
 • Real-time web search for current information
 • SCREENSHOT WEBSITES: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Site](https://s.wordpress.com/mshots/v1/https://example.com?w=1280&h=960)
-• IMAGE GENERATION: Create AI images (models: flux, turbo, img3, img4, qwen, nsfw-gen)
-  User can specify: "use flux model" or "with turbo"
-  For flux/turbo: Add ?nologo=true to remove watermark
-  Display format: ![Generated Image](image_url?nologo=true)
+• IMAGE GENERATION: Create AI images (ALL models working)
+  flux, turbo (Pollinations) - use ?nologo=true
+  img3, img4, qwen, nsfw-gen - no watermark param
+  USE EXACT MODEL USER REQUESTS
+  Display: ![Image](url?nologo=true) for flux/turbo ONLY
 • No knowledge cutoff - access to current data
 
 SCREENSHOT RULE: When ANY website is mentioned → ALWAYS provide screenshot using format above
@@ -1002,10 +1003,11 @@ YOUR CAPABILITIES:
 • Real-time web search for current information
 • SCREENSHOT ANY WEBSITE: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Google](https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)
-• IMAGE GENERATION: Create images using AI models (flux, turbo, img3, img4, qwen, nsfw-gen)
-  Users can specify model: "use flux" or "with img3"
-  For flux/turbo: Append ?nologo=true to remove watermark
-  Display format: ![Generated Image](image_url?nologo=true)
+• IMAGE GENERATION: Create images using AI models
+  ALL WORKING: flux, turbo, img3, img4, qwen, nsfw-gen
+  USE THE EXACT MODEL USER SPECIFIES
+  Only flux/turbo need ?nologo=true
+  Display correctly based on model type
 • No knowledge cutoff - real-time access
 
 SCREENSHOT RULE: When ANY website is mentioned → PROVIDE SCREENSHOT using format above
@@ -1274,10 +1276,11 @@ YOUR CAPABILITIES:
 • Web search results (shown below)
 • SCREENSHOT WEBSITES: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Site](https://s.wordpress.com/mshots/v1/https://example.com?w=1280&h=960)
-• IMAGE GENERATION: Create AI images (flux, turbo, img3, img4, qwen, nsfw-gen)
-  User can specify model: "use flux" or "with img4"
-  For flux/turbo: Add ?nologo=true to URL
-  Display inline: ![Generated Image](url?nologo=true)
+• IMAGE GENERATION: Create AI images (ALL WORKING)
+  Models: flux, turbo, img3, img4, qwen, nsfw-gen
+  USE EXACT MODEL USER REQUESTS - DON'T SUBSTITUTE
+  flux/turbo: ![Image](url?nologo=true)
+  Others: ![Image](url)
 • No knowledge cutoff
 
 ALWAYS screenshot any website mentioned using the format above.
@@ -1395,10 +1398,12 @@ IMPORTANT CAPABILITIES:
 • SCREENSHOT ANY WEBSITE - Use this format: ![Website Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Google](https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)
 • IMAGE GENERATION - Create custom images on request
-  Available models: flux, turbo, img3, img4, qwen, nsfw-gen
-  User can specify model (e.g., "use flux" or "with turbo model")
-  For flux/turbo: Add ?nologo=true to URL to remove watermark
-  Display generated images inline: ![Generated Image](url)
+  Models: flux, turbo, img3, img4, qwen, nsfw-gen (ALL WORKING)
+  IMPORTANT: Use EXACT model user specifies
+  flux/turbo: Add ?nologo=true for no watermark
+  img3/img4/qwen: No watermark param needed
+  Display: ![Generated Image](url?nologo=true) for flux/turbo
+  Display: ![Generated Image](url) for others
 • No knowledge cutoff - real-time data access
 
 SCREENSHOT INSTRUCTIONS:
@@ -1458,20 +1463,29 @@ Response guidelines:
         body.messages[systemMessageIndex].content += `\n\n[IMAGE GENERATION REQUESTED]${preferredModelInfo}
 
 Available image models at https://ahamai-api.officialprakashkrsingh.workers.dev/v1/images/generations:
-• flux - High quality artistic images (Pollinations) - Add ?nologo=true to disable watermark
-• turbo - Fast generation (Pollinations) - Add ?nologo=true to disable watermark  
-• img3, img4 - General purpose image generation (InfIP)
-• qwen - Versatile image creation (InfIP)
-• nsfw-gen - Unrestricted content (HideMe)
+• flux - High quality artistic images (Pollinations) - WORKING ✅
+• turbo - Fast generation (Pollinations) - WORKING ✅
+• img3, img4 - General purpose (InfIP) - WORKING ✅
+• qwen - Versatile creation (InfIP) - WORKING ✅
+• nsfw-gen - Unrestricted (HideMe) - WORKING ✅
 
-To generate an image:
-1. Describe what image will be created based on the user's request
-2. Use the model specified by user if provided: ${imageGenRequest.model || 'choose appropriate model'}
-3. For flux/turbo models, append ?nologo=true to remove watermark
-4. Make a POST request to the endpoint with model and prompt
-5. Display the generated image inline using: ![Generated Image](returned_url?nologo=true)
-6. For flux/turbo: ALWAYS append ?nologo=true to the URL
-7. The API returns URLs that can be directly embedded in markdown`;
+IMPORTANT: Use the EXACT model name specified by user: ${imageGenRequest.model || 'flux or turbo (recommended)'}
+
+For flux/turbo (Pollinations):
+- These return direct image URLs
+- Add ?nologo=true to remove watermark
+- Format: ![Image](url?nologo=true)
+
+For img3/img4/qwen/nsfw-gen:
+- These return URLs from api.infip.pro or data URLs
+- No watermark parameter needed
+- Format: ![Image](url)
+
+To generate:
+1. Use the EXACT model requested by user (don't substitute)
+2. If user says "use img3" then USE img3, not flux
+3. Make POST request with correct model name
+4. Display inline with proper format based on model type`;
       }
     }
     
