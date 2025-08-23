@@ -1,69 +1,7 @@
-const API_KEY = "ahamaibyprakash25";
-
-const exposedToInternalMap = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (34 models + default)
-  // All models support streaming ✅
-  
-  // PRIMARY MODEL - Automatically selects fastest available model
-  "default": "default", // 🚀 RECOMMENDED: Always fastest response with automatic fallback
-  
-  // Proxy Models (3) - All working with streaming
-  "perplexed": "perplexed",
-  "felo": "felo",
-  "exaanswer": "exaanswer",
-  
-  // Google Gemini Models (5) - Working perfectly with streaming
-  "gemini-2.0-flash": "gemini-2.0-flash",
-  "gemini-2.0-flash-thinking-exp-01-21": "gemini-2.0-flash-thinking-exp-01-21",
-  "gemini-2.5-flash-lite-preview-06-17": "gemini-2.5-flash-lite-preview-06-17",
-  "gemini-2.5-flash": "gemini-2.5-flash"
-  
-  // DeepSeek Models (1) - Working with streaming
-  "deepseek-r1-distill-llama-70b": "deepseek-r1-distill-llama-70b",
-  
-  // Meta Llama Models (1) - Working with streaming
-  "llama-4-scout-17b-16e-instruct": "llama-4-scout-17b-16e-instruct",
-  
-  // FastAPI Free Models (1) - Working with streaming
-  "gemini-2.5-flash-preview-04-17": "gemini-2.5-flash-preview-04-17",
-  
-  // DeepInfra Models (1) - Working with streaming (100 requests/day with IP rotation)
-  "qwen-3-coder-480b": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
-  
-  // GLM Models (2) - Available via Render proxy - Working with streaming ✅
-  "glm-4.5-air": "zai-org/GLM-4.5-Air",
-  "glm-4.5": "zai-org/GLM-4.5",
-  
-  // v0.dev Models (2) - Vercel's AI models - Working with streaming ✅
-  "v0-1.0-md": "v0-1.0-md",
-  "v0-1.5-md": "v0-1.5-md",
-  
-  // VORTEX Models (18) - All working with 100% success rate ✅
-  // Endpoint: http://141.11.210.85:3000/api/openai/v1
-  "vortex-deepseek-r1-distill-llama-70b": "deepseek-r1-distill-llama-70b",
-  "vortex-llama-prompt-guard-2-22m": "meta-llama/llama-prompt-guard-2-22m",
-  "vortex-llama-3.1-8b-instant": "llama-3.1-8b-instant",
-  "vortex-gemma2-9b-it": "gemma2-9b-it",
-  "vortex-llama-4-scout-17b-16e": "meta-llama/llama-4-scout-17b-16e-instruct",
-  "vortex-llama-prompt-guard-2-86m": "meta-llama/llama-prompt-guard-2-86m",
-  "vortex-gpt-oss-20b": "openai/gpt-oss-20b",
-  "vortex-allam-2-7b": "allam-2-7b",
-  "vortex-gpt-oss-120b": "openai/gpt-oss-120b",
-  "vortex-qwen3-32b": "qwen/qwen3-32b",
-  "vortex-llama3-70b-8192": "llama3-70b-8192",
-  "vortex-llama-guard-4-12b": "meta-llama/llama-guard-4-12b",
-  "vortex-compound-beta": "compound-beta",
-  "vortex-kimi-k2-instruct": "moonshotai/kimi-k2-instruct",
-  "vortex-llama-4-maverick-17b": "meta-llama/llama-4-maverick-17b-128e-instruct",
-  "vortex-llama3-8b-8192": "llama3-8b-8192",
-  "vortex-compound-beta-mini": "compound-beta-mini",
-  "vortex-llama-3.3-70b-versatile": "llama-3.3-70b-versatile"
-};
-
 const modelRoutes = {
   // WORKING MODELS ONLY - Verified via comprehensive testing (17 models)
   // All models support streaming ✅
-  
+  w
   // Proxy Models via Render (3)
   "perplexed": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
