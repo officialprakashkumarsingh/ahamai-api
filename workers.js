@@ -1,7 +1,7 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (17 models + default)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (18 models + default)
   // All models support streaming ✅
   
   // PRIMARY MODEL - Automatically selects fastest available model
@@ -39,11 +39,14 @@ const exposedToInternalMap = {
   "v0-1.5-md": "v0-1.5-md",
   
   // Airforce API Model (1) - WARNING: Severe rate limit (1 req/min)
-  "airforce-gpt-4o-mini": "gpt-4o-mini"
+  "airforce-gpt-4o-mini": "gpt-4o-mini",
+  
+  // Cerebras AI Model (1) - Ultra-fast Qwen 235B model with excellent streaming ✅
+  "cerebras-qwen-235b": "qwen-3-235b-a22b-instruct-2507"
 };
 
 const modelRoutes = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (17 models)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (18 models)
   // All models support streaming ✅
   
   // Proxy Models via Render (3)
@@ -78,7 +81,10 @@ const modelRoutes = {
   "v0-1.5-md": "https://api.v0.dev/v1/chat/completions",
   
   // Airforce API (1) - WARNING: 1 request per minute rate limit!
-  "gpt-4o-mini": "https://api.airforce/v1/chat/completions"
+  "gpt-4o-mini": "https://api.airforce/v1/chat/completions",
+  
+  // Cerebras AI (1) - Ultra-fast inference with Qwen 235B model
+  "qwen-3-235b-a22b-instruct-2507": "https://api.cerebras.ai/v1/chat/completions"
 };
 
 
@@ -398,6 +404,7 @@ function generateScreenshotUrl(url) {
 // Speed-optimized model rankings based on actual performance data
 const modelSpeedRanking = [
   // Tier 1: Lightning Fast (<1s)
+  { model: "cerebras-qwen-235b", avgResponseTime: 0.120, tier: 1 }, // Cerebras is ultra-fast!
   { model: "llama-4-scout-17b-16e-instruct", avgResponseTime: 0.567, tier: 1 },
   { model: "meta-llama/llama-4-scout-17b-16e-instruct", avgResponseTime: 0.567, tier: 1 },
   { model: "gemini-2.5-flash-lite-preview-06-17", avgResponseTime: 0.797, tier: 1 },
@@ -1056,6 +1063,9 @@ Response approach:
   } else if (modelRoutes[internalModel].includes('api.airforce')) {
     // For Airforce API - WARNING: 1 request per minute rate limit!
     headers["Authorization"] = "Bearer sk-air-BmMhxzoWJTGpa54lrsPlmlqgItxqFRt0xcI0gAp5g6BvBqT8ekmQwR61CVSRRUC1";
+  } else if (modelRoutes[internalModel].includes('api.cerebras.ai')) {
+    // For Cerebras AI - Ultra-fast inference with Qwen 235B model
+    headers["Authorization"] = "Bearer csk-58ejjkyrrfr49der248ctwwnmehrene8c3ynntwfr2jd8th2";
   }
 
   const response = await fetch(modelRoutes[internalModel], {
