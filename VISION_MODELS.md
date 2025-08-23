@@ -1,199 +1,126 @@
-# 🖼️ Vision-Capable Models
+# 🖼️ Vision Models Status
 
-## Overview
-These models support image/vision input along with text, allowing multimodal interactions.
+## ⚠️ IMPORTANT: Vision Support NOT Working
 
-## ✅ Vision-Enabled Models (11 Total)
+**Testing Date**: August 23, 2025  
+**Test Result**: **NO models currently support vision through this API**
 
-### 🌟 Google Gemini Models (5)
-All Gemini models support vision capabilities:
+## 🔴 Current Status
 
-| Model | Speed | Best For |
-|-------|-------|----------|
-| `gemini-2.0-flash` | 1.4s | Fast vision tasks |
-| `gemini-2.0-flash-thinking-exp-01-21` | 6.5s | Reasoning with images |
-| `gemini-2.5-flash-lite-preview-06-17` | 1.7s | Lightweight vision |
-| `gemini-2.5-flash` | 1.5s | Balanced performance |
-| `gemini-2.5-flash-preview-04-17` | 6.4s | Latest features |
+After comprehensive testing with actual image inputs, we found that:
 
-### 🎨 Vercel v0 Models (2)
-Optimized for UI/UX and code generation with images:
+1. **All models receive `[object Object]` instead of image data**
+2. **The proxy does not properly handle multimodal content**
+3. **Image inputs are not being parsed or forwarded correctly**
 
-| Model | Speed | Best For |
-|-------|-------|----------|
-| `v0-1.0-md` | 6.8s | UI component generation |
-| `v0-1.5-md` | 6.7s | Enhanced UI/code vision |
+## 📊 Test Results Summary
 
-### 🧠 GLM Models (2)
-Chinese AI models with vision support:
+| Model | Native Vision Support | Works Through API | Issue |
+|-------|----------------------|-------------------|-------|
+| gemini-2.0-flash | ✅ Yes | ❌ No | Receives [object Object] |
+| gemini-2.0-flash-thinking-exp-01-21 | ✅ Yes | ❌ No | Receives [object Object] |
+| gemini-2.5-flash-lite-preview-06-17 | ✅ Yes | ❌ No | Receives [object Object] |
+| gemini-2.5-flash | ✅ Yes | ❌ No | Receives [object Object] |
+| gemini-2.5-flash-preview-04-17 | ✅ Yes | ❌ No | Server error |
+| v0-1.0-md | ✅ Yes | ❌ No | Receives [object Object] |
+| v0-1.5-md | ✅ Yes | ❌ No | Receives [object Object] |
+| glm-4.5 | ✅ Yes | ❌ No | Receives [object Object] |
+| glm-4.5-air | ✅ Yes | ❌ No | Receives [object Object] |
+| qwen-3-coder-480b | ✅ Yes | ❌ No | Method not allowed |
+| deepseek-r1-distill-llama-70b | ❓ Maybe | ❌ No | Cannot process images |
+| llama-4-scout-17b-16e-instruct | ❌ No | ❌ No | Text-only model |
+| perplexed | ❌ No | ❌ No | Search model, text-only |
+| felo | ❌ No | ❌ No | Search model, text-only |
+| exaanswer | ❌ No | ❌ No | Search model, text-only |
 
-| Model | Speed | Best For |
-|-------|-------|----------|
-| `glm-4.5` | 4.6s | General vision tasks |
-| `glm-4.5-air` | 2.1s | Fast vision processing |
+## 🔧 Technical Issue
 
-### 💻 Qwen Coder (1)
-Specialized for code with vision:
+The API proxy is not correctly handling the OpenAI multimodal format:
 
-| Model | Speed | Best For |
-|-------|-------|----------|
-| `qwen-3-coder-480b` | 645ms | Code analysis with images |
-
-### 🔍 DeepSeek (1)
-Reasoning with vision capabilities:
-
-| Model | Speed | Best For |
-|-------|-------|----------|
-| `deepseek-r1-distill-llama-70b` | 2.4s | Visual reasoning |
-
-## 📸 Image Input Format
-
-### OpenAI Format (Recommended)
+### What's Being Sent:
 ```json
 {
-  "model": "gemini-2.0-flash",
-  "messages": [
-    {
-      "role": "user",
-      "content": [
-        {
-          "type": "text",
-          "text": "What's in this image?"
-        },
-        {
-          "type": "image_url",
-          "image_url": {
-            "url": "data:image/jpeg;base64,..."
-          }
-        }
-      ]
-    }
-  ]
+  "messages": [{
+    "role": "user",
+    "content": [
+      {"type": "text", "text": "What color is this?"},
+      {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
+    ]
+  }]
 }
 ```
 
-### Supported Image Formats
-- **JPEG** (.jpg, .jpeg)
-- **PNG** (.png)
-- **WebP** (.webp)
-- **GIF** (.gif) - static only
-- **Base64** encoded images
-- **URLs** (public accessible)
-
-## 🚀 Usage Examples
-
-### 1. Image Analysis
-```bash
-curl https://ahamai-api.officialprakashkrsingh.workers.dev/v1/chat/completions \
-  -H "Authorization: Bearer ahamaibyprakash25" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "gemini-2.5-flash",
-    "messages": [{
-      "role": "user",
-      "content": [
-        {"type": "text", "text": "Describe this image"},
-        {"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}}
-      ]
-    }]
-  }'
+### What Models Receive:
+```
+[object Object],[object Object]
 ```
 
-### 2. UI Component Generation (v0 models)
-```bash
-curl https://ahamai-api.officialprakashkrsingh.workers.dev/v1/chat/completions \
-  -H "Authorization: Bearer ahamaibyprakash25" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "v0-1.5-md",
-    "messages": [{
-      "role": "user",
-      "content": [
-        {"type": "text", "text": "Create React component based on this design"},
-        {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
-      ]
-    }]
-  }'
-```
+## 🚫 Current Limitations
 
-### 3. Code Analysis with Screenshots
-```bash
-curl https://ahamai-api.officialprakashkrsingh.workers.dev/v1/chat/completions \
-  -H "Authorization: Bearer ahamaibyprakash25" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "qwen-3-coder-480b",
-    "messages": [{
-      "role": "user",
-      "content": [
-        {"type": "text", "text": "Debug this error screenshot"},
-        {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
-      ]
-    }]
-  }'
-```
+1. **No Image Processing**: The proxy doesn't parse multimodal content arrays
+2. **Format Conversion Missing**: No conversion from OpenAI format to native model formats
+3. **Base64 Not Handled**: Base64 image data is not being decoded or processed
+4. **URL Images Not Fetched**: External image URLs are not being retrieved
 
-## 📊 Performance Comparison
+## 🛠️ What Needs to Be Fixed
 
-### Speed Ranking (Vision Tasks)
-1. **qwen-3-coder-480b** - 645ms ⚡
-2. **gemini-2.0-flash** - 1.4s 🚀
-3. **gemini-2.5-flash** - 1.5s 🚀
-4. **gemini-2.5-flash-lite-preview-06-17** - 1.7s
-5. **glm-4.5-air** - 2.1s
-6. **deepseek-r1-distill-llama-70b** - 2.4s
-7. **glm-4.5** - 4.6s
-8. **gemini-2.5-flash-preview-04-17** - 6.4s
-9. **gemini-2.0-flash-thinking-exp-01-21** - 6.5s
-10. **v0-1.5-md** - 6.7s
-11. **v0-1.0-md** - 6.8s
+To enable vision support, the proxy (`workers.js`) needs:
 
-### Best Models by Use Case
+1. **Parse Multimodal Content**:
+   ```javascript
+   // Check if content is an array (multimodal)
+   if (Array.isArray(message.content)) {
+     // Extract text and image parts
+     const textPart = message.content.find(c => c.type === 'text');
+     const imagePart = message.content.find(c => c.type === 'image_url');
+   }
+   ```
 
-| Use Case | Recommended Model | Why |
-|----------|------------------|-----|
-| **Fast Image Analysis** | `qwen-3-coder-480b` | Fastest response (645ms) |
-| **General Vision** | `gemini-2.0-flash` | Good balance of speed & quality |
-| **UI/UX Design** | `v0-1.5-md` | Specialized for interfaces |
-| **Code Screenshots** | `qwen-3-coder-480b` | Code-optimized vision |
-| **Complex Reasoning** | `deepseek-r1-distill-llama-70b` | Best for visual logic |
-| **Chinese Content** | `glm-4.5` | Optimized for Chinese |
+2. **Convert to Native Formats**:
+   - Gemini: Needs specific `inlineData` format
+   - v0.dev: May need different structure
+   - GLM/Qwen: May have their own formats
 
-## 🔧 Technical Details
+3. **Handle Image Data**:
+   - Decode base64 images
+   - Fetch external URLs
+   - Validate image formats
 
-### Vision Model Configuration
+## 📝 Test Methodology
+
+We tested with:
+- **Image**: 1x1 red pixel (base64 encoded PNG)
+- **Prompt**: "What color is this image? Just say the color name."
+- **Expected**: Models should identify "red"
+- **Actual**: Models see `[object Object]` and respond with confusion
+
+## ⚡ Recommendations
+
+Until vision support is properly implemented:
+
+1. **Use text-only features** - All models work great for text
+2. **Describe images in text** - Users can describe what they see
+3. **Use screenshot URLs** - The WordPress mshots integration works for website screenshots
+4. **Wait for updates** - Vision support needs proxy-level changes
+
+## 🔄 Test Command Used
+
 ```javascript
-const visionModels = {
-  "model-name": {
-    id: "model-name",
-    name: "Display Name",
-    provider: "provider",
-    supportsImages: true,
-    capabilities: ["text", "image", "code"]
-  }
+// Test payload that SHOULD work (but doesn't)
+{
+  "model": "gemini-2.0-flash",
+  "messages": [{
+    "role": "user",
+    "content": [
+      {"type": "text", "text": "What color is this image?"},
+      {"type": "image_url", "image_url": {
+        "url": "data:image/png;base64,iVBORw0KGgoAAAANS..."
+      }}
+    ]
+  }]
 }
 ```
-
-### Capabilities
-- **text**: Standard text generation
-- **image**: Image understanding/analysis
-- **code**: Code generation from images
-- **reasoning**: Complex visual reasoning
-
-## 📝 Notes
-
-1. **Image Size Limits**: Most models support up to 20MB images
-2. **Multiple Images**: Supported by sending multiple image_url objects
-3. **Base64 vs URL**: Base64 is more reliable but increases payload size
-4. **Streaming**: All vision models support streaming responses
-5. **Cost**: Vision requests may consume more tokens than text-only
-
-## 🚨 Important
-
-- Always validate image format before sending
-- Compress large images to improve performance
-- Use appropriate model based on task complexity
-- Consider caching for repeated image analysis
 
 ---
-*Last Updated: August 23, 2025*
+*Last Updated: August 23, 2025*  
+*Status: Vision support NOT functional - needs implementation*

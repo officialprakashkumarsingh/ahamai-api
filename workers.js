@@ -131,94 +131,27 @@ const imageModelRoutes = {
   }
 };
 
-// Vision models configuration - models that support image/vision input
+// Vision models configuration
+// IMPORTANT: Testing shows that image/vision input is NOT properly supported through this proxy
+// The API converts image inputs to [object Object] instead of processing them
+// Vision support needs to be implemented at the proxy level first
 const visionModels = {
-  // Gemini Models - All support vision
-  "gemini-2.0-flash": {
-    id: "gemini-2.0-flash",
-    name: "Gemini 2.0 Flash",
-    provider: "google",
-    supportsImages: true,
-    capabilities: ["text", "image"]
-  },
-  "gemini-2.0-flash-thinking-exp-01-21": {
-    id: "gemini-2.0-flash-thinking-exp-01-21",
-    name: "Gemini 2.0 Flash Thinking",
-    provider: "google",
-    supportsImages: true,
-    capabilities: ["text", "image"]
-  },
-  "gemini-2.5-flash-lite-preview-06-17": {
-    id: "gemini-2.5-flash-lite-preview-06-17",
-    name: "Gemini 2.5 Flash Lite Preview",
-    provider: "google",
-    supportsImages: true,
-    capabilities: ["text", "image"]
-  },
-  "gemini-2.5-flash": {
-    id: "gemini-2.5-flash",
-    name: "Gemini 2.5 Flash",
-    provider: "google",
-    supportsImages: true,
-    capabilities: ["text", "image"]
-  },
-  "gemini-2.5-flash-preview-04-17": {
-    id: "gemini-2.5-flash-preview-04-17",
-    name: "Gemini 2.5 Flash Preview",
-    provider: "google",
-    supportsImages: true,
-    capabilities: ["text", "image"]
-  },
+  // Currently NO models have verified vision support through this API
+  // Testing results (Aug 23, 2025):
+  // - All models receive [object Object] instead of actual image data
+  // - The proxy is not correctly handling multimodal content
+  // - Native vision capabilities of models like Gemini, GLM, v0 are not accessible
   
-  // v0.dev Models - Support vision
-  "v0-1.0-md": {
-    id: "v0-1.0-md",
-    name: "v0 1.0 Medium",
-    provider: "vercel",
-    supportsImages: true,
-    capabilities: ["text", "image", "code"]
-  },
-  "v0-1.5-md": {
-    id: "v0-1.5-md",
-    name: "v0 1.5 Medium",
-    provider: "vercel",
-    supportsImages: true,
-    capabilities: ["text", "image", "code"]
-  },
+  // Models that SHOULD support vision (but don't work through this proxy):
+  // - Gemini models (2.0-flash, 2.5-flash, etc.) - Native Google vision support
+  // - v0.dev models (v0-1.0-md, v0-1.5-md) - Vercel's multimodal models
+  // - GLM models (glm-4.5, glm-4.5-air) - Chinese models with vision
+  // - Qwen-3-coder-480b - Alibaba's coding model with vision
   
-  // GLM Models - Support vision
-  "glm-4.5": {
-    id: "glm-4.5",
-    name: "GLM 4.5",
-    provider: "zhipu",
-    supportsImages: true,
-    capabilities: ["text", "image"]
-  },
-  "glm-4.5-air": {
-    id: "glm-4.5-air",
-    name: "GLM 4.5 Air",
-    provider: "zhipu",
-    supportsImages: true,
-    capabilities: ["text", "image"]
-  },
-  
-  // Qwen Models - Support vision
-  "qwen-3-coder-480b": {
-    id: "qwen-3-coder-480b",
-    name: "Qwen 3 Coder 480B",
-    provider: "alibaba",
-    supportsImages: true,
-    capabilities: ["text", "image", "code"]
-  },
-  
-  // DeepSeek Models - Some support vision
-  "deepseek-r1-distill-llama-70b": {
-    id: "deepseek-r1-distill-llama-70b",
-    name: "DeepSeek R1 Distill Llama 70B",
-    provider: "deepseek",
-    supportsImages: true,
-    capabilities: ["text", "image", "reasoning"]
-  }
+  // To enable vision support, the proxy needs to:
+  // 1. Properly parse multimodal content from OpenAI format
+  // 2. Convert image data to the native format each model expects
+  // 3. Handle base64 and URL image inputs correctly
 };
 
 // Default models configuration
