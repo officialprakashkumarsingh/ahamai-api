@@ -1468,7 +1468,7 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
 
 async function handleChat(request, corsHeaders) {
   const body = await request.json();
-  const exposedModel = body.model;
+  let exposedModel = body.model;  // Changed to let to allow reassignment
   const stream = body.stream === true;
   
   // Allow users to explicitly control web search behavior
