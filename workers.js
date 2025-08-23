@@ -330,13 +330,22 @@ function needsImageGeneration(messages) {
   // Check if user specified a model
   let preferredModel = null;
   for (const model of availableModels) {
-    // Check for exact model name or common variations
-    // Allow flexible matching: "use flux", "with flux", "flux model", etc.
-    const modelPattern = new RegExp(`\\b(use|using|with|via)?\\s*${model}\\b|\\b${model}\\s*(model)?\\b`, 'i');
-    if (modelPattern.test(conversationText)) {
-      preferredModel = model;
-      break;
+    // Check for model name with various patterns
+    // Matches: "use img3", "with img3", "img3 model", "via img3", etc.
+    const patterns = [
+      new RegExp(`\\b(use|using|with|via)\\s+${model}\\b`, 'i'),
+      new RegExp(`\\b${model}\\s+(model|to|for)\\b`, 'i'),
+      new RegExp(`\\b${model}\\b`, 'i') // Just the model name itself
+    ];
+    
+    for (const pattern of patterns) {
+      if (pattern.test(conversationText)) {
+        preferredModel = model;
+        break;
+      }
     }
+    
+    if (preferredModel) break;
   }
   
   return {
@@ -946,11 +955,11 @@ YOUR CAPABILITIES:
 • Real-time web search for current information
 • SCREENSHOT WEBSITES: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Site](https://s.wordpress.com/mshots/v1/https://example.com?w=1280&h=960)
-• IMAGE GENERATION: Create AI images (ALL models working)
-  flux, turbo (Pollinations) - use ?nologo=true
-  img3, img4, qwen, nsfw-gen - no watermark param
-  USE EXACT MODEL USER REQUESTS
-  Display: ![Image](url?nologo=true) for flux/turbo ONLY
+• IMAGE GENERATION: Create AI images
+  Default model: flux (if none specified)
+  Available: flux, turbo, img3, img4, qwen, nsfw-gen
+  USE EXACT MODEL NAME in API: {"model": "img3"} not {"model": "flux"}
+  WATERMARK: Add ?nologo=true for flux/turbo URLs
 • No knowledge cutoff - access to current data
 
 SCREENSHOT RULE: When ANY website is mentioned → ALWAYS provide screenshot using format above
@@ -1004,10 +1013,10 @@ YOUR CAPABILITIES:
 • SCREENSHOT ANY WEBSITE: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Google](https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)
 • IMAGE GENERATION: Create images using AI models
-  ALL WORKING: flux, turbo, img3, img4, qwen, nsfw-gen
-  USE THE EXACT MODEL USER SPECIFIES
-  Only flux/turbo need ?nologo=true
-  Display correctly based on model type
+  Default: flux (when no model specified)
+  Models: flux, turbo, img3, img4, qwen, nsfw-gen
+  API call must use EXACT model: {"model": "img3"} if user wants img3
+  Always add ?nologo=true for flux/turbo URLs
 • No knowledge cutoff - real-time access
 
 SCREENSHOT RULE: When ANY website is mentioned → PROVIDE SCREENSHOT using format above
@@ -1276,11 +1285,11 @@ YOUR CAPABILITIES:
 • Web search results (shown below)
 • SCREENSHOT WEBSITES: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Site](https://s.wordpress.com/mshots/v1/https://example.com?w=1280&h=960)
-• IMAGE GENERATION: Create AI images (ALL WORKING)
-  Models: flux, turbo, img3, img4, qwen, nsfw-gen
-  USE EXACT MODEL USER REQUESTS - DON'T SUBSTITUTE
-  flux/turbo: ![Image](url?nologo=true)
-  Others: ![Image](url)
+• IMAGE GENERATION: Create AI images
+  Default: flux (if no model specified)
+  Available: flux, turbo, img3, img4, qwen, nsfw-gen
+  CRITICAL: Use exact model in API {"model": "[user_specified_or_flux]"}
+  Always: ![Image](url?nologo=true) for flux/turbo
 • No knowledge cutoff
 
 ALWAYS screenshot any website mentioned using the format above.
@@ -1398,12 +1407,12 @@ IMPORTANT CAPABILITIES:
 • SCREENSHOT ANY WEBSITE - Use this format: ![Website Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Google](https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)
 • IMAGE GENERATION - Create custom images on request
-  Models: flux, turbo, img3, img4, qwen, nsfw-gen (ALL WORKING)
-  IMPORTANT: Use EXACT model user specifies
-  flux/turbo: Add ?nologo=true for no watermark
-  img3/img4/qwen: No watermark param needed
-  Display: ![Generated Image](url?nologo=true) for flux/turbo
-  Display: ![Generated Image](url) for others
+  Models: flux (default), turbo, img3, img4, qwen, nsfw-gen
+  DEFAULT: Use "flux" if no model specified
+  USER CHOICE: Use EXACT model if specified
+  WATERMARK: Always add ?nologo=true for flux/turbo
+  API: POST /v1/images/generations with {"model": "[exact_model_name]", "prompt": "..."}
+  Display: ![Generated Image](url?nologo=true)
 • No knowledge cutoff - real-time data access
 
 SCREENSHOT INSTRUCTIONS:
@@ -1469,23 +1478,27 @@ Available image models at https://ahamai-api.officialprakashkrsingh.workers.dev/
 • qwen - Versatile creation (InfIP) - WORKING ✅
 • nsfw-gen - Unrestricted (HideMe) - WORKING ✅
 
-IMPORTANT: Use the EXACT model name specified by user: ${imageGenRequest.model || 'flux or turbo (recommended)'}
+⚠️ CRITICAL MODEL SELECTION:
+${imageGenRequest.model 
+  ? `USER SPECIFIED MODEL: "${imageGenRequest.model}" - YOU MUST USE THIS EXACT MODEL!`
+  : 'NO MODEL SPECIFIED - USE DEFAULT: "flux" (high quality)'}
 
-For flux/turbo (Pollinations):
-- These return direct image URLs
-- Add ?nologo=true to remove watermark
-- Format: ![Image](url?nologo=true)
+CORRECT API USAGE:
+1. Model to use: ${imageGenRequest.model || 'flux'}
+2. Endpoint: POST https://ahamai-api.officialprakashkrsingh.workers.dev/v1/images/generations
+3. Body: { "model": "${imageGenRequest.model || 'flux'}", "prompt": "[user's description]", "n": 1, "size": "1024x1024" }
 
-For img3/img4/qwen/nsfw-gen:
-- These return URLs from api.infip.pro or data URLs
-- No watermark parameter needed
-- Format: ![Image](url)
+WATERMARK REMOVAL:
+- flux/turbo: ALWAYS add ?nologo=true to the returned URL
+- img3/img4/qwen: These don't have watermarks, use URL as-is
+- Display: ![Generated Image](url?nologo=true) for ALL Pollinations models
 
-To generate:
-1. Use the EXACT model requested by user (don't substitute)
-2. If user says "use img3" then USE img3, not flux
-3. Make POST request with correct model name
-4. Display inline with proper format based on model type`;
+IMPORTANT RULES:
+✅ If user says "use img3" → model: "img3" in API call
+✅ If user says "with flux" → model: "flux" in API call  
+✅ If no model specified → model: "flux" (default)
+❌ NEVER say you're using one model but call another
+❌ NEVER substitute models`;
       }
     }
     
