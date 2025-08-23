@@ -295,41 +295,29 @@ function selectWebSearchModel() {
 }
 
 
-// Function to detect when screenshot would be helpful
+// Function to detect ALL URLs for screenshots - no limits
 function shouldProvideScreenshot(messages) {
   const recentMessages = messages.slice(-3);
   const conversationText = recentMessages
     .map(m => typeof m.content === 'string' ? m.content : m.content.map(c => c.text || '').join(' '))
-    .join(' ').toLowerCase();
+    .join(' ');
   
-  // Extract URLs and domains from conversation
+  // Extract ALL URLs and domains from conversation
   const urlPattern = /(?:https?:\/\/)?(?:www\.)?([a-z0-9]+(?:[-.]?[a-z0-9]+)*\.[a-z]{2,}(?:\/[^\s]*)?)/gi;
-  const matches = conversationText.match(urlPattern);
+  const matches = [...new Set(conversationText.match(urlPattern) || [])]; // Get unique URLs
   
-  if (!matches) return null;
+  if (!matches || matches.length === 0) return null;
   
-  // Topics where visual context is helpful
-  const visualContextPatterns = [
-    /\b(design|layout|interface|ui|ux|looks?|appearance|visual|style|color|theme)\b/i,
-    /\b(homepage|landing page|website|web ?site|webpage|web ?page|portal|platform)\b/i,
-    /\b(compare|comparison|versus|vs|difference|similar)\b/i,
-    /\b(analyze|review|check|examine|explore|investigate)\b/i,
-    /\b(what is|tell me about|explain|describe|show)\b/i
-  ];
-  
-  // Check if discussing websites/platforms where visual would help
-  for (const pattern of visualContextPatterns) {
-    if (pattern.test(conversationText)) {
-      // Return the most recent URL/domain mentioned
-      const lastUrl = matches[matches.length - 1];
-      if (!lastUrl.startsWith('http')) {
-        return `https://${lastUrl.replace(/^www\./i, '')}`;
-      }
-      return lastUrl;
+  // Return ALL URLs found for screenshot generation
+  const urls = matches.map(url => {
+    if (!url.startsWith('http')) {
+      return `https://${url.replace(/^www\./i, '')}`;
     }
-  }
+    return url;
+  });
   
-  return null;
+  // Return all URLs (no limits)
+  return urls;
 }
 
 
@@ -900,25 +888,21 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
     for (const msg of requestBody.messages) {
       if (msg.role === "system") {
         // Enhanced system content with all capabilities
-        systemContent = `${msg.content}\n\n🚨 CRITICAL INSTRUCTIONS 🚨
+        systemContent = `${msg.content}
+
 Current date/time (IST): ${currentDateTime}
 
-📋 MANDATORY RULES:
-• NO knowledge cutoff - you have REAL-TIME data access
-• Format EVERYTHING with markdown and emojis 🎯
-• Be engaging, visual, and friendly
+Core capabilities:
+• Real-time web search for current information
+• Screenshot generation for any website
+• No knowledge cutoff - access to current data
 
-💡 YOUR CAPABILITIES:
-• 🔍 Web search for current info (including stock prices)
-• 📸 Screenshots: ![Name](https://s.wordpress.com/mshots/v1/[url]?w=1280&h=960)
-
-🎨 FORMATTING RULES:
-• Use **bold**, *italics*, and emojis throughout
-• Create visual hierarchy with headers (##)
-• Use bullet points (•) for clarity
-• Add relevant emojis to every section
-
-⚠️ NEVER say "as of my training" - ALWAYS use provided real-time data!]`;
+Response guidelines:
+• Use formatting naturally where it improves clarity
+• Add emojis when they enhance understanding
+• Apply markdown (bold, italics, headers) for structure
+• Use code blocks for technical content
+• Be conversational and helpful`;
       } else if (msg.role === "user") {
         if (systemContent) {
           // Include system content and conversation summary with user message
@@ -953,29 +937,20 @@ Current date/time (IST): ${currentDateTime}
       if (msg.role === "system") {
         return {
           ...msg,
-          content: `${msg.content}\n\n🚨 MANDATORY INSTRUCTIONS - READ CAREFULLY 🚨
-📅 Current Time (IST): ${currentDateTime}
+          content: `${msg.content}
 
-🎯 CRITICAL RULES:
-• NO knowledge cutoff - ONLY use REAL-TIME data
-• Format: ALWAYS use **markdown** and emojis 🌟
+Current Time (IST): ${currentDateTime}
 
-💡 PROACTIVE CAPABILITIES:
-• 📸 Screenshots: ![Site](https://s.wordpress.com/mshots/v1/[url]?w=1280&h=960)
-• 🔍 Web search: Auto-search current events and stock prices
+Capabilities:
+• Real-time web search for any current information
+• Automatic screenshot generation for websites
+• No knowledge cutoff
 
-✨ RESPONSE FORMATTING:
-• **Bold** important points
-• Use emojis liberally 🎯📊💡
-• Create visual hierarchy
-• Be engaging and friendly
-
-⚠️ FORBIDDEN:
-• NEVER say "as of my training/knowledge"
-• NEVER use old stock prices
-• NEVER give plain text - ALWAYS format
-
-Make every response visually rich and engaging! 🚀]`
+Response approach:
+• Use natural formatting that enhances readability
+• Apply markdown where it improves structure
+• Include emojis when contextually appropriate
+• Be helpful and conversational`
         };
       }
       return msg;
@@ -1228,25 +1203,15 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       // Add new system message at the beginning
               enhancedMessages.unshift({
           role: "system",
-          content: `🌟 You are a proactive assistant with REAL-TIME capabilities 🌟
-📅 Current Time (IST): ${dateTimeInfo}
+          content: `You have real-time capabilities.
+Current Time (IST): ${dateTimeInfo}
 
-🚨 CRITICAL RULES:
-• NO knowledge cutoff - REAL-TIME access only
-• USE EXACT PROVIDED DATA - never training data
-• Format EVERYTHING with **markdown** and emojis 🎯
+You have access to:
+• Web search results (shown below)
+• Screenshot generation for websites
+• No knowledge cutoff
 
-💡 YOUR TOOLS:
-• 📸 Screenshots: ![Name](https://s.wordpress.com/mshots/v1/[url]?w=1280&h=960)
-• 🔍 Web search: Current information available (including stocks)
-
-✨ FORMATTING REQUIREMENTS:
-• Use **bold** for emphasis
-• Add emojis throughout 🎯📊💡
-• Create visual hierarchy with headers
-• Be engaging and conversational
-
-⚠️ NEVER say "as of my training" - you have REAL-TIME data!${webSearchContext}`
+Use natural formatting where it helps clarity.${webSearchContext}`
         });
     }
     
@@ -1352,43 +1317,22 @@ async function handleChat(request, corsHeaders) {
     
     body.messages.unshift({
       role: "system",
-      content: `You are a proactive AI assistant with advanced real-time capabilities. Current date/time (IST): ${dateTime}. 
+      content: `You are a helpful AI assistant with real-time capabilities.
+Current date/time (IST): ${dateTime}
 
-🎯 CRITICAL RULES:
-• You have NO knowledge cutoff - REAL-TIME access only
-• ALWAYS use provided data, NEVER use training data for prices/news
-• Format ALL responses with markdown and emojis for engagement
-• Be conversational, friendly, and visually appealing
+Available tools:
+• Web search for current information
+• Automatic screenshot generation for any website
+• No knowledge cutoff - real-time data access
 
-📊 REAL-TIME CAPABILITIES:
-• 🔍 Web search for current information (including stock prices)
-• 📸 Website screenshots via WordPress mshots
+Response guidelines:
+• Use formatting naturally where it improves clarity
+• Apply markdown (bold, italics, headers) for better structure
+• Include emojis when they enhance the message
+• Embed website screenshots: ![Description](URL)
+• Be conversational and helpful
 
-🚀 BE PROACTIVE - Don't wait to be asked:
-• Website mentioned → Embed screenshot: ![Site](URL) 🖼️
-• Company/stock discussed → Search for current price 📈
-• Current events → Search for latest information 📰
-
-📸 SCREENSHOT RULES:
-• ALWAYS embed as: ![Description](https://s.wordpress.com/mshots/v1/[encoded-url]?w=1280&h=960)
-• This displays inline in markdown viewers
-• Add captions like: "Here's what it looks like 👇"
-
-✨ FORMATTING REQUIREMENTS:
-• Use **bold** for emphasis
-• Use *italics* for subtle points
-• Use bullet points (•) for lists
-• Use emojis throughout for engagement 🎯
-• Use headers (##) for sections
-• Use code blocks for technical content
-• Make responses visually appealing and scannable
-
-⚠️ NEVER:
-• Say "as of my last training" or "as of my knowledge cutoff"
-• Use old/training data for stocks, news, or current events
-• Provide plain text responses - always format with markdown
-
-Your responses should be informative, engaging, and visually rich! 🌟`
+Focus on providing accurate, well-structured responses that address the user's needs.`
     });
   }
 
@@ -1404,19 +1348,20 @@ Your responses should be informative, engaging, and visually rich! 🌟`
     if (exposedModel === "default") {
       return await handleDefaultModel(body, stream, corsHeaders);
     }
-    // Proactively check if screenshot would be helpful
-    const screenshotUrl = shouldProvideScreenshot(body.messages);
-    if (screenshotUrl) {
-      // Add screenshot information to the messages
-      const screenshotLink = generateScreenshotUrl(screenshotUrl);
+    // Check for ALL URLs and provide screenshots (no limits)
+    const screenshotUrls = shouldProvideScreenshot(body.messages);
+    if (screenshotUrls && screenshotUrls.length > 0) {
+      // Generate screenshots for ALL URLs
+      const screenshotInfo = screenshotUrls.map(url => {
+        const screenshotLink = generateScreenshotUrl(url);
+        return `\n📸 **${url}**\n![Screenshot of ${url}](${screenshotLink})`;
+      }).join('\n');
       
-      // Enhance the system message with screenshot info
+      // Enhance the system message with ALL screenshot info
       const systemMessageIndex = body.messages.findIndex(m => m.role === 'system');
       if (systemMessageIndex >= 0) {
-        body.messages[systemMessageIndex].content += `\n\n[WEBSITE CONTEXT AVAILABLE]: ${screenshotUrl}
-[Screenshot URL]: ${screenshotLink}
-[Instructions]: Since the user is discussing this website, provide the screenshot as an embedded image using markdown format: ![Website Screenshot](${screenshotLink})
-This will display the actual screenshot inline. You can also add a clickable link if needed.`;
+        body.messages[systemMessageIndex].content += `\n\n[WEBSITES DETECTED - Screenshots Available]:${screenshotInfo}
+\n[Instructions]: Display ALL screenshots inline using the markdown image format shown above. No limits - show previews for every website mentioned.`;
       }
     }
     
