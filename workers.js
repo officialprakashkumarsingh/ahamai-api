@@ -950,6 +950,7 @@ YOUR CAPABILITIES:
   User can specify: "use flux model" or "with turbo"
   For flux/turbo: Add ?nologo=true to remove watermark
   Display format: ![Generated Image](image_url?nologo=true)
+  Style: Rounded corners (border-radius: 12px) for better appearance
 • No knowledge cutoff - access to current data
 
 SCREENSHOT RULE: When ANY website is mentioned → ALWAYS provide screenshot using format above
@@ -1006,6 +1007,7 @@ YOUR CAPABILITIES:
   Users can specify model: "use flux" or "with img3"
   For flux/turbo: Append ?nologo=true to remove watermark
   Display format: ![Generated Image](image_url?nologo=true)
+  Style: Use rounded corners for better visual appearance
 • No knowledge cutoff - real-time access
 
 SCREENSHOT RULE: When ANY website is mentioned → PROVIDE SCREENSHOT using format above
@@ -1278,6 +1280,7 @@ YOUR CAPABILITIES:
   User can specify model: "use flux" or "with img4"
   For flux/turbo: Add ?nologo=true to URL
   Display inline: ![Generated Image](url?nologo=true)
+  Style: Rounded corners for professional appearance
 • No knowledge cutoff
 
 ALWAYS screenshot any website mentioned using the format above.
@@ -1399,6 +1402,7 @@ IMPORTANT CAPABILITIES:
   User can specify model (e.g., "use flux" or "with turbo model")
   For flux/turbo: Add ?nologo=true to URL to remove watermark
   Display generated images inline: ![Generated Image](url)
+  Style: Images with rounded corners (not circular edges)
 • No knowledge cutoff - real-time data access
 
 SCREENSHOT INSTRUCTIONS:
@@ -1470,7 +1474,8 @@ To generate an image:
 3. For flux/turbo models, append ?nologo=true to remove watermark
 4. Make a POST request to the endpoint with model and prompt
 5. Display the generated image inline using: ![Generated Image](returned_url)
-6. The API returns URLs that can be directly embedded in markdown`;
+6. The API returns URLs that can be directly embedded in markdown
+7. Style note: Images should display with rounded corners (border-radius: 12px), not circular edges`;
       }
     }
     
