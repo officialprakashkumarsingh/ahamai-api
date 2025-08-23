@@ -1,7 +1,7 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (17 models + default)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (16 models + default)
   // All models support streaming ✅
   
   // PRIMARY MODEL - Automatically selects fastest available model
@@ -131,9 +131,94 @@ const imageModelRoutes = {
   }
 };
 
-// Vision models configuration with multiple API keys for fallback
+// Vision models configuration - models that support image/vision input
 const visionModels = {
-  // Vision models configuration - currently empty after cleanup
+  // Gemini Models - All support vision
+  "gemini-2.0-flash": {
+    id: "gemini-2.0-flash",
+    name: "Gemini 2.0 Flash",
+    provider: "google",
+    supportsImages: true,
+    capabilities: ["text", "image"]
+  },
+  "gemini-2.0-flash-thinking-exp-01-21": {
+    id: "gemini-2.0-flash-thinking-exp-01-21",
+    name: "Gemini 2.0 Flash Thinking",
+    provider: "google",
+    supportsImages: true,
+    capabilities: ["text", "image"]
+  },
+  "gemini-2.5-flash-lite-preview-06-17": {
+    id: "gemini-2.5-flash-lite-preview-06-17",
+    name: "Gemini 2.5 Flash Lite Preview",
+    provider: "google",
+    supportsImages: true,
+    capabilities: ["text", "image"]
+  },
+  "gemini-2.5-flash": {
+    id: "gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    provider: "google",
+    supportsImages: true,
+    capabilities: ["text", "image"]
+  },
+  "gemini-2.5-flash-preview-04-17": {
+    id: "gemini-2.5-flash-preview-04-17",
+    name: "Gemini 2.5 Flash Preview",
+    provider: "google",
+    supportsImages: true,
+    capabilities: ["text", "image"]
+  },
+  
+  // v0.dev Models - Support vision
+  "v0-1.0-md": {
+    id: "v0-1.0-md",
+    name: "v0 1.0 Medium",
+    provider: "vercel",
+    supportsImages: true,
+    capabilities: ["text", "image", "code"]
+  },
+  "v0-1.5-md": {
+    id: "v0-1.5-md",
+    name: "v0 1.5 Medium",
+    provider: "vercel",
+    supportsImages: true,
+    capabilities: ["text", "image", "code"]
+  },
+  
+  // GLM Models - Support vision
+  "glm-4.5": {
+    id: "glm-4.5",
+    name: "GLM 4.5",
+    provider: "zhipu",
+    supportsImages: true,
+    capabilities: ["text", "image"]
+  },
+  "glm-4.5-air": {
+    id: "glm-4.5-air",
+    name: "GLM 4.5 Air",
+    provider: "zhipu",
+    supportsImages: true,
+    capabilities: ["text", "image"]
+  },
+  
+  // Qwen Models - Support vision
+  "qwen-3-coder-480b": {
+    id: "qwen-3-coder-480b",
+    name: "Qwen 3 Coder 480B",
+    provider: "alibaba",
+    supportsImages: true,
+    capabilities: ["text", "image", "code"]
+  },
+  
+  // DeepSeek Models - Some support vision
+  "deepseek-r1-distill-llama-70b": {
+    id: "deepseek-r1-distill-llama-70b",
+    name: "DeepSeek R1 Distill Llama 70B",
+    provider: "deepseek",
+    supportsImages: true,
+    capabilities: ["text", "image", "reasoning"]
+  }
 };
 
 // Default models configuration
