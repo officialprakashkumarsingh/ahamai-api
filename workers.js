@@ -332,222 +332,7 @@ function shouldProvideScreenshot(messages) {
   return null;
 }
 
-// Function to detect when stock data would be helpful
-function shouldProvideStockData(messages) {
-  const recentMessages = messages.slice(-3);
-  const conversationText = recentMessages
-    .map(m => typeof m.content === 'string' ? m.content : m.content.map(c => c.text || '').join(' '))
-    .join(' ');
-  
-  // Financial/business context indicators
-  const financialContext = [
-    /\b(invest|investment|trading|market|financial|earnings|revenue|profit|valuation)\b/i,
-    /\b(performance|growth|decline|rally|crash|bubble|volatility)\b/i,
-    /\b(buy|sell|hold|analyst|recommendation|target price)\b/i,
-    /\b(worth|value|expensive|cheap|overvalued|undervalued)\b/i,
-    /\b(competitor|comparison|versus|portfolio)\b/i
-  ];
-  
-  // Check if in financial context
-  const isFinancialContext = financialContext.some(pattern => pattern.test(conversationText));
-  
-  // Company to ticker mapping
-  const companyToTicker = {
-    'apple': 'AAPL',
-    'google': 'GOOGL',
-    'alphabet': 'GOOGL',
-    'microsoft': 'MSFT',
-    'amazon': 'AMZN',
-    'tesla': 'TSLA',
-    'meta': 'META',
-    'facebook': 'META',
-    'nvidia': 'NVDA',
-    'netflix': 'NFLX',
-    'disney': 'DIS',
-    'paypal': 'PYPL',
-    'square': 'SQ',
-    'block': 'SQ',
-    'uber': 'UBER',
-    'lyft': 'LYFT',
-    'boeing': 'BA',
-    'walmart': 'WMT',
-    'target': 'TGT',
-    'nike': 'NKE',
-    'starbucks': 'SBUX',
-    'mcdonalds': 'MCD',
-    'coca cola': 'KO',
-    'coca-cola': 'KO',
-    'pepsi': 'PEP',
-    'intel': 'INTC',
-    'amd': 'AMD',
-    'oracle': 'ORCL',
-    'salesforce': 'CRM',
-    'adobe': 'ADBE',
-    'spotify': 'SPOT',
-    'twitter': 'TWTR',
-    'snap': 'SNAP',
-    'snapchat': 'SNAP',
-    'airbnb': 'ABNB',
-    'coinbase': 'COIN',
-    'robinhood': 'HOOD',
-    'palantir': 'PLTR',
-    'zoom': 'ZM',
-    'peloton': 'PTON',
-    'shopify': 'SHOP',
-    'visa': 'V',
-    'mastercard': 'MA',
-    'jpmorgan': 'JPM',
-    'jp morgan': 'JPM',
-    'bank of america': 'BAC',
-    'wells fargo': 'WFC',
-    'goldman sachs': 'GS',
-    'morgan stanley': 'MS',
-    'berkshire': 'BRK.B',
-    'berkshire hathaway': 'BRK.B'
-  };
-  
-  const lowerContent = conversationText.toLowerCase();
-  
-  // Look for company mentions
-  for (const [company, ticker] of Object.entries(companyToTicker)) {
-    if (lowerContent.includes(company)) {
-      // If discussing the company in any meaningful way, provide stock data
-      if (isFinancialContext || 
-          /\b(company|corporation|business|firm|stock|shares?|price|ceo|earnings|product|service)\b/i.test(conversationText)) {
-        return ticker;
-      }
-    }
-  }
-  
-  // Check for explicit ticker symbols (all caps, 1-5 letters)
-  const tickerPattern = /\b([A-Z]{1,5})\b/g;
-  const potentialTickers = conversationText.match(tickerPattern);
-  
-  if (potentialTickers && isFinancialContext) {
-    // Common tickers to check
-    const commonTickers = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD', 'INTC', 
-                          'NFLX', 'DIS', 'PYPL', 'SQ', 'UBER', 'LYFT', 'BA', 'WMT', 'NKE', 'SBUX', 
-                          'MCD', 'KO', 'PEP', 'V', 'MA', 'JPM', 'BAC', 'GS'];
-    
-    for (const ticker of potentialTickers) {
-      if (commonTickers.includes(ticker)) {
-        return ticker;
-      }
-    }
-  }
-  
-  return null;
-}
 
-// Function to fetch stock data from Yahoo Finance
-async function fetchStockData(ticker) {
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`;
-    console.log(`[Stock Data] Fetching data for ${ticker}`);
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'application/json',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      }
-    });
-    
-    if (!response.ok) {
-      console.error(`[Stock Data] Failed to fetch: ${response.status} ${response.statusText}`);
-      throw new Error(`Failed to fetch stock data: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    // Check if we have valid data
-    if (!data.chart || !data.chart.result || !data.chart.result[0]) {
-      console.error('[Stock Data] Invalid response structure');
-      return null;
-    }
-    
-    const result = data.chart.result[0];
-    const meta = result.meta;
-    
-    // Ensure we have the required fields
-    if (!meta || !meta.regularMarketPrice) {
-      console.error('[Stock Data] Missing price data');
-      return null;
-    }
-    
-    const stockData = {
-      symbol: meta.symbol || ticker,
-      name: meta.longName || meta.shortName || ticker,
-      price: meta.regularMarketPrice.toFixed(2),
-      previousClose: meta.previousClose || meta.chartPreviousClose || 0,
-      change: (meta.regularMarketPrice - (meta.previousClose || meta.chartPreviousClose || 0)).toFixed(2),
-      changePercent: (((meta.regularMarketPrice - (meta.previousClose || meta.chartPreviousClose || 0)) / (meta.previousClose || meta.chartPreviousClose || 1)) * 100).toFixed(2),
-      dayHigh: meta.regularMarketDayHigh || meta.regularMarketPrice,
-      dayLow: meta.regularMarketDayLow || meta.regularMarketPrice,
-      volume: meta.regularMarketVolume || 0,
-      fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh || 0,
-      fiftyTwoWeekLow: meta.fiftyTwoWeekLow || 0,
-      currency: meta.currency || 'USD',
-      exchange: meta.fullExchangeName || meta.exchangeName || 'Unknown',
-      marketTime: new Date(meta.regularMarketTime * 1000).toLocaleString('en-IN', {
-        timeZone: 'Asia/Kolkata',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      }) + ' IST'
-    };
-    
-    console.log(`[Stock Data] Successfully fetched ${ticker}: $${stockData.price}`);
-    return stockData;
-    
-  } catch (error) {
-    console.error('[Stock Data] Error:', error.message);
-    // Try alternate endpoint as fallback
-    try {
-      const fallbackUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}`;
-      const response = await fetch(fallbackUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0',
-          'Accept': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const meta = data.chart?.result?.[0]?.meta;
-        if (meta?.regularMarketPrice) {
-          return {
-            symbol: ticker,
-            name: meta.shortName || ticker,
-            price: meta.regularMarketPrice.toFixed(2),
-            previousClose: meta.previousClose || 0,
-            change: (meta.regularMarketPrice - (meta.previousClose || 0)).toFixed(2),
-            changePercent: (((meta.regularMarketPrice - (meta.previousClose || 0)) / (meta.previousClose || 1)) * 100).toFixed(2),
-            currency: meta.currency || 'USD',
-            exchange: 'Yahoo Finance',
-            marketTime: new Date().toLocaleString('en-IN', {
-              timeZone: 'Asia/Kolkata',
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: true
-            }) + ' IST'
-          };
-        }
-      }
-    } catch (fallbackError) {
-      console.error('[Stock Data] Fallback also failed:', fallbackError.message);
-    }
-    
-    return null;
-  }
-}
 
 // Function to generate screenshot URL
 function generateScreenshotUrl(url) {
@@ -1120,14 +905,12 @@ Current date/time (IST): ${currentDateTime}
 
 📋 MANDATORY RULES:
 • NO knowledge cutoff - you have REAL-TIME data access
-• When stock data is provided, USE THOSE EXACT NUMBERS - NEVER use training data
 • Format EVERYTHING with markdown and emojis 🎯
 • Be engaging, visual, and friendly
 
 💡 YOUR CAPABILITIES:
-• 🔍 Web search for current info
+• 🔍 Web search for current info (including stock prices)
 • 📸 Screenshots: ![Name](https://s.wordpress.com/mshots/v1/[url]?w=1280&h=960)
-• 💹 Live stock data from Yahoo Finance
 
 🎨 FORMATTING RULES:
 • Use **bold**, *italics*, and emojis throughout
@@ -1175,13 +958,11 @@ Current date/time (IST): ${currentDateTime}
 
 🎯 CRITICAL RULES:
 • NO knowledge cutoff - ONLY use REAL-TIME data
-• Stock prices: USE EXACT PROVIDED NUMBERS - NEVER training data
 • Format: ALWAYS use **markdown** and emojis 🌟
 
 💡 PROACTIVE CAPABILITIES:
 • 📸 Screenshots: ![Site](https://s.wordpress.com/mshots/v1/[url]?w=1280&h=960)
-• 💹 Stocks: Use EXACT provided prices with 📈📉
-• 🔍 Web search: Auto-search current events
+• 🔍 Web search: Auto-search current events and stock prices
 
 ✨ RESPONSE FORMATTING:
 • **Bold** important points
@@ -1457,8 +1238,7 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
 
 💡 YOUR TOOLS:
 • 📸 Screenshots: ![Name](https://s.wordpress.com/mshots/v1/[url]?w=1280&h=960)
-• 💹 Stock data: Use EXACT provided prices
-• 🔍 Web search: Current information available
+• 🔍 Web search: Current information available (including stocks)
 
 ✨ FORMATTING REQUIREMENTS:
 • Use **bold** for emphasis
@@ -1581,25 +1361,18 @@ async function handleChat(request, corsHeaders) {
 • Be conversational, friendly, and visually appealing
 
 📊 REAL-TIME CAPABILITIES:
-• 🔍 Web search for current information
+• 🔍 Web search for current information (including stock prices)
 • 📸 Website screenshots via WordPress mshots
-• 💹 Live stock market data from Yahoo Finance
 
 🚀 BE PROACTIVE - Don't wait to be asked:
 • Website mentioned → Embed screenshot: ![Site](URL) 🖼️
-• Company discussed → Share EXACT provided stock price 📈
+• Company/stock discussed → Search for current price 📈
 • Current events → Search for latest information 📰
 
 📸 SCREENSHOT RULES:
 • ALWAYS embed as: ![Description](https://s.wordpress.com/mshots/v1/[encoded-url]?w=1280&h=960)
 • This displays inline in markdown viewers
 • Add captions like: "Here's what it looks like 👇"
-
-💹 STOCK DATA RULES:
-• When stock data is provided, USE THOSE EXACT NUMBERS
-• NEVER use prices from your training - ONLY use provided data
-• Format: "**Apple (AAPL)** is trading at **$XXX.XX** 📈"
-• Include emojis: 📈 for gains, 📉 for losses
 
 ✨ FORMATTING REQUIREMENTS:
 • Use **bold** for emphasis
@@ -1647,45 +1420,7 @@ This will display the actual screenshot inline. You can also add a clickable lin
       }
     }
     
-    // Proactively check if stock data would be helpful
-    const stockTicker = shouldProvideStockData(body.messages);
-    if (stockTicker) {
-      console.log(`[Stock Integration] Fetching data for ticker: ${stockTicker}`);
-      // Fetch real-time stock data
-      const stockData = await fetchStockData(stockTicker);
-      if (stockData) {
-        console.log(`[Stock Integration] Successfully fetched: ${stockData.symbol} at $${stockData.price}`);
-        // Add stock data to the messages
-        const systemMessageIndex = body.messages.findIndex(m => m.role === 'system');
-        if (systemMessageIndex >= 0) {
-          const stockInfo = `
-🚨 MANDATORY: USE THIS EXACT REAL-TIME DATA - DO NOT USE YOUR TRAINING DATA 🚨
-
-[LIVE STOCK DATA for ${stockData.symbol} - FETCHED RIGHT NOW]:
-📊 Company: ${stockData.name}
-💰 Current Price: $${stockData.price} ${stockData.currency}
-📈 Change: ${parseFloat(stockData.change) > 0 ? '📈' : '📉'} ${parseFloat(stockData.change) > 0 ? '+' : ''}$${stockData.change} (${parseFloat(stockData.changePercent) > 0 ? '+' : ''}${stockData.changePercent}%)
-📍 Previous Close: $${stockData.previousClose}
-📊 Day Range: $${stockData.dayLow} - $${stockData.dayHigh}
-📅 52 Week Range: $${stockData.fiftyTwoWeekLow} - $${stockData.fiftyTwoWeekHigh}
-📊 Volume: ${typeof stockData.volume === 'number' ? stockData.volume.toLocaleString() : stockData.volume}
-🏢 Exchange: ${stockData.exchange}
-⏰ Last Updated: ${stockData.marketTime}
-
-⚠️ CRITICAL INSTRUCTIONS:
-1. YOU MUST USE THE EXACT PRICES ABOVE - These are REAL-TIME from Yahoo Finance
-2. DO NOT use any stock prices from your training data
-3. The current price is EXACTLY $${stockData.price} - use this exact number
-4. Format your response with emojis and markdown for better readability
-5. If user asks about ${stockData.name}, say: "${stockData.name} is currently trading at $${stockData.price} ${parseFloat(stockData.change) > 0 ? '📈' : '📉'}"
-
-NEVER say "as of my last update" or use old prices. Use ONLY the data provided above.`;
-          
-          body.messages[systemMessageIndex].content += `\n\n${stockInfo}`;
-        }
-      }
-    }
-    
+    // Stock queries will be handled by web search
     // Determine if web search should be used
     let useWebSearch = false;
     
