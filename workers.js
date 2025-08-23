@@ -892,16 +892,19 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
 
 Current date/time (IST): ${currentDateTime}
 
-Core capabilities:
+YOUR CAPABILITIES:
 • Real-time web search for current information
-• Screenshot generation for any website
+• SCREENSHOT WEBSITES: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
+  Example: ![Site](https://s.wordpress.com/mshots/v1/https://example.com?w=1280&h=960)
 • No knowledge cutoff - access to current data
+
+SCREENSHOT RULE: When ANY website is mentioned → ALWAYS provide screenshot using format above
 
 Response guidelines:
 • Use formatting naturally where it improves clarity
+• ALWAYS embed screenshots for websites mentioned
 • Add emojis when they enhance understanding
-• Apply markdown (bold, italics, headers) for structure
-• Use code blocks for technical content
+• Apply markdown for structure
 • Be conversational and helpful`;
       } else if (msg.role === "user") {
         if (systemContent) {
@@ -941,14 +944,17 @@ Response guidelines:
 
 Current Time (IST): ${currentDateTime}
 
-Capabilities:
-• Real-time web search for any current information
-• Automatic screenshot generation for websites
-• No knowledge cutoff
+YOUR CAPABILITIES:
+• Real-time web search for current information
+• SCREENSHOT ANY WEBSITE: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
+  Example: ![Google](https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)
+• No knowledge cutoff - real-time access
+
+SCREENSHOT RULE: When ANY website is mentioned → PROVIDE SCREENSHOT using format above
 
 Response approach:
 • Use natural formatting that enhances readability
-• Apply markdown where it improves structure
+• ALWAYS embed screenshots for websites
 • Include emojis when contextually appropriate
 • Be helpful and conversational`
         };
@@ -1206,11 +1212,13 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
           content: `You have real-time capabilities.
 Current Time (IST): ${dateTimeInfo}
 
-You have access to:
+YOUR CAPABILITIES:
 • Web search results (shown below)
-• Screenshot generation for websites
+• SCREENSHOT WEBSITES: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
+  Example: ![Site](https://s.wordpress.com/mshots/v1/https://example.com?w=1280&h=960)
 • No knowledge cutoff
 
+ALWAYS screenshot any website mentioned using the format above.
 Use natural formatting where it helps clarity.${webSearchContext}`
         });
     }
@@ -1320,19 +1328,25 @@ async function handleChat(request, corsHeaders) {
       content: `You are a helpful AI assistant with real-time capabilities.
 Current date/time (IST): ${dateTime}
 
-Available tools:
+IMPORTANT CAPABILITIES:
 • Web search for current information
-• Automatic screenshot generation for any website
+• SCREENSHOT ANY WEBSITE - Use this format: ![Website Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
+  Example: ![Google](https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)
 • No knowledge cutoff - real-time data access
+
+SCREENSHOT INSTRUCTIONS:
+• When ANY website is mentioned → ALWAYS provide a screenshot
+• Format: ![Description](https://s.wordpress.com/mshots/v1/[ENCODED-URL]?w=1280&h=960)
+• Replace [ENCODED-URL] with the actual URL (URL encode if needed)
+• This shows a live preview of the website
+• NO LIMITS - screenshot every website mentioned
 
 Response guidelines:
 • Use formatting naturally where it improves clarity
-• Apply markdown (bold, italics, headers) for better structure
+• Apply markdown for better structure
 • Include emojis when they enhance the message
-• Embed website screenshots: ![Description](URL)
-• Be conversational and helpful
-
-Focus on providing accurate, well-structured responses that address the user's needs.`
+• ALWAYS embed screenshots for websites
+• Be conversational and helpful`
     });
   }
 
@@ -1360,8 +1374,8 @@ Focus on providing accurate, well-structured responses that address the user's n
       // Enhance the system message with ALL screenshot info
       const systemMessageIndex = body.messages.findIndex(m => m.role === 'system');
       if (systemMessageIndex >= 0) {
-        body.messages[systemMessageIndex].content += `\n\n[WEBSITES DETECTED - Screenshots Available]:${screenshotInfo}
-\n[Instructions]: Display ALL screenshots inline using the markdown image format shown above. No limits - show previews for every website mentioned.`;
+        body.messages[systemMessageIndex].content += `\n\n[WEBSITES DETECTED - YOU MUST PROVIDE SCREENSHOTS]:${screenshotInfo}
+\n[CRITICAL]: You MUST display ALL screenshots above using the exact markdown format shown. This is NOT optional - ALWAYS show website previews!`;
       }
     }
     
