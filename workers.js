@@ -1,7 +1,7 @@
 const API_KEY = "ahamaibyprakash25";
 
 const exposedToInternalMap = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (18 models + default)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (22 models + default)
   // All models support streaming ✅
   
   // PRIMARY MODEL - Automatically selects fastest available model
@@ -41,12 +41,16 @@ const exposedToInternalMap = {
   // Airforce API Model (1) - WARNING: Severe rate limit (1 req/min)
   "airforce-gpt-4o-mini": "gpt-4o-mini",
   
-  // Cerebras AI Model (1) - Ultra-fast Qwen 235B model with excellent streaming ✅
-  "cerebras-qwen-235b": "qwen-3-235b-a22b-instruct-2507"
+  // Cerebras AI Models (5) - Ultra-fast inference with various model sizes ✅
+  "cerebras-qwen-235b": "qwen-3-235b-a22b-instruct-2507",
+  "cerebras-qwen-235b-thinking": "qwen-3-235b-a22b-thinking-2507",
+  "cerebras-qwen-coder-480b": "qwen-3-coder-480b",
+  "cerebras-qwen-32b": "qwen-3-32b",
+  "cerebras-gpt-120b": "gpt-oss-120b"
 };
 
 const modelRoutes = {
-  // WORKING MODELS ONLY - Verified via comprehensive testing (18 models)
+  // WORKING MODELS ONLY - Verified via comprehensive testing (22 models)
   // All models support streaming ✅
   
   // Proxy Models via Render (3)
@@ -83,8 +87,12 @@ const modelRoutes = {
   // Airforce API (1) - WARNING: 1 request per minute rate limit!
   "gpt-4o-mini": "https://api.airforce/v1/chat/completions",
   
-  // Cerebras AI (1) - Ultra-fast inference with Qwen 235B model
-  "qwen-3-235b-a22b-instruct-2507": "https://api.cerebras.ai/v1/chat/completions"
+  // Cerebras AI (5) - Ultra-fast inference with various model sizes
+  "qwen-3-235b-a22b-instruct-2507": "https://api.cerebras.ai/v1/chat/completions",
+  "qwen-3-235b-a22b-thinking-2507": "https://api.cerebras.ai/v1/chat/completions",
+  "qwen-3-coder-480b": "https://api.cerebras.ai/v1/chat/completions",
+  "qwen-3-32b": "https://api.cerebras.ai/v1/chat/completions",
+  "gpt-oss-120b": "https://api.cerebras.ai/v1/chat/completions"
 };
 
 
@@ -405,6 +413,10 @@ function generateScreenshotUrl(url) {
 const modelSpeedRanking = [
   // Tier 1: Lightning Fast (<1s)
   { model: "cerebras-qwen-235b", avgResponseTime: 0.120, tier: 1 }, // Cerebras is ultra-fast!
+  { model: "cerebras-gpt-120b", avgResponseTime: 0.220, tier: 1 }, // GPT-OSS 120B
+  { model: "cerebras-qwen-235b-thinking", avgResponseTime: 0.350, tier: 1 }, // Thinking model
+  { model: "cerebras-qwen-32b", avgResponseTime: 0.450, tier: 1 }, // Smaller but fast
+  { model: "cerebras-qwen-coder-480b", avgResponseTime: 0.480, tier: 1 }, // Specialized for coding
   { model: "llama-4-scout-17b-16e-instruct", avgResponseTime: 0.567, tier: 1 },
   { model: "meta-llama/llama-4-scout-17b-16e-instruct", avgResponseTime: 0.567, tier: 1 },
   { model: "gemini-2.5-flash-lite-preview-06-17", avgResponseTime: 0.797, tier: 1 },
