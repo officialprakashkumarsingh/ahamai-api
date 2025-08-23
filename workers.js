@@ -657,6 +657,19 @@ async function handleDefaultModel(body, stream, corsHeaders) {
   // Clear failed models for new request
   failedModelsInRequest.clear();
   
+  // First check if web search is needed
+  const webSearchMode = body.web_search;
+  let useWebSearch = false;
+  
+  if (webSearchMode === true) {
+    useWebSearch = true;
+  } else if (webSearchMode === false) {
+    useWebSearch = false;
+  } else {
+    // Auto-detect based on query content
+    useWebSearch = needsWebSearch(body.messages);
+  }
+  
   const maxRetries = 3;
   let attemptedModels = [];
   let lastError = null;
@@ -679,7 +692,15 @@ async function handleDefaultModel(body, stream, corsHeaders) {
       
       // Try to make the request with the selected model
       const startTime = Date.now();
-      const response = await makeModelRequest(selectedModel, modifiedBody, stream, corsHeaders);
+      
+      // If web search is needed, use handleChatWithWebSearch
+      let response;
+      if (useWebSearch) {
+        console.log(`[Default Model] Web search detected, using Google Search with ${selectedModel}`);
+        response = await handleChatWithWebSearch(selectedModel, modifiedBody, stream, corsHeaders);
+      } else {
+        response = await makeModelRequest(selectedModel, modifiedBody, stream, corsHeaders);
+      }
       
       // Log and track successful response time
       const responseTime = Date.now() - startTime;
@@ -1227,11 +1248,6 @@ Make every response visually rich and engaging! 🚀]`
       throw new Error(`Model '${modelId}' returned error: ${responseJson.error.message || responseJson.error}`);
     }
     
-    // Format thinking/reasoning tags in the response
-    if (responseJson.choices && responseJson.choices[0] && responseJson.choices[0].message) {
-      responseJson.choices[0].message.content = formatThinkingContent(responseJson.choices[0].message.content);
-    }
-    
     return new Response(JSON.stringify(responseJson), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders }
@@ -1510,11 +1526,8 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       const response = await makeModelRequest(originalModel, enhancedBody, false, corsHeaders);
       const responseData = await response.json();
       
-      // Add metadata about web search and date/time, and format thinking tags
+      // Add metadata about web search and date/time
       if (responseData.choices && responseData.choices[0]) {
-        // First format thinking tags
-        responseData.choices[0].message.content = formatThinkingContent(responseData.choices[0].message.content);
-        // Then add web search metadata
         responseData.choices[0].message.content = 
           `[Google web search performed (20 results)]\n[Current: ${dateTimeInfo}]\n\n${responseData.choices[0].message.content}`;
       }
