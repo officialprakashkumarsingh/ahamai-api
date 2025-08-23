@@ -294,62 +294,126 @@ function selectWebSearchModel() {
   return sortedModels[0] || "perplexed";
 }
 
-// Function to format thinking/reasoning tags in responses
+// Function to format thinking/reasoning tags in responses with ASCII art
 function formatThinkingContent(content) {
   if (!content || typeof content !== 'string') return content;
   
   // Patterns for thinking/reasoning tags
   const thinkingPatterns = [
     // Standard XML-style tags
-    { start: '<thinking>', end: '</thinking>', label: '🤔 Thinking Process' },
-    { start: '<think>', end: '</think>', label: '🤔 Thinking' },
-    { start: '<thoughts>', end: '</thoughts>', label: '💭 Thoughts' },
-    { start: '<thought>', end: '</thought>', label: '💭 Thought' },
-    { start: '<reasoning>', end: '</reasoning>', label: '🧠 Reasoning' },
-    { start: '<reason>', end: '</reason>', label: '🧠 Reasoning' },
-    { start: '<reflection>', end: '</reflection>', label: '🔍 Reflection' },
-    { start: '<analysis>', end: '</analysis>', label: '📊 Analysis' },
-    { start: '<planning>', end: '</planning>', label: '📝 Planning' },
-    { start: '<scratch>', end: '</scratch>', label: '📋 Scratch Pad' }
+    { start: '<thinking>', end: '</thinking>', label: '🤔 THINKING PROCESS', icon: '💭' },
+    { start: '<think>', end: '</think>', label: '🤔 THINKING', icon: '💭' },
+    { start: '<thoughts>', end: '</thoughts>', label: '💭 THOUGHTS', icon: '🧠' },
+    { start: '<thought>', end: '</thought>', label: '💭 THOUGHT', icon: '🧠' },
+    { start: '<reasoning>', end: '</reasoning>', label: '🧠 REASONING', icon: '⚙️' },
+    { start: '<reason>', end: '</reason>', label: '🧠 REASONING', icon: '⚙️' },
+    { start: '<reflection>', end: '</reflection>', label: '🔍 REFLECTION', icon: '🪞' },
+    { start: '<analysis>', end: '</analysis>', label: '📊 ANALYSIS', icon: '📈' },
+    { start: '<planning>', end: '</planning>', label: '📝 PLANNING', icon: '🗺️' },
+    { start: '<scratch>', end: '</scratch>', label: '📋 SCRATCH PAD', icon: '✏️' }
   ];
   
   let formattedContent = content;
   let hasThinkingContent = false;
+  let allPanels = [];
   
   // Process each pattern
   for (const pattern of thinkingPatterns) {
     const regex = new RegExp(`${pattern.start}([\\s\\S]*?)${pattern.end}`, 'gi');
+    let match;
     
-    if (regex.test(formattedContent)) {
+    while ((match = regex.exec(formattedContent)) !== null) {
       hasThinkingContent = true;
-      formattedContent = formattedContent.replace(regex, (match, thinkingContent) => {
-        // Create a formatted panel for thinking content
-        const panel = `
-<details style="background-color: #f0f4f8; border: 1px solid #d1d9e6; border-radius: 8px; padding: 12px; margin: 10px 0;">
-  <summary style="font-weight: bold; cursor: pointer; color: #4a5568;">
-    ${pattern.label}
-  </summary>
-  <div style="margin-top: 10px; padding: 10px; background-color: #ffffff; border-radius: 4px; font-family: monospace; white-space: pre-wrap; color: #2d3748;">
-${thinkingContent.trim()}
-  </div>
-</details>`;
-        return panel;
+      const thinkingText = match[1].trim();
+      
+      // Create ASCII art box for thinking content
+      const lines = thinkingText.split('\n');
+      const maxLength = Math.max(
+        pattern.label.length + 4,
+        ...lines.map(line => line.length)
+      );
+      const boxWidth = Math.min(maxLength + 4, 80); // Cap at 80 chars wide
+      
+      // Top border with label
+      const topBorder = `╔${'═'.repeat(boxWidth - 2)}╗`;
+      const labelLine = `║ ${pattern.label} ${' '.repeat(Math.max(0, boxWidth - pattern.label.length - 4))}║`;
+      const separator = `╟${'─'.repeat(boxWidth - 2)}╢`;
+      
+      // Format content lines
+      const contentLines = [];
+      for (const line of lines) {
+        if (line.length > boxWidth - 4) {
+          // Word wrap long lines
+          const words = line.split(' ');
+          let currentLine = '';
+          for (const word of words) {
+            const testLine = currentLine ? currentLine + ' ' + word : word;
+            if (testLine.length > boxWidth - 4) {
+              if (currentLine) {
+                const padding = Math.max(0, boxWidth - currentLine.length - 4);
+                contentLines.push(`║ ${currentLine}${' '.repeat(padding)} ║`);
+                currentLine = word;
+              } else {
+                // Single word too long, break it
+                const truncated = word.substring(0, boxWidth - 4);
+                contentLines.push(`║ ${truncated} ║`);
+                currentLine = word.substring(boxWidth - 4);
+              }
+            } else {
+              currentLine = testLine;
+            }
+          }
+          if (currentLine) {
+            const padding = Math.max(0, boxWidth - currentLine.length - 4);
+            contentLines.push(`║ ${currentLine}${' '.repeat(padding)} ║`);
+          }
+        } else {
+          const padding = Math.max(0, boxWidth - line.length - 4);
+          contentLines.push(`║ ${line}${' '.repeat(padding)} ║`);
+        }
+      }
+      
+      // Bottom border
+      const bottomBorder = `╚${'═'.repeat(boxWidth - 2)}╝`;
+      
+      // Assemble the box
+      const asciiBox = [
+        topBorder,
+        labelLine,
+        separator,
+        ...contentLines,
+        bottomBorder
+      ].join('\n');
+      
+      allPanels.push({
+        position: match.index,
+        length: match[0].length,
+        box: asciiBox
       });
     }
   }
   
-  // If content had thinking tags, add a separator before main response
+  // Replace all thinking tags with ASCII boxes
   if (hasThinkingContent) {
-    // Find where the actual response starts (after all thinking panels)
-    const responseStart = formattedContent.lastIndexOf('</details>');
-    if (responseStart !== -1) {
-      const beforeResponse = formattedContent.substring(0, responseStart + 10);
-      const afterResponse = formattedContent.substring(responseStart + 10).trim();
-      
-      if (afterResponse) {
-        formattedContent = beforeResponse + '\n\n---\n\n' + afterResponse;
-      } else {
-        formattedContent = beforeResponse;
+    // Sort panels by position (reverse order to maintain indices)
+    allPanels.sort((a, b) => b.position - a.position);
+    
+    for (const panel of allPanels) {
+      formattedContent = 
+        formattedContent.substring(0, panel.position) + 
+        panel.box + 
+        formattedContent.substring(panel.position + panel.length);
+    }
+    
+    // Add a fancy separator before main response
+    const separatorArt = '\n\n' + '═'.repeat(40) + '\n\n';
+    
+    // Find where thinking boxes end
+    const lastBoxEnd = formattedContent.lastIndexOf('╝');
+    if (lastBoxEnd !== -1) {
+      const afterBoxes = formattedContent.substring(lastBoxEnd + 1).trim();
+      if (afterBoxes) {
+        formattedContent = formattedContent.substring(0, lastBoxEnd + 1) + separatorArt + afterBoxes;
       }
     }
   }
