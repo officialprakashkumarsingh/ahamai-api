@@ -16,14 +16,12 @@ const exposedToInternalMap = {
   "gemini-2.0-flash": "gemini-2.0-flash",
   "gemini-2.0-flash-thinking-exp-01-21": "gemini-2.0-flash-thinking-exp-01-21",
   "gemini-2.5-flash-lite-preview-06-17": "gemini-2.5-flash-lite-preview-06-17",
-  "gemini-2.5-flash": "gemini-2.5-flash",
-  "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",  // Uses native Gemini API format (not OpenAI format)
+  "gemini-2.5-flash": "gemini-2.5-flash"
   
   // DeepSeek Models (1) - Working with streaming
   "deepseek-r1-distill-llama-70b": "deepseek-r1-distill-llama-70b",
   
-  // Meta Llama Models (2) - Working with streaming
-  "meta-llama/llama-4-scout-17b-16e-instruct": "meta-llama/llama-4-scout-17b-16e-instruct",
+  // Meta Llama Models (1) - Working with streaming
   "llama-4-scout-17b-16e-instruct": "llama-4-scout-17b-16e-instruct",
   
   // FastAPI Free Models (1) - Working with streaming
@@ -36,10 +34,9 @@ const exposedToInternalMap = {
   "glm-4.5-air": "zai-org/GLM-4.5-Air",
   "glm-4.5": "zai-org/GLM-4.5",
   
-  // v0.dev Models (3) - Vercel's AI models - Working with streaming ✅
+  // v0.dev Models (2) - Vercel's AI models - Working with streaming ✅
   "v0-1.0-md": "v0-1.0-md",
-  "v0-1.5-md": "v0-1.5-md",
-  "v0-1.5-lg": "v0-1.5-lg"
+  "v0-1.5-md": "v0-1.5-md"
 };
 
 const modelRoutes = {
@@ -56,13 +53,11 @@ const modelRoutes = {
   "gemini-2.0-flash-thinking-exp-01-21": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gemini-2.5-flash-lite-preview-06-17": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "gemini-2.5-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "gemini-2.5-flash-lite": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
   
   // DeepSeek Models (1) - Working perfectly
   "deepseek-r1-distill-llama-70b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
-  // Meta Llama Models (2) - Working perfectly
-  "meta-llama/llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  // Meta Llama Models (1) - Working perfectly
   "llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
   // FastAPI Free Models (1) - Working perfectly
@@ -75,10 +70,9 @@ const modelRoutes = {
   "zai-org/GLM-4.5-Air": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "zai-org/GLM-4.5": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
-  // v0.dev Models (3) - Vercel's AI models
+  // v0.dev Models (2) - Vercel's AI models
   "v0-1.0-md": "https://api.v0.dev/v1/chat/completions",
-  "v0-1.5-md": "https://api.v0.dev/v1/chat/completions",
-  "v0-1.5-lg": "https://api.v0.dev/v1/chat/completions"
+  "v0-1.5-md": "https://api.v0.dev/v1/chat/completions"
 };
 
 
@@ -139,19 +133,7 @@ const imageModelRoutes = {
 
 // Vision models configuration with multiple API keys for fallback
 const visionModels = {
-  "gemini-2.5-flash-lite": {
-    id: "gemini-2.5-flash-lite",
-    name: "Gemini 2.5 Flash Lite",
-    provider: "google",
-    apiKeys: [
-      "AIzaSyBUiSSswKvLvEK7rydCCRPF50eIDI_KOGc", // Primary API key
-      "AIzaSyD1UzgfcZQpVRGNpW4OHCutEGWuj-l2jrs"  // Fallback API key
-    ],
-    baseUrl: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
-    capabilities: ["text", "image", "video"],
-    maxTokens: 8192,
-    supportedFormats: ["jpeg", "png", "webp", "heic", "heif", "mp4", "avi", "mov", "mpg", "mpeg", "wmv", "flv", "webm"]
-  }
+  // Vision models configuration - currently empty after cleanup
 };
 
 // Default models configuration
@@ -575,9 +557,9 @@ const modelSpeedRanking = [
   { model: "glm-4.5", avgResponseTime: 2.7, tier: 3 },
   
   // Tier 4: Standard (3s+)
-  { model: "v0-1.5-lg", avgResponseTime: 3.2, tier: 4 },
+
   { model: "qwen-3-coder-480b", avgResponseTime: 3.5, tier: 4 },
-  { model: "gemini-2.5-flash-lite", avgResponseTime: 3.8, tier: 4 }
+
 ];
 
 // Track failed models during a request to avoid retrying them
@@ -1040,7 +1022,7 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
   const modelsWithSystemPromptSupport = [
     "gemini-2.5-flash-preview-04-17",
     "Qwen/Qwen3-Coder-480B-A35B-Instruct",
-    "gemini-2.5-flash-lite" // Native Gemini API
+
   ];
   
   // Get current date/time for all models (in IST)
@@ -1166,25 +1148,6 @@ Make every response visually rich and engaging! 🚀]`
         };
       }
       return msg;
-    });
-  }
-
-  // Handle Gemini API separately with fallback support
-  if (internalModel === "gemini-2.5-flash-lite") {
-    const visionModel = visionModels[internalModel];
-    if (!visionModel) {
-      throw new Error(`Vision model '${internalModel}' configuration not found.`);
-    }
-
-    // Convert OpenAI format to Gemini format (it handles system prompts properly)
-    const geminiRequest = convertToGeminiFormat(requestBody);
-    
-    // Use fallback mechanism to try multiple API keys
-    const openaiResponse = await makeGeminiRequestWithFallback(visionModel, geminiRequest, modelId);
-    
-    return new Response(JSON.stringify(openaiResponse), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
     });
   }
 
