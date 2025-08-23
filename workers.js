@@ -295,6 +295,32 @@ function selectWebSearchModel() {
 }
 
 
+// Function to detect when image generation is requested
+function needsImageGeneration(messages) {
+  const recentMessages = messages.slice(-2);
+  const conversationText = recentMessages
+    .map(m => typeof m.content === 'string' ? m.content : m.content.map(c => c.text || '').join(' '))
+    .join(' ').toLowerCase();
+  
+  // Patterns that indicate image generation request
+  const imagePatterns = [
+    /\b(generate|create|make|draw|design|produce|render)\s+(an?\s+)?(image|picture|photo|illustration|artwork|visual|graphic)/i,
+    /\b(image|picture|photo|illustration|artwork|visual|graphic)\s+(of|showing|depicting|with|containing)/i,
+    /\bcan you (generate|create|make|draw|show me)\b/i,
+    /\b(show me|give me|I want|I need)\s+(an?\s+)?(image|picture|photo|illustration)/i,
+    /\b(visualize|illustrate|depict|represent)\b/i,
+    /\bdall-?e|midjourney|stable\s*diffusion|flux|image\s*gen/i
+  ];
+  
+  for (const pattern of imagePatterns) {
+    if (pattern.test(conversationText)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 // Function to detect ALL URLs for screenshots - no limits
 function shouldProvideScreenshot(messages) {
   const recentMessages = messages.slice(-3);
@@ -896,6 +922,8 @@ YOUR CAPABILITIES:
 • Real-time web search for current information
 • SCREENSHOT WEBSITES: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Site](https://s.wordpress.com/mshots/v1/https://example.com?w=1280&h=960)
+• IMAGE GENERATION: Create AI images (models: flux, turbo, img3, img4, qwen, nsfw-gen)
+  Display format: ![Generated Image](image_url)
 • No knowledge cutoff - access to current data
 
 SCREENSHOT RULE: When ANY website is mentioned → ALWAYS provide screenshot using format above
@@ -948,6 +976,9 @@ YOUR CAPABILITIES:
 • Real-time web search for current information
 • SCREENSHOT ANY WEBSITE: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Google](https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)
+• IMAGE GENERATION: Create images using AI models (flux, turbo, img3, img4, qwen, nsfw-gen)
+  To generate: Use /v1/images/generations endpoint
+  Display format: ![Generated Image](image_url)
 • No knowledge cutoff - real-time access
 
 SCREENSHOT RULE: When ANY website is mentioned → PROVIDE SCREENSHOT using format above
@@ -1216,6 +1247,8 @@ YOUR CAPABILITIES:
 • Web search results (shown below)
 • SCREENSHOT WEBSITES: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Site](https://s.wordpress.com/mshots/v1/https://example.com?w=1280&h=960)
+• IMAGE GENERATION: Create AI images (flux, turbo, img3, img4, qwen, nsfw-gen)
+  Display inline: ![Generated Image](url)
 • No knowledge cutoff
 
 ALWAYS screenshot any website mentioned using the format above.
@@ -1332,6 +1365,10 @@ IMPORTANT CAPABILITIES:
 • Web search for current information
 • SCREENSHOT ANY WEBSITE - Use this format: ![Website Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Google](https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)
+• IMAGE GENERATION - Create custom images on request
+  Available models: flux, turbo, img3, img4, qwen, nsfw-gen
+  When user asks for image generation, describe what will be created
+  Display generated images inline: ![Generated Image](url)
 • No knowledge cutoff - real-time data access
 
 SCREENSHOT INSTRUCTIONS:
@@ -1376,6 +1413,26 @@ Response guidelines:
       if (systemMessageIndex >= 0) {
         body.messages[systemMessageIndex].content += `\n\n[WEBSITES DETECTED - YOU MUST PROVIDE SCREENSHOTS]:${screenshotInfo}
 \n[CRITICAL]: You MUST display ALL screenshots above using the exact markdown format shown. This is NOT optional - ALWAYS show website previews!`;
+      }
+    }
+    
+    // Check if image generation is requested
+    if (needsImageGeneration(body.messages)) {
+      const systemMessageIndex = body.messages.findIndex(m => m.role === 'system');
+      if (systemMessageIndex >= 0) {
+        body.messages[systemMessageIndex].content += `\n\n[IMAGE GENERATION REQUESTED]
+Available image models at https://ahamai-api.officialprakashkrsingh.workers.dev/v1/images/generations:
+• flux - High quality artistic images
+• turbo - Fast generation
+• img3, img4 - General purpose image generation  
+• qwen - Versatile image creation
+• nsfw-gen - Unrestricted content
+
+To generate an image:
+1. Describe what image will be created based on the user's request
+2. Make a POST request to the endpoint with model and prompt
+3. Display the generated image inline using: ![Generated Image](returned_url)
+4. The API returns URLs that can be directly embedded in markdown`;
       }
     }
     
