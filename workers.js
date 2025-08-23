@@ -1242,9 +1242,6 @@ Make every response visually rich and engaging! 🚀]`
 // Function to handle chat with integrated web search
 async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders) {
   try {
-    // Select the best web search model
-    const webSearchModel = selectWebSearchModel();
-    
     // Get current date and time (in IST)
     const now = new Date();
     const dateTimeContext = `Current date and time: ${now.toLocaleDateString('en-IN', { 
@@ -1308,30 +1305,33 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       searchQuery = `${userQuery}${entityContext}\n\nContext: ${conversationContext.slice(-500)}`; // Last 500 chars of context
     }
     
-    // Step 1: Perform web search with enhanced context
-    const searchRequest = {
-      model: webSearchModel,
-      messages: [
-        {
-          role: "system",
-          content: `You are a web search assistant. ${dateTimeContext}. Provide relevant, factual, and up-to-date information. When searching for follow-up questions, use the provided context to understand what entities and topics are being discussed. Include sources when available.`
-        },
-        {
-          role: "user",
-          content: `Full conversation context:\n${conversationContext}\n\nEntities mentioned: ${entities.join(', ')}\n\nCurrent query to search: ${searchQuery}`
-        }
-      ],
-      max_tokens: body.max_tokens ? Math.min(500, body.max_tokens) : 500,
-      temperature: 0.3,
-      stream: false  // Always non-streaming for search
-    };
+    // Step 1: Perform Google web search with 20 results
+    console.log(`[Web Search] Performing Google search for: ${searchQuery}`);
     
-    // Execute web search
-    const searchResponse = await makeModelRequest(webSearchModel, searchRequest, false, {});
-    const searchData = await searchResponse.json();
+    // Use the Google Search API
+    const googleSearchUrl = `https://googlesearchapi.nepcoderapis.workers.dev/?q=${encodeURIComponent(searchQuery)}&num=20`;
     
-    // Extract search results
-    const searchResults = searchData.choices?.[0]?.message?.content || "";
+    let searchResults = "";
+    try {
+      const searchResponse = await fetch(googleSearchUrl);
+      const searchData = await searchResponse.json();
+      
+      if (Array.isArray(searchData) && searchData.length > 0) {
+        // Format search results into a readable string
+        searchResults = `Found ${searchData.length} search results:\n\n`;
+        searchResults += searchData.map((result, index) => {
+          return `${index + 1}. **${result.title}**\n   ${result.snippet}\n   Source: ${result.link}`;
+        }).join('\n\n');
+        
+        console.log(`[Web Search] Successfully retrieved ${searchData.length} results`);
+      } else {
+        searchResults = "No search results found.";
+        console.log(`[Web Search] No results found`);
+      }
+    } catch (searchError) {
+      console.error(`[Web Search] Error performing search:`, searchError);
+      searchResults = "Error performing web search. Please try again.";
+    }
     
     // Step 2: Prepare enhanced context for the original model
     const enhancedMessages = [...body.messages];
@@ -1353,9 +1353,9 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
     
     // Find or create system message
     let systemMessageIndex = enhancedMessages.findIndex(m => m.role === 'system');
-    const webSearchContext = `\n\n[IMPORTANT]: You do NOT have a knowledge cutoff. You have real-time access to current information through web search.\n\n[Current Date/Time]: ${dateTimeInfo}\n\n[Web Search Results from ${webSearchModel}]:\n${searchResults}\n\n[Instructions]: 
+    const webSearchContext = `\n\n[IMPORTANT]: You do NOT have a knowledge cutoff. You have real-time access to current information through web search.\n\n[Current Date/Time]: ${dateTimeInfo}\n\n[Google Web Search Results (20 results)]:\n${searchResults}\n\n[Instructions]: 
 - You have REAL-TIME web search capabilities - no knowledge cutoff
-- The above search results contain current, up-to-date information
+- The above search results contain current, up-to-date information from Google
 - Use this information to provide accurate responses
 - You can access fresh web searches for any follow-up questions
 - NEVER mention having a knowledge cutoff or training data limitations
@@ -1404,7 +1404,7 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       const streamResponse = new ReadableStream({
         async start(controller) {
           // Send initial web search notification with date/time
-          const searchNotification = `[Performing web search with ${webSearchModel}...]\n[Current: ${dateTimeInfo}]\n\n`;
+          const searchNotification = `[Performing Google web search (20 results)...]\n[Current: ${dateTimeInfo}]\n\n`;
           const initialChunk = {
             id: `chatcmpl-${Date.now()}`,
             object: "chat.completion.chunk",
@@ -1450,7 +1450,7 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       // Add metadata about web search and date/time
       if (responseData.choices && responseData.choices[0]) {
         responseData.choices[0].message.content = 
-          `[Web search performed using ${webSearchModel}]\n[Current: ${dateTimeInfo}]\n\n${responseData.choices[0].message.content}`;
+          `[Google web search performed (20 results)]\n[Current: ${dateTimeInfo}]\n\n${responseData.choices[0].message.content}`;
       }
       
       return new Response(JSON.stringify(responseData), {
@@ -1610,7 +1610,17 @@ NEVER say "as of my last update" or use old prices. Use ONLY the data provided a
     // Determine if web search should be used
     let useWebSearch = false;
     
-    if (webSearchMode === true) {
+    // If the model is a web search model (perplexed, felo, exaanswer), 
+    // redirect to use Google Search instead
+    const isWebSearchModel = ['perplexed', 'felo', 'exaanswer'].includes(exposedModel);
+    
+    if (isWebSearchModel) {
+      // These models are web search models, use Google Search instead
+      useWebSearch = true;
+      // Use a fast general model for the response generation
+      exposedModel = 'gemini-2.0-flash'; // Fast and reliable model
+      console.log(`[Web Search] Redirecting ${body.model} to Google Search + ${exposedModel}`);
+    } else if (webSearchMode === true) {
       // User explicitly wants web search
       useWebSearch = true;
     } else if (webSearchMode === false) {
@@ -1621,9 +1631,9 @@ NEVER say "as of my last update" or use old prices. Use ONLY the data provided a
       useWebSearch = needsWebSearch(body.messages);
     }
     
-    // If web search is needed and the model is not already a web search model
-    if (useWebSearch && !['perplexed', 'felo', 'exaanswer'].includes(exposedModel)) {
-      // Perform web search integration
+    // If web search is needed, always use Google Search API
+    if (useWebSearch) {
+      // Perform Google web search integration
       return await handleChatWithWebSearch(exposedModel, body, stream, corsHeaders);
     } else {
       // Make regular request without web search
