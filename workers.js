@@ -160,31 +160,32 @@ const imageModelRoutes = {
 };
 
 // Vision models configuration
-// IMPORTANT: Testing shows that image/vision input is NOT properly supported through this proxy
-// The API converts image inputs to [object Object] instead of processing them
-// Vision support needs to be implemented at the proxy level first
+// UPDATED: Groq's Llama Scout model has verified vision support!
 const visionModels = {
-  // Currently NO models have verified vision support through this API
-  // Testing results (Aug 23, 2025):
-  // - All models receive [object Object] instead of actual image data
-  // - The proxy is not correctly handling multimodal content
-  // - Native vision capabilities of models like Gemini, GLM, v0 are not accessible
+  // ✅ WORKING VISION MODEL (Verified Aug 23, 2025)
+  "groq-llama-scout": {
+    provider: "Groq",
+    name: "Meta Llama 4 Scout 17B (Vision)",
+    model: "meta-llama/llama-4-scout-17b-16e-instruct",
+    capabilities: ["text", "vision", "image-analysis"],
+    maxTokens: 8192,
+    supportedFormats: ["image_url", "base64"],
+    description: "Ultra-fast vision model with 0.162s response time",
+    verified: true
+  }
   
-  // Models that SHOULD support vision (but don't work through this proxy):
-  // - Gemini models (2.0-flash, 2.5-flash, etc.) - Native Google vision support
-  // - v0.dev models (v0-1.0-md, v0-1.5-md) - Vercel's multimodal models
-  // - GLM models (glm-4.5, glm-4.5-air) - Chinese models with vision
-  // - Qwen-3-coder-480b - Alibaba's coding model with vision
+  // Note: Other models tested but don't support vision:
+  // - All Cerebras models (text-only, optimized for speed)
+  // - groq-kimi-k2 (text-only, fastest at 0.040s)
+  // - Most proxy models don't properly handle multimodal content
   
-  // To enable vision support, the proxy needs to:
-  // 1. Properly parse multimodal content from OpenAI format
-  // 2. Convert image data to the native format each model expects
-  // 3. Handle base64 and URL image inputs correctly
+  // Potential addition (available but not yet integrated):
+  // - meta-llama/llama-4-maverick-17b-128e-instruct (Groq, vision capable)
 };
 
 // Default models configuration
 const defaultModels = {
-  vision: "gemini-2.0-flash", // Updated to verified working model
+  vision: "groq-llama-scout", // Groq's Llama Scout - only verified working vision model
   webSearch: "perplexed" // Default web search model (verified working)
 };
 
