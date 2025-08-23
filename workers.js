@@ -295,12 +295,14 @@ function selectWebSearchModel() {
 }
 
 
-// Function to detect when image generation is requested
+// Function to detect when image generation is requested and extract model preference
 function needsImageGeneration(messages) {
   const recentMessages = messages.slice(-2);
   const conversationText = recentMessages
     .map(m => typeof m.content === 'string' ? m.content : m.content.map(c => c.text || '').join(' '))
-    .join(' ').toLowerCase();
+    .join(' ');
+  
+  const lowerText = conversationText.toLowerCase();
   
   // Patterns that indicate image generation request
   const imagePatterns = [
@@ -312,13 +314,35 @@ function needsImageGeneration(messages) {
     /\bdall-?e|midjourney|stable\s*diffusion|flux|image\s*gen/i
   ];
   
+  let needsImage = false;
   for (const pattern of imagePatterns) {
-    if (pattern.test(conversationText)) {
-      return true;
+    if (pattern.test(lowerText)) {
+      needsImage = true;
+      break;
     }
   }
   
-  return false;
+  if (!needsImage) return null;
+  
+  // Available image models
+  const availableModels = ['flux', 'turbo', 'img3', 'img4', 'qwen', 'nsfw-gen'];
+  
+  // Check if user specified a model
+  let preferredModel = null;
+  for (const model of availableModels) {
+    // Check for exact model name or common variations
+    // Allow flexible matching: "use flux", "with flux", "flux model", etc.
+    const modelPattern = new RegExp(`\\b(use|using|with|via)?\\s*${model}\\b|\\b${model}\\s*(model)?\\b`, 'i');
+    if (modelPattern.test(conversationText)) {
+      preferredModel = model;
+      break;
+    }
+  }
+  
+  return {
+    needed: true,
+    model: preferredModel
+  };
 }
 
 // Function to detect ALL URLs for screenshots - no limits
@@ -923,7 +947,9 @@ YOUR CAPABILITIES:
 • SCREENSHOT WEBSITES: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Site](https://s.wordpress.com/mshots/v1/https://example.com?w=1280&h=960)
 • IMAGE GENERATION: Create AI images (models: flux, turbo, img3, img4, qwen, nsfw-gen)
-  Display format: ![Generated Image](image_url)
+  User can specify: "use flux model" or "with turbo"
+  For flux/turbo: Add ?nologo=true to remove watermark
+  Display format: ![Generated Image](image_url?nologo=true)
 • No knowledge cutoff - access to current data
 
 SCREENSHOT RULE: When ANY website is mentioned → ALWAYS provide screenshot using format above
@@ -977,8 +1003,9 @@ YOUR CAPABILITIES:
 • SCREENSHOT ANY WEBSITE: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Google](https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)
 • IMAGE GENERATION: Create images using AI models (flux, turbo, img3, img4, qwen, nsfw-gen)
-  To generate: Use /v1/images/generations endpoint
-  Display format: ![Generated Image](image_url)
+  Users can specify model: "use flux" or "with img3"
+  For flux/turbo: Append ?nologo=true to remove watermark
+  Display format: ![Generated Image](image_url?nologo=true)
 • No knowledge cutoff - real-time access
 
 SCREENSHOT RULE: When ANY website is mentioned → PROVIDE SCREENSHOT using format above
@@ -1248,7 +1275,9 @@ YOUR CAPABILITIES:
 • SCREENSHOT WEBSITES: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
   Example: ![Site](https://s.wordpress.com/mshots/v1/https://example.com?w=1280&h=960)
 • IMAGE GENERATION: Create AI images (flux, turbo, img3, img4, qwen, nsfw-gen)
-  Display inline: ![Generated Image](url)
+  User can specify model: "use flux" or "with img4"
+  For flux/turbo: Add ?nologo=true to URL
+  Display inline: ![Generated Image](url?nologo=true)
 • No knowledge cutoff
 
 ALWAYS screenshot any website mentioned using the format above.
@@ -1367,7 +1396,8 @@ IMPORTANT CAPABILITIES:
   Example: ![Google](https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)
 • IMAGE GENERATION - Create custom images on request
   Available models: flux, turbo, img3, img4, qwen, nsfw-gen
-  When user asks for image generation, describe what will be created
+  User can specify model (e.g., "use flux" or "with turbo model")
+  For flux/turbo: Add ?nologo=true to URL to remove watermark
   Display generated images inline: ![Generated Image](url)
 • No knowledge cutoff - real-time data access
 
@@ -1417,22 +1447,30 @@ Response guidelines:
     }
     
     // Check if image generation is requested
-    if (needsImageGeneration(body.messages)) {
+    const imageGenRequest = needsImageGeneration(body.messages);
+    if (imageGenRequest && imageGenRequest.needed) {
       const systemMessageIndex = body.messages.findIndex(m => m.role === 'system');
       if (systemMessageIndex >= 0) {
-        body.messages[systemMessageIndex].content += `\n\n[IMAGE GENERATION REQUESTED]
+        const preferredModelInfo = imageGenRequest.model 
+          ? `\n🎯 USER REQUESTED MODEL: ${imageGenRequest.model} - USE THIS MODEL!`
+          : '\n💡 No specific model requested - choose the best one for the task';
+          
+        body.messages[systemMessageIndex].content += `\n\n[IMAGE GENERATION REQUESTED]${preferredModelInfo}
+
 Available image models at https://ahamai-api.officialprakashkrsingh.workers.dev/v1/images/generations:
-• flux - High quality artistic images
-• turbo - Fast generation
-• img3, img4 - General purpose image generation  
-• qwen - Versatile image creation
-• nsfw-gen - Unrestricted content
+• flux - High quality artistic images (Pollinations) - Add ?nologo=true to disable watermark
+• turbo - Fast generation (Pollinations) - Add ?nologo=true to disable watermark  
+• img3, img4 - General purpose image generation (InfIP)
+• qwen - Versatile image creation (InfIP)
+• nsfw-gen - Unrestricted content (HideMe)
 
 To generate an image:
 1. Describe what image will be created based on the user's request
-2. Make a POST request to the endpoint with model and prompt
-3. Display the generated image inline using: ![Generated Image](returned_url)
-4. The API returns URLs that can be directly embedded in markdown`;
+2. Use the model specified by user if provided: ${imageGenRequest.model || 'choose appropriate model'}
+3. For flux/turbo models, append ?nologo=true to remove watermark
+4. Make a POST request to the endpoint with model and prompt
+5. Display the generated image inline using: ![Generated Image](returned_url)
+6. The API returns URLs that can be directly embedded in markdown`;
       }
     }
     
