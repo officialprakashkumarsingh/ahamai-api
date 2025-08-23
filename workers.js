@@ -16,7 +16,7 @@ const exposedToInternalMap = {
   "gemini-2.0-flash": "gemini-2.0-flash",
   "gemini-2.0-flash-thinking-exp-01-21": "gemini-2.0-flash-thinking-exp-01-21",
   "gemini-2.5-flash-lite-preview-06-17": "gemini-2.5-flash-lite-preview-06-17",
-  "gemini-2.5-flash": "gemini-2.5-flash"
+  "gemini-2.5-flash": "gemini-2.5-flash",
   
   // DeepSeek Models (1) - Working with streaming
   "deepseek-r1-distill-llama-70b": "deepseek-r1-distill-llama-70b",
