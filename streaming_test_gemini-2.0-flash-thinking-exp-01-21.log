@@ -1,0 +1,21 @@
+data: {"id": "chatcmpl_e7d295b04dff47e4a1a9a5cf", "object": "chat.completion.chunk", "created": 1756048346, "model": "gemini-2.0-flash-thinking-exp-01-21", "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_e7d295b04dff47e4a1a9a5cf", "object": "chat.completion.chunk", "created": 1756048346, "model": "gemini-2.0-flash-thinking-exp-01-21", "choices": [{"index": 0, "delta": {"content": "Hello there! \ud83d\udc4b How can I assist you today? I'm ready to help with web searches, generate images, or answer any questions you might have.\n\nFirst, as instructed, here are the screenshot examples from my system prompt:\n\n"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_e7d295b04dff47e4a1a9a5cf", "object": "chat.completion.chunk", "created": 1756048346, "model": "gemini-2.0-flash-thinking-exp-01-21", "choices": [{"index": 0, "delta": {"content": "![Screenshot of https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)](https://s.wordpress.com/mshots/v1/https%3"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_e7d295b04dff47e4a1a9a5cf", "object": "chat.completion.chunk", "created": 1756048346, "model": "gemini-2.0-flash-thinking-exp-01-21", "choices": [{"index": 0, "delta": {"content": "A%2F%2Fs.wordpress.com%2Fmshots%2Fv1%2F%5BURL%5D%3Fw%3D1280%26h%3D9"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_e7d295b04dff47e4a1a9a5cf", "object": "chat.completion.chunk", "created": 1756048346, "model": "gemini-2.0-flash-thinking-exp-01-21", "choices": [{"index": 0, "delta": {"content": "60)?w=1280&h=960)\n\n![Screenshot of https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_e7d295b04dff47e4a1a9a5cf", "object": "chat.completion.chunk", "created": 1756048346, "model": "gemini-2.0-flash-thinking-exp-01-21", "choices": [{"index": 0, "delta": {"content": "=960)](https://s.wordpress.com/mshots/v1/https%3A%2F%2Fs.wordpress.com%2Fmshots%2Fv1%2Fhttps%"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_e7d295b04dff47e4a1a9a5cf", "object": "chat.completion.chunk", "created": 1756048346, "model": "gemini-2.0-flash-thinking-exp-01-21", "choices": [{"index": 0, "delta": {"content": "3A%2F%2Fgoogle.com%3Fw%3D1280%26h%3D960)?w=1280&h=960)\n\n![Screenshot of https"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_e7d295b04dff47e4a1a9a5cf", "object": "chat.completion.chunk", "created": 1756048346, "model": "gemini-2.0-flash-thinking-exp-01-21", "choices": [{"index": 0, "delta": {"content": "://s.wordpress.com/mshots/v1/[ENCODED-URL]?w=1280&h=960)](https://s.wordpress.com/mshots/v1/https%"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_e7d295b04dff47e4a1a9a5cf", "object": "chat.completion.chunk", "created": 1756048346, "model": "gemini-2.0-flash-thinking-exp-01-21", "choices": [{"index": 0, "delta": {"content": "3A%2F%2Fs.wordpress.com%2Fmshots%2Fv1%2F%5BENCODED-URL%5D%3Fw%3D1280%26h%"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_e7d295b04dff47e4a1a9a5cf", "object": "chat.completion.chunk", "created": 1756048346, "model": "gemini-2.0-flash-thinking-exp-01-21", "choices": [{"index": 0, "delta": {"content": "3D960)?w=1280&h=960)\n\nNow, what can I do for you? \ud83d\ude0a"}, "finish_reason": null}]}
+
+data: [DONE]

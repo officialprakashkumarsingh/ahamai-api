@@ -1,0 +1,11 @@
+data: {"id": "chatcmpl_6efecb360377482883b07034", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_6efecb360377482883b07034", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": "Hey"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_6efecb360377482883b07034", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": " there! \ud83d\udc4b How can I help you today? Let me know what you need"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_6efecb360377482883b07034", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": ", whether it's information, an image, or anything else. I'"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_6efecb360377482883b07034", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": "m ready to assist!\n"}, "finish_reason": null}]}
+
+data: [DONE]

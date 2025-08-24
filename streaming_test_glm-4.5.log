@@ -1,0 +1,5 @@
+data: {"id": "chatcmpl_2c43c25bd2fd4d2388a5310a", "object": "chat.completion.chunk", "created": 1756048348, "model": "zai-org/GLM-4.5", "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": null}]}
+
+data: {"id": "err_7245b06526bd4d21bbeb7889", "object": "error", "created": 1756048349, "message": "DeepInfra API error: HTTP Error 403: Forbidden"}
+
+data: [DONE]

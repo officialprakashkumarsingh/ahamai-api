@@ -1,0 +1,9 @@
+data: {"id":"chatcmpl-1756048349574","object":"chat.completion.chunk","created":1756048349,"model":"gemini-2.0-flash","choices":[{"index":0,"delta":{"content":"[Performing Google web search (20 results)...]\n[Current: Sunday 24 August, 2025, 08:42 pm IST]\n\n"},"finish_reason":null}]}
+
+data: {"id": "chatcmpl_36ea02f9c3a548298aa8f8a5", "object": "chat.completion.chunk", "created": 1756048349, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_36ea02f9c3a548298aa8f8a5", "object": "chat.completion.chunk", "created": 1756048349, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": "Hello"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_36ea02f9c3a548298aa8f8a5", "object": "chat.completion.chunk", "created": 1756048349, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": " there! \ud83d\udc4b How can I help you today?\n"}, "finish_reason": null}]}
+
+data: [DONE]

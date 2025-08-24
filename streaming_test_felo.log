@@ -1,0 +1,27 @@
+data: {"id":"chatcmpl-1756048348350","object":"chat.completion.chunk","created":1756048348,"model":"gemini-2.0-flash","choices":[{"index":0,"delta":{"content":"[Performing Google web search (20 results)...]\n[Current: Sunday 24 August, 2025, 08:42 pm IST]\n\n"},"finish_reason":null}]}
+
+data: {"id": "chatcmpl_2580da47868645dc9ee40d7d", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_2580da47868645dc9ee40d7d", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": "Hello"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_2580da47868645dc9ee40d7d", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": "! \ud83d\udc4b How can I help you today?\n\nI see you've provided"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_2580da47868645dc9ee40d7d", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": " some URLs that need screenshots. I'll embed them below:\n\n![Screenshot of"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_2580da47868645dc9ee40d7d", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": " https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)](https://s."}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_2580da47868645dc9ee40d7d", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": "wordpress.com/mshots/v1/https%3A%2F%2Fs.wordpress.com%2Fmshots%2F"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_2580da47868645dc9ee40d7d", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": "v1%2F%5BURL%5D%3Fw%3D1280%26h%3D960?w=1280&h=960)\n\n![Screenshot"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_2580da47868645dc9ee40d7d", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": " of https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)](https://s.wordpress.com/mshots/v1/"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_2580da47868645dc9ee40d7d", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": "https%3A%2F%2Fs.wordpress.com%2Fmshots%2Fv1%2Fhttps%3A%2F%2Fgoogle.com%3Fw%3D1280%26h%3D960?w="}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_2580da47868645dc9ee40d7d", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": "1280&h=960)\n\n![Screenshot of https://s.wordpress.com/mshots/v1/[ENCODED-URL]?w=1280&h=960)](https://s.wordpress.com/mshots/v1/https%"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_2580da47868645dc9ee40d7d", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": "3A%2F%2Fs.wordpress.com%2Fmshots%2Fv1%2F%5BENCODED-URL%5D%3Fw%3D1280%26h%3D960?w=1280&"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_2580da47868645dc9ee40d7d", "object": "chat.completion.chunk", "created": 1756048348, "model": "gemini-2.0-flash", "choices": [{"index": 0, "delta": {"content": "h=960)\n\nYou also requested an image using the `flux` model. Could you please provide a description of the image you would like me to generate? \ud83d\uddbc\ufe0f\u2728\n"}, "finish_reason": null}]}
+
+data: [DONE]

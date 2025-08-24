@@ -1,0 +1,9 @@
+data: {"id": "chatcmpl_77e218bd331c4b93bf30e315", "object": "chat.completion.chunk", "created": 1756048347, "model": "gemini-2.5-flash-lite-preview-06-17", "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_77e218bd331c4b93bf30e315", "object": "chat.completion.chunk", "created": 1756048347, "model": "gemini-2.5-flash-lite-preview-06-17", "choices": [{"index": 0, "delta": {"content": "Hello"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_77e218bd331c4b93bf30e315", "object": "chat.completion.chunk", "created": 1756048347, "model": "gemini-2.5-flash-lite-preview-06-17", "choices": [{"index": 0, "delta": {"content": " there! \ud83d\udc4b How can I help you today? Are you looking for some information, want"}, "finish_reason": null}]}
+
+data: {"id": "chatcmpl_77e218bd331c4b93bf30e315", "object": "chat.completion.chunk", "created": 1756048347, "model": "gemini-2.5-flash-lite-preview-06-17", "choices": [{"index": 0, "delta": {"content": " to generate an image, or something else? \ud83d\ude0a"}, "finish_reason": null}]}
+
+data: [DONE]
