@@ -165,214 +165,6 @@ const imageModelRoutes = {
   }
 };
 
-// ============== LaTeX Rendering Support ==============
-// LaTeX to Unicode/Plain Text conversion for Flutter apps
-
-// Common LaTeX symbols to Unicode mapping
-const latexToUnicode = {
-  // Greek letters
-  '\\alpha': 'α', '\\beta': 'β', '\\gamma': 'γ', '\\delta': 'δ',
-  '\\epsilon': 'ε', '\\zeta': 'ζ', '\\eta': 'η', '\\theta': 'θ',
-  '\\iota': 'ι', '\\kappa': 'κ', '\\lambda': 'λ', '\\mu': 'μ',
-  '\\nu': 'ν', '\\xi': 'ξ', '\\pi': 'π', '\\rho': 'ρ',
-  '\\sigma': 'σ', '\\tau': 'τ', '\\upsilon': 'υ', '\\phi': 'φ',
-  '\\chi': 'χ', '\\psi': 'ψ', '\\omega': 'ω',
-  '\\Gamma': 'Γ', '\\Delta': 'Δ', '\\Theta': 'Θ', '\\Lambda': 'Λ',
-  '\\Xi': 'Ξ', '\\Pi': 'Π', '\\Sigma': 'Σ', '\\Upsilon': 'Υ',
-  '\\Phi': 'Φ', '\\Psi': 'Ψ', '\\Omega': 'Ω',
-  
-  // Mathematical operators
-  '\\pm': '±', '\\mp': '∓', '\\times': '×', '\\div': '÷',
-  '\\cdot': '·', '\\ast': '∗', '\\star': '⋆', '\\circ': '∘',
-  '\\bullet': '•', '\\oplus': '⊕', '\\ominus': '⊖', '\\otimes': '⊗',
-  '\\oslash': '⊘', '\\odot': '⊙', '\\dagger': '†', '\\ddagger': '‡',
-  
-  // Relations
-  '\\leq': '≤', '\\geq': '≥', '\\neq': '≠', '\\approx': '≈',
-  '\\equiv': '≡', '\\sim': '∼', '\\simeq': '≃', '\\propto': '∝',
-  '\\subset': '⊂', '\\supset': '⊃', '\\subseteq': '⊆', '\\supseteq': '⊇',
-  '\\in': '∈', '\\notin': '∉', '\\ni': '∋', '\\perp': '⊥',
-  
-  // Arrows
-  '\\leftarrow': '←', '\\rightarrow': '→', '\\leftrightarrow': '↔',
-  '\\Leftarrow': '⇐', '\\Rightarrow': '⇒', '\\Leftrightarrow': '⇔',
-  '\\uparrow': '↑', '\\downarrow': '↓', '\\updownarrow': '↕',
-  '\\mapsto': '↦', '\\to': '→',
-  
-  // Logic
-  '\\forall': '∀', '\\exists': '∃', '\\nexists': '∄', '\\neg': '¬',
-  '\\land': '∧', '\\lor': '∨', '\\wedge': '∧', '\\vee': '∨',
-  '\\cap': '∩', '\\cup': '∪', '\\emptyset': '∅', '\\varnothing': '∅',
-  
-  // Calculus
-  '\\infty': '∞', '\\partial': '∂', '\\nabla': '∇', '\\int': '∫',
-  '\\iint': '∬', '\\iiint': '∭', '\\oint': '∮', '\\sum': '∑',
-  '\\prod': '∏', '\\lim': 'lim', '\\sin': 'sin', '\\cos': 'cos',
-  '\\tan': 'tan', '\\log': 'log', '\\ln': 'ln', '\\exp': 'exp',
-  
-  // Miscellaneous
-  '\\ldots': '…', '\\cdots': '⋯', '\\vdots': '⋮', '\\ddots': '⋱',
-  '\\angle': '∠', '\\triangle': '△', '\\square': '□', '\\diamond': '◇',
-  '\\clubsuit': '♣', '\\diamondsuit': '♦', '\\heartsuit': '♥', '\\spadesuit': '♠',
-  '\\therefore': '∴', '\\because': '∵', '\\QED': '∎',
-  
-  // Fractions and roots (simplified)
-  '\\frac': '/', '\\sqrt': '√', '\\cbrt': '∛',
-  
-  // Common expressions
-  '\\mathbb{R}': 'ℝ', '\\mathbb{Q}': 'ℚ', '\\mathbb{Z}': 'ℤ', 
-  '\\mathbb{N}': 'ℕ', '\\mathbb{C}': 'ℂ', '\\mathbb{P}': 'ℙ',
-  '\\mathcal{O}': '𝒪', '\\mathcal{L}': 'ℒ', '\\mathcal{F}': 'ℱ',
-};
-
-// Function to convert LaTeX to readable format
-function convertLatexToReadable(text, format = 'unicode') {
-  if (!text) return text;
-  
-  let converted = text;
-  
-  // Handle display math blocks $$...$$ or \[...\]
-  converted = converted.replace(/\$\$(.*?)\$\$/gs, (match, latex) => {
-    return '\n' + processLatexBlock(latex, format) + '\n';
-  });
-  
-  converted = converted.replace(/\\\[(.*?)\\\]/gs, (match, latex) => {
-    return '\n' + processLatexBlock(latex, format) + '\n';
-  });
-  
-  // Handle inline math $...$ or \(...\)
-  converted = converted.replace(/\$(.*?)\$/g, (match, latex) => {
-    return processLatexInline(latex, format);
-  });
-  
-  converted = converted.replace(/\\\((.*?)\\\)/g, (match, latex) => {
-    return processLatexInline(latex, format);
-  });
-  
-  return converted;
-}
-
-// Process LaTeX block (display math)
-function processLatexBlock(latex, format) {
-  if (format === 'keep') return `$$${latex}$$`;
-  if (format === 'html') return `<div class="math-block">${convertLatexToHTML(latex)}</div>`;
-  
-  // Unicode conversion (default)
-  let result = latex;
-  
-  // Handle fractions
-  result = result.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)');
-  
-  // Handle square roots
-  result = result.replace(/\\sqrt\{([^}]+)\}/g, '√($1)');
-  result = result.replace(/\\sqrt\[([^\]]+)\]\{([^}]+)\}/g, '∜($2)');
-  
-  // Handle superscripts and subscripts
-  result = result.replace(/\^{([^}]+)}/g, (match, sup) => {
-    return convertToSuperscript(sup);
-  });
-  result = result.replace(/\^(\w)/g, (match, sup) => {
-    return convertToSuperscript(sup);
-  });
-  result = result.replace(/_{([^}]+)}/g, (match, sub) => {
-    return convertToSubscript(sub);
-  });
-  result = result.replace(/_(\w)/g, (match, sub) => {
-    return convertToSubscript(sub);
-  });
-  
-  // Replace LaTeX commands with Unicode
-  for (const [latex, unicode] of Object.entries(latexToUnicode)) {
-    const regex = new RegExp(latex.replace(/\\/g, '\\\\'), 'g');
-    result = result.replace(regex, unicode);
-  }
-  
-  // Clean up remaining braces and common LaTeX commands
-  result = result.replace(/\\left\(/g, '(').replace(/\\right\)/g, ')');
-  result = result.replace(/\\left\[/g, '[').replace(/\\right\]/g, ']');
-  result = result.replace(/\\left\{/g, '{').replace(/\\right\}/g, '}');
-  result = result.replace(/\\left\|/g, '|').replace(/\\right\|/g, '|');
-  result = result.replace(/\\begin\{[^}]+\}/g, '').replace(/\\end\{[^}]+\}/g, '');
-  result = result.replace(/\\\\/g, '\n');
-  result = result.replace(/\\,/g, ' ').replace(/\\;/g, '  ').replace(/\\!/g, '');
-  result = result.replace(/\\text\{([^}]+)\}/g, '$1');
-  result = result.replace(/\\mathrm\{([^}]+)\}/g, '$1');
-  result = result.replace(/\\mathbf\{([^}]+)\}/g, '$1');
-  result = result.replace(/\\mathit\{([^}]+)\}/g, '$1');
-  result = result.replace(/\\boldsymbol\{([^}]+)\}/g, '$1');
-  
-  return result.trim();
-}
-
-// Process inline LaTeX
-function processLatexInline(latex, format) {
-  if (format === 'keep') return `$${latex}$`;
-  if (format === 'html') return `<span class="math-inline">${convertLatexToHTML(latex)}</span>`;
-  
-  // Use the same processing as block but keep it inline
-  return processLatexBlock(latex, format);
-}
-
-// Convert to superscript Unicode characters
-function convertToSuperscript(text) {
-  const superscriptMap = {
-    '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
-    '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
-    '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾',
-    'n': 'ⁿ', 'i': 'ⁱ'
-  };
-  
-  return text.split('').map(char => superscriptMap[char] || char).join('');
-}
-
-// Convert to subscript Unicode characters
-function convertToSubscript(text) {
-  const subscriptMap = {
-    '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
-    '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
-    '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎',
-    'a': 'ₐ', 'e': 'ₑ', 'o': 'ₒ', 'x': 'ₓ', 'h': 'ₕ',
-    'k': 'ₖ', 'l': 'ₗ', 'm': 'ₘ', 'n': 'ₙ', 'p': 'ₚ',
-    's': 'ₛ', 't': 'ₜ'
-  };
-  
-  return text.split('').map(char => subscriptMap[char] || char).join('');
-}
-
-// Convert LaTeX to HTML (for web display)
-function convertLatexToHTML(latex) {
-  // This is a simplified version - for full LaTeX to HTML, you'd use a library
-  let html = latex;
-  
-  // Basic HTML conversion
-  html = html.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '<span class="frac"><sup>$1</sup>⁄<sub>$2</sub></span>');
-  html = html.replace(/\^{([^}]+)}/g, '<sup>$1</sup>');
-  html = html.replace(/_{([^}]+)}/g, '<sub>$1</sub>');
-  html = html.replace(/\\sqrt\{([^}]+)\}/g, '√<span style="text-decoration: overline">$1</span>');
-  
-  // Replace symbols
-  for (const [latex, unicode] of Object.entries(latexToUnicode)) {
-    const regex = new RegExp(latex.replace(/\\/g, '\\\\'), 'g');
-    html = html.replace(regex, unicode);
-  }
-  
-  return html;
-}
-
-// Function to process response content with LaTeX
-function processResponseWithLatex(content, renderFormat = 'unicode') {
-  if (!content) return content;
-  
-  // Check if LaTeX rendering is disabled
-  if (renderFormat === 'none' || renderFormat === 'keep') {
-    return content;
-  }
-  
-  // Convert LaTeX to specified format
-  return convertLatexToReadable(content, renderFormat);
-}
-
-// ============== End of LaTeX Support ==============
 
 // Vision models configuration
 // UPDATED: Groq's Llama Scout model has verified vision support!
@@ -1334,17 +1126,6 @@ Response approach:
       throw new Error(`Model '${modelId}' returned error: ${responseJson.error.message || responseJson.error}`);
     }
     
-    // Process LaTeX in the response if enabled
-    const latexFormat = requestBody.latex_format || 'unicode';
-    if (latexFormat !== 'keep' && latexFormat !== 'none') {
-      if (responseJson.choices && responseJson.choices[0] && responseJson.choices[0].message) {
-        responseJson.choices[0].message.content = processResponseWithLatex(
-          responseJson.choices[0].message.content,
-          latexFormat
-        );
-      }
-    }
-    
     return new Response(JSON.stringify(responseJson), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders }
@@ -1355,12 +1136,8 @@ Response approach:
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   
-  const latexFormat = requestBody.latex_format || 'unicode';
-  const shouldProcessLatex = latexFormat !== 'keep' && latexFormat !== 'none';
-  
   const transformStream = new TransformStream({
     buffer: '',
-    contentBuffer: '', // Buffer for accumulating content to process LaTeX
     
     async transform(chunk, controller) {
       const text = decoder.decode(chunk, { stream: true });
@@ -1381,41 +1158,11 @@ Response approach:
           try {
             const json = JSON.parse(data);
             
-            // Process LaTeX in streaming chunks if enabled
-            if (shouldProcessLatex && json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
-              // For better LaTeX processing in streaming, we accumulate content
-              // and process it when we detect complete LaTeX expressions
-              const content = json.choices[0].delta.content;
-              this.contentBuffer += content;
-              
-              // Check if we have complete LaTeX expressions to process
-              // Process when we have complete inline math $...$ or display math $$...$$
-              let processedContent = '';
-              let hasCompleteExpression = false;
-              
-              // Check for complete inline math
-              if (this.contentBuffer.includes('$')) {
-                const matches = this.contentBuffer.match(/\$[^$]+\$/g);
-                if (matches) {
-                  hasCompleteExpression = true;
-                  processedContent = this.contentBuffer;
-                  for (const match of matches) {
-                    const processed = processLatexInline(match.slice(1, -1), latexFormat);
-                    processedContent = processedContent.replace(match, processed);
-                  }
-                  this.contentBuffer = ''; // Clear buffer after processing
-                }
-              }
-              
-              // If we have processed content, update the chunk
-              if (hasCompleteExpression && processedContent) {
-                json.choices[0].delta.content = processedContent;
-              } else if (!content.includes('$') && !content.includes('\\')) {
-                // If no LaTeX markers, process immediately
-                json.choices[0].delta.content = processResponseWithLatex(content, latexFormat);
-                this.contentBuffer = '';
-              }
-              // Otherwise keep accumulating in buffer
+            // Format thinking tags in streaming chunks
+            if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
+              // For streaming, we'll collect content and format at the end
+              // This is complex for streaming, so we'll just pass through for now
+              // The thinking tags will be visible but not formatted in streaming mode
             }
             
             controller.enqueue(encoder.encode(line + '\n'));
@@ -1452,14 +1199,14 @@ Response approach:
 // Function to handle chat with integrated web search
 async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders) {
   try {
-    // Add retry logic for web search models
-    const webSearchModelsToTry = ["perplexed", "exaanswer", "felo"];
+    // Determine which model to use for web search
     let modelToUse = originalModel;
     
-    // If the original model is a web search model that might fail, prepare fallbacks
-    if (webSearchModelsToTry.includes(originalModel)) {
-      // Model is already a web search model, keep it
-      modelToUse = originalModel;
+    // If the original model is not a web search model, select the best one
+    const webSearchModels = ["perplexed", "exaanswer", "felo"];
+    if (!webSearchModels.includes(originalModel)) {
+      // Select the best web search model
+      modelToUse = selectWebSearchModel();
     }
     // Get current date and time (in IST)
     const now = new Date();
@@ -1621,10 +1368,12 @@ Use natural formatting where it helps clarity.${webSearchContext}`
         });
     }
     
-    // Step 3: Make request to the original model with enhanced context
+    // Step 3: Make request to the model with enhanced context
+    // Use the selected web search model if available, otherwise use original
     const enhancedBody = {
       ...body,
-      messages: enhancedMessages
+      messages: enhancedMessages,
+      model: modelToUse // Use the selected model
     };
     
     // If streaming is requested, add a note about web search being performed
@@ -1652,25 +1401,53 @@ Use natural formatting where it helps clarity.${webSearchContext}`
             // Make the actual request with error handling
             let response;
             try {
-              response = await makeModelRequest(originalModel, enhancedBody, true, corsHeaders);
+              response = await makeModelRequest(modelToUse, enhancedBody, true, corsHeaders);
             } catch (modelError) {
               console.error(`[Web Search] Model request failed:`, modelError);
-              // Send error message to stream
-              const errorChunk = {
-                id: `chatcmpl-${Date.now()}`,
-                object: "chat.completion.chunk",
-                created: Math.floor(Date.now() / 1000),
-                model: originalModel,
-                choices: [{
-                  index: 0,
-                  delta: { content: `\n\n[Error: Model request failed. Retrying without web search...]` },
-                  finish_reason: null
-                }]
-              };
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`));
-              controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-              controller.close();
-              return;
+              
+              // Actually retry without web search instead of just showing error
+              try {
+                console.log(`[Web Search] Retrying without web search due to error`);
+                // Make request without web search enhancement
+                response = await makeModelRequest(originalModel, body, true, corsHeaders);
+                
+                // If successful, pass through the stream
+                const reader = response.body.getReader();
+                try {
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    controller.enqueue(value);
+                  }
+                } catch (readError) {
+                  console.error(`[Web Search] Fallback stream reading error:`, readError);
+                } finally {
+                  try {
+                    controller.close();
+                  } catch (e) {
+                    // Already closed
+                  }
+                }
+                return;
+              } catch (fallbackError) {
+                console.error(`[Web Search] Fallback also failed:`, fallbackError);
+                // Send error message to stream
+                const errorChunk = {
+                  id: `chatcmpl-${Date.now()}`,
+                  object: "chat.completion.chunk",
+                  created: Math.floor(Date.now() / 1000),
+                  model: originalModel,
+                  choices: [{
+                    index: 0,
+                    delta: { content: `\n\n[Error: Unable to process request. Please try again.]` },
+                    finish_reason: "stop"
+                  }]
+                };
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`));
+                controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+                controller.close();
+                return;
+              }
             }
             
             const reader = response.body.getReader();
@@ -1751,7 +1528,7 @@ Use natural formatting where it helps clarity.${webSearchContext}`
       });
     } else {
       // Non-streaming response
-      const response = await makeModelRequest(originalModel, enhancedBody, false, corsHeaders);
+      const response = await makeModelRequest(modelToUse, enhancedBody, false, corsHeaders);
       const responseData = await response.json();
       
       // Add metadata about web search and date/time
@@ -1781,10 +1558,6 @@ async function handleChat(request, corsHeaders) {
   // Allow users to explicitly control web search behavior
   // They can set web_search: true to force it, false to disable it, or leave undefined for auto-detection
   const webSearchMode = body.web_search;
-  
-  // LaTeX rendering control - for Flutter apps
-  // Options: 'unicode' (default), 'html', 'keep' (no conversion), 'none' (same as keep)
-  const latexFormat = body.latex_format || 'unicode';
   
   // Ensure there's always a system message about real-time capabilities
   if (!body.messages.some(m => m.role === 'system')) {
