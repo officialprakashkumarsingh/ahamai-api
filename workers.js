@@ -1,4 +1,4 @@
-const API_KEY = "ahamaibyprakash25";
+const API_KEY = "ahamaipriv05";
 
 const exposedToInternalMap = {
   // WORKING MODELS ONLY - Verified via comprehensive testing (24 models + default)
