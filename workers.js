@@ -487,7 +487,10 @@ function updateResponseTime(model, responseTime) {
 }
 
 // Function to get the next fastest available model (with dynamic adjustment)
-function getNextFastestModel(excludeModels = []) {
+function getNextFastestModel(excludeModels = [], prioritizeNonWebSearch = true) {
+  // Web search models - these should be used as last resort
+  const webSearchModels = ["perplexed", "exaanswer", "felo"];
+  
   // Create a combined ranking using both static and dynamic data
   const combinedRanking = modelSpeedRanking.map(modelInfo => {
     const dynamicStats = responseTimeTracking.get(modelInfo.model);
@@ -504,8 +507,34 @@ function getNextFastestModel(excludeModels = []) {
     };
   }).sort((a, b) => a.effectiveTime - b.effectiveTime);
   
-  // Find the first available model
+  // First pass: Try non-web-search models if prioritizeNonWebSearch is true
+  if (prioritizeNonWebSearch) {
+    for (const modelInfo of combinedRanking) {
+      // Skip web search models in first pass
+      if (webSearchModels.includes(modelInfo.model)) {
+        continue;
+      }
+      
+      // Skip if model is in exclude list or has failed in this request
+      if (excludeModels.includes(modelInfo.model) || failedModelsInRequest.has(modelInfo.model)) {
+        continue;
+      }
+      
+      // Check if model exists in our mapping
+      if (exposedToInternalMap[modelInfo.model]) {
+        console.log(`[Model Rotation] Selected primary model: ${modelInfo.model}`);
+        return modelInfo.model;
+      }
+    }
+  }
+  
+  // Second pass: Try web search models as last resort
   for (const modelInfo of combinedRanking) {
+    // Only web search models this time
+    if (!webSearchModels.includes(modelInfo.model)) {
+      continue;
+    }
+    
     // Skip if model is in exclude list or has failed in this request
     if (excludeModels.includes(modelInfo.model) || failedModelsInRequest.has(modelInfo.model)) {
       continue;
@@ -513,12 +542,14 @@ function getNextFastestModel(excludeModels = []) {
     
     // Check if model exists in our mapping
     if (exposedToInternalMap[modelInfo.model]) {
+      console.log(`[Model Rotation] Using web search model as last resort: ${modelInfo.model}`);
       return modelInfo.model;
     }
   }
   
-  // Fallback to a reliable model if all fast ones fail
-  return "gemini-2.0-flash"; // Most reliable based on testing
+  // If absolutely everything fails, return null
+  console.log(`[Model Rotation] All models exhausted`);
+  return null;
 }
 
 // Function to handle the default model routing
@@ -539,16 +570,17 @@ async function handleDefaultModel(body, stream, corsHeaders) {
     useWebSearch = needsWebSearch(body.messages);
   }
   
-  const maxRetries = 3;
+  const maxRetries = 10; // Increase retries to try more models
   let attemptedModels = [];
   let lastError = null;
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    // Get the next fastest model that hasn't been tried
-    const selectedModel = getNextFastestModel(attemptedModels);
+    // Get the next fastest model that hasn't been tried (prioritize non-web-search models)
+    const selectedModel = getNextFastestModel(attemptedModels, true);
     
     if (!selectedModel) {
       // No more models to try
+      console.log(`[Default Model] No more models available after ${attempt} attempts`);
       break;
     }
     
@@ -606,8 +638,14 @@ async function handleDefaultModel(body, stream, corsHeaders) {
       
     } catch (error) {
       console.log(`[Default Model] Failed with ${selectedModel}: ${error.message}`);
+      attemptedModels.push(selectedModel);
       lastError = error;
       failedModelsInRequest.add(selectedModel);
+      
+      // Log progress for transparency
+      if (attemptedModels.length >= 3) {
+        console.log(`[Default Model] Rotation progress: tried ${attemptedModels.length} models, continuing...`);
+      }
       
       // Continue to next model
       continue;
@@ -1113,6 +1151,11 @@ Response approach:
 
   // Check if response indicates an error
   if (!response.ok) {
+    // Track failed model based on status code
+    if (response.status >= 500 || response.status === 429 || response.status === 403) {
+      failedModelsInRequest.add(modelId);
+      console.log(`[Model Request] Model ${modelId} failed with ${response.status}, marking as failed for this request`);
+    }
     throw new Error(`Model '${modelId}' request failed with status ${response.status}: ${response.statusText}`);
   }
 
@@ -1196,18 +1239,66 @@ Response approach:
   });
 }
 
+// Brave Search API configuration
+const BRAVE_SEARCH_API_KEY = "BSAGvn27KGywhzSPWjem5a_r41ZYaB2";
+const BRAVE_SEARCH_API_URL = "https://api.search.brave.com/res/v1/web/search";
+
+// Function to perform Brave Search
+async function performBraveSearch(query, count = 20) {
+  try {
+    console.log(`[Brave Search] Performing search for: ${query}`);
+    
+    const url = `${BRAVE_SEARCH_API_URL}?q=${encodeURIComponent(query)}&count=${count}`;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Accept-Encoding': 'gzip',
+        'X-Subscription-Token': BRAVE_SEARCH_API_KEY
+      },
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`Brave Search API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.web && data.web.results && data.web.results.length > 0) {
+      // Format Brave search results similar to Google search
+      const searchResults = `Found ${data.web.results.length} search results:\n\n`;
+      const formattedResults = data.web.results.map((result, index) => {
+        return `${index + 1}. **${result.title}**\n   ${result.description}\n   Source: ${result.url}`;
+      }).join('\n\n');
+      
+      console.log(`[Brave Search] Successfully retrieved ${data.web.results.length} results`);
+      return searchResults + formattedResults;
+    } else {
+      console.log(`[Brave Search] No results found`);
+      return "No search results found.";
+    }
+  } catch (error) {
+    console.error(`[Brave Search] Error:`, error);
+    if (error.name === 'AbortError') {
+      return "Brave search timed out. Proceeding with available information.";
+    }
+    return null; // Return null to indicate failure
+  }
+}
+
 // Function to handle chat with integrated web search
 async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders) {
   try {
-    // Determine which model to use for web search
+    // Don't use web search models initially - they're last resort
     let modelToUse = originalModel;
     
-    // If the original model is not a web search model, select the best one
-    const webSearchModels = ["perplexed", "exaanswer", "felo"];
-    if (!webSearchModels.includes(originalModel)) {
-      // Select the best web search model
-      modelToUse = selectWebSearchModel();
-    }
     // Get current date and time (in IST)
     const now = new Date();
     const dateTimeContext = `Current date and time: ${now.toLocaleDateString('en-IN', { 
@@ -1271,14 +1362,15 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       searchQuery = `${userQuery}${entityContext}\n\nContext: ${conversationContext.slice(-500)}`; // Last 500 chars of context
     }
     
-    // Step 1: Perform Google web search with 20 results
-    console.log(`[Web Search] Performing Google search for: ${searchQuery}`);
-    
-    // Use the Google Search API
-    const googleSearchUrl = `https://googlesearchapi.nepcoderapis.workers.dev/?q=${encodeURIComponent(searchQuery)}&num=20`;
+    // Step 1: Perform web search - try Google first, then Brave as fallback
+    console.log(`[Web Search] Performing search for: ${searchQuery}`);
     
     let searchResults = "";
+    
+    // Try Google Search first
     try {
+      const googleSearchUrl = `https://googlesearchapi.nepcoderapis.workers.dev/?q=${encodeURIComponent(searchQuery)}&num=20`;
+      
       // Add timeout to prevent hanging (10 seconds)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -1297,21 +1389,26 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
           return `${index + 1}. **${result.title}**\n   ${result.snippet}\n   Source: ${result.link}`;
         }).join('\n\n');
         
-        console.log(`[Web Search] Successfully retrieved ${searchData.length} results`);
+        console.log(`[Google Search] Successfully retrieved ${searchData.length} results`);
       } else {
         searchResults = "No search results found.";
-        console.log(`[Web Search] No results found`);
+        console.log(`[Google Search] No results found`);
       }
-    } catch (searchError) {
-      console.error(`[Web Search] Error performing search:`, searchError);
-      // Check if it's a timeout error
-      if (searchError.name === 'AbortError') {
-        searchResults = "Web search timed out. Proceeding with available information.";
-        console.log(`[Web Search] Search timed out after 10 seconds`);
+    } catch (googleError) {
+      console.error(`[Google Search] Error:`, googleError);
+      
+      // Try Brave Search as fallback
+      console.log(`[Web Search] Google failed, trying Brave Search...`);
+      const braveResults = await performBraveSearch(searchQuery, 20);
+      
+      if (braveResults && braveResults !== null) {
+        searchResults = braveResults;
+        console.log(`[Web Search] Brave Search succeeded as fallback`);
       } else {
-        searchResults = "Error performing web search. Proceeding with available information.";
+        // Both searches failed
+        searchResults = "Web search unavailable. Proceeding with available information.";
+        console.log(`[Web Search] Both Google and Brave searches failed`);
       }
-      // Don't fail the entire request, just proceed without search results
     }
     
     // Step 2: Prepare enhanced context for the original model
@@ -1405,11 +1502,41 @@ Use natural formatting where it helps clarity.${webSearchContext}`
             } catch (modelError) {
               console.error(`[Web Search] Model request failed:`, modelError);
               
-              // Actually retry without web search instead of just showing error
+              // Actually retry with model rotation
               try {
-                console.log(`[Web Search] Retrying without web search due to error`);
-                // Make request without web search enhancement
-                response = await makeModelRequest(originalModel, body, true, corsHeaders);
+                console.log(`[Web Search] Model failed, trying rotation without web search`);
+                
+                // Try multiple models in rotation
+                let rotationAttempts = 0;
+                let rotationSuccess = false;
+                const maxRotationAttempts = 5;
+                const attemptedModels = [modelToUse];
+                
+                while (rotationAttempts < maxRotationAttempts && !rotationSuccess) {
+                  // Get next model (prioritize non-web-search models)
+                  const nextModel = getNextFastestModel(attemptedModels, true);
+                  
+                  if (!nextModel) {
+                    console.log(`[Web Search] No more models available for rotation`);
+                    break;
+                  }
+                  
+                  try {
+                    console.log(`[Web Search] Rotation attempt ${rotationAttempts + 1}: trying ${nextModel}`);
+                    response = await makeModelRequest(nextModel, body, true, corsHeaders);
+                    rotationSuccess = true;
+                    console.log(`[Web Search] Rotation succeeded with ${nextModel}`);
+                  } catch (rotationError) {
+                    console.log(`[Web Search] Rotation model ${nextModel} failed:`, rotationError.message);
+                    attemptedModels.push(nextModel);
+                    failedModelsInRequest.add(nextModel);
+                    rotationAttempts++;
+                  }
+                }
+                
+                if (!rotationSuccess) {
+                  throw new Error("All rotation attempts failed");
+                }
                 
                 // If successful, pass through the stream
                 const reader = response.body.getReader();
