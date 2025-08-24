@@ -1198,6 +1198,15 @@ Response approach:
 // Function to handle chat with integrated web search
 async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders) {
   try {
+    // Add retry logic for web search models
+    const webSearchModelsToTry = ["perplexed", "exaanswer", "felo"];
+    let modelToUse = originalModel;
+    
+    // If the original model is a web search model that might fail, prepare fallbacks
+    if (webSearchModelsToTry.includes(originalModel)) {
+      // Model is already a web search model, keep it
+      modelToUse = originalModel;
+    }
     // Get current date and time (in IST)
     const now = new Date();
     const dateTimeContext = `Current date and time: ${now.toLocaleDateString('en-IN', { 
@@ -1269,7 +1278,15 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
     
     let searchResults = "";
     try {
-      const searchResponse = await fetch(googleSearchUrl);
+      // Add timeout to prevent hanging (10 seconds)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const searchResponse = await fetch(googleSearchUrl, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
       const searchData = await searchResponse.json();
       
       if (Array.isArray(searchData) && searchData.length > 0) {
@@ -1286,7 +1303,14 @@ async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders)
       }
     } catch (searchError) {
       console.error(`[Web Search] Error performing search:`, searchError);
-      searchResults = "Error performing web search. Please try again.";
+      // Check if it's a timeout error
+      if (searchError.name === 'AbortError') {
+        searchResults = "Web search timed out. Proceeding with available information.";
+        console.log(`[Web Search] Search timed out after 10 seconds`);
+      } else {
+        searchResults = "Error performing web search. Proceeding with available information.";
+      }
+      // Don't fail the entire request, just proceed without search results
     }
     
     // Step 2: Prepare enhanced context for the original model
@@ -1355,33 +1379,110 @@ Use natural formatting where it helps clarity.${webSearchContext}`
       const encoder = new TextEncoder();
       const streamResponse = new ReadableStream({
         async start(controller) {
-          // Send initial web search notification with date/time
-          const searchNotification = `[Performing Google web search (20 results)...]\n[Current: ${dateTimeInfo}]\n\n`;
-          const initialChunk = {
-            id: `chatcmpl-${Date.now()}`,
-            object: "chat.completion.chunk",
-            created: Math.floor(Date.now() / 1000),
-            model: originalModel,
-            choices: [{
-              index: 0,
-              delta: { content: searchNotification },
-              finish_reason: null
-            }]
-          };
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(initialChunk)}\n\n`));
-          
-          // Make the actual request
-          const response = await makeModelRequest(originalModel, enhancedBody, true, corsHeaders);
-          const reader = response.body.getReader();
-          
-          // Pass through the stream
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            controller.enqueue(value);
+          try {
+            // Send initial web search notification with date/time
+            const searchNotification = `[Performing Google web search (20 results)...]\n[Current: ${dateTimeInfo}]\n\n`;
+            const initialChunk = {
+              id: `chatcmpl-${Date.now()}`,
+              object: "chat.completion.chunk",
+              created: Math.floor(Date.now() / 1000),
+              model: originalModel,
+              choices: [{
+                index: 0,
+                delta: { content: searchNotification },
+                finish_reason: null
+              }]
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(initialChunk)}\n\n`));
+            
+            // Make the actual request with error handling
+            let response;
+            try {
+              response = await makeModelRequest(originalModel, enhancedBody, true, corsHeaders);
+            } catch (modelError) {
+              console.error(`[Web Search] Model request failed:`, modelError);
+              // Send error message to stream
+              const errorChunk = {
+                id: `chatcmpl-${Date.now()}`,
+                object: "chat.completion.chunk",
+                created: Math.floor(Date.now() / 1000),
+                model: originalModel,
+                choices: [{
+                  index: 0,
+                  delta: { content: `\n\n[Error: Model request failed. Retrying without web search...]` },
+                  finish_reason: null
+                }]
+              };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`));
+              controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+              controller.close();
+              return;
+            }
+            
+            const reader = response.body.getReader();
+            
+            // Pass through the stream with error handling
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                controller.enqueue(value);
+              }
+            } catch (readError) {
+              console.error(`[Web Search] Stream reading error:`, readError);
+              // Try to send a final error message if possible
+              try {
+                const errorChunk = {
+                  id: `chatcmpl-${Date.now()}`,
+                  object: "chat.completion.chunk",
+                  created: Math.floor(Date.now() / 1000),
+                  model: originalModel,
+                  choices: [{
+                    index: 0,
+                    delta: { content: `\n\n[Stream interrupted. Please try again.]` },
+                    finish_reason: "stop"
+                  }]
+                };
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`));
+                controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+              } catch (e) {
+                // Ignore if we can't send the error message
+              }
+            } finally {
+              // Always try to close the controller
+              try {
+                controller.close();
+              } catch (e) {
+                // Controller might already be closed
+              }
+            }
+          } catch (error) {
+            console.error(`[Web Search] Streaming error:`, error);
+            // Try to send error to stream
+            try {
+              const errorChunk = {
+                id: `chatcmpl-${Date.now()}`,
+                object: "chat.completion.chunk",
+                created: Math.floor(Date.now() / 1000),
+                model: originalModel,
+                choices: [{
+                  index: 0,
+                  delta: { content: `\n\n[Error: ${error.message}]` },
+                  finish_reason: "stop"
+                }]
+              };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`));
+              controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+              controller.close();
+            } catch (e) {
+              // If we can't even send the error, just close
+              try {
+                controller.close();
+              } catch (closeError) {
+                // Already closed
+              }
+            }
           }
-          
-          controller.close();
         }
       });
       
