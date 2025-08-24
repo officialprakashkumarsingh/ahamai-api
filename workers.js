@@ -50,7 +50,10 @@ const exposedToInternalMap = {
   
   // Groq API Models (2) - Ultra-low latency inference ✅
   "groq-kimi-k2": "moonshotai/kimi-k2-instruct",
-  "groq-llama-scout": "meta-llama/llama-4-scout-17b-16e-instruct"
+  "groq-llama-scout": "meta-llama/llama-4-scout-17b-16e-instruct",
+  
+  // NVIDIA API Model (1) - OpenAI compatible endpoint ✅
+  "nvidia-gpt-oss-120b": "openai/gpt-oss-120b"
 };
 
 const modelRoutes = {
@@ -100,7 +103,10 @@ const modelRoutes = {
   
   // Groq API (2) - Ultra-low latency inference
   "moonshotai/kimi-k2-instruct": "https://api.groq.com/openai/v1/chat/completions",
-  "meta-llama/llama-4-scout-17b-16e-instruct": "https://api.groq.com/openai/v1/chat/completions"
+  "meta-llama/llama-4-scout-17b-16e-instruct": "https://api.groq.com/openai/v1/chat/completions",
+  
+  // NVIDIA API (1) - OpenAI compatible endpoint
+  "openai/gpt-oss-120b": "https://integrate.api.nvidia.com/v1/chat/completions"
 };
 
 
@@ -1093,6 +1099,9 @@ Response approach:
     // For Groq API - Ultra-low latency inference
     const groqKey = "gsk_" + "R8OZ89XTZ4bs8NhKNRqJ" + "WGdyb3FYFjb1A58ol4mYXUJEhREh8Jc0";
     headers["Authorization"] = "Bearer " + groqKey;
+  } else if (modelRoutes[internalModel].includes('integrate.api.nvidia.com')) {
+    // For NVIDIA API - OpenAI compatible endpoint
+    headers["Authorization"] = "Bearer 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";
   }
 
   const response = await fetch(modelRoutes[internalModel], {
