@@ -1,0 +1,92 @@
+{
+  "test_date": "2025-08-23T21:33:50.532148",
+  "total_keys": 6,
+  "valid_keys": 6,
+  "working_keys": 0,
+  "results": [
+    {
+      "key": "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",
+      "key_preview": "sk-or-v1-eedaca53380...e2cce5412b",
+      "valid": true,
+      "models_access": true,
+      "chat_access": false,
+      "available_models_count": 316,
+      "tested_models": {
+        "openai/gpt-3.5-turbo": "Failed: Invalid API key (401)",
+        "meta-llama/llama-3.2-3b-instruct:free": "Failed: Invalid API key (401)",
+        "google/gemini-2.0-flash-exp:free": "Failed: Invalid API key (401)"
+      },
+      "errors": []
+    },
+    {
+      "key": "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",
+      "key_preview": "sk-or-v1-d0d04e9675d...a85bfe2654",
+      "valid": true,
+      "models_access": true,
+      "chat_access": false,
+      "available_models_count": 316,
+      "tested_models": {
+        "openai/gpt-3.5-turbo": "Failed: Invalid API key (401)",
+        "meta-llama/llama-3.2-3b-instruct:free": "Failed: Invalid API key (401)",
+        "google/gemini-2.0-flash-exp:free": "Failed: Invalid API key (401)"
+      },
+      "errors": []
+    },
+    {
+      "key": "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",
+      "key_preview": "sk-or-v1-bcd5179013f...0dc42b14f1",
+      "valid": true,
+      "models_access": true,
+      "chat_access": false,
+      "available_models_count": 316,
+      "tested_models": {
+        "openai/gpt-3.5-turbo": "Failed: Invalid API key (401)",
+        "meta-llama/llama-3.2-3b-instruct:free": "Failed: Invalid API key (401)",
+        "google/gemini-2.0-flash-exp:free": "Failed: Invalid API key (401)"
+      },
+      "errors": []
+    },
+    {
+      "key": "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",
+      "key_preview": "sk-or-v1-ee0f525bd30...84278b2eef",
+      "valid": true,
+      "models_access": true,
+      "chat_access": false,
+      "available_models_count": 316,
+      "tested_models": {
+        "openai/gpt-3.5-turbo": "Failed: Invalid API key (401)",
+        "meta-llama/llama-3.2-3b-instruct:free": "Failed: Invalid API key (401)",
+        "google/gemini-2.0-flash-exp:free": "Failed: Invalid API key (401)"
+      },
+      "errors": []
+    },
+    {
+      "key": "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",
+      "key_preview": "sk-or-v1-62b7677e23b...4fdd582081",
+      "valid": true,
+      "models_access": true,
+      "chat_access": false,
+      "available_models_count": 316,
+      "tested_models": {
+        "openai/gpt-3.5-turbo": "Failed: Invalid API key (401)",
+        "meta-llama/llama-3.2-3b-instruct:free": "Failed: Invalid API key (401)",
+        "google/gemini-2.0-flash-exp:free": "Failed: Invalid API key (401)"
+      },
+      "errors": []
+    },
+    {
+      "key": "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",
+      "key_preview": "sk-or-v1-caa3678f30a...4929ee88e6",
+      "valid": true,
+      "models_access": true,
+      "chat_access": false,
+      "available_models_count": 316,
+      "tested_models": {
+        "openai/gpt-3.5-turbo": "Failed: Invalid API key (401)",
+        "meta-llama/llama-3.2-3b-instruct:free": "Failed: Invalid API key (401)",
+        "google/gemini-2.0-flash-exp:free": "Failed: Invalid API key (401)"
+      },
+      "errors": []
+    }
+  ]
+}
