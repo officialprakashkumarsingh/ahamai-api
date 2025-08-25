@@ -1094,7 +1094,7 @@ YOUR CAPABILITIES:
   Always add ?nologo=true for flux/turbo URLs
 • No knowledge cutoff - real-time access
 
-SCREENSHOT RULE: When ANY website is mentioned → PROVIDE SCREENSHOT using format above
+SCREENSHOT RULE: When user demand or anywhere needed then and don't use this unless it is demanded or somewhere really needed then use→ PROVIDE SCREENSHOT using format above
 
 Response approach:
 • Use natural formatting that enhances readability
