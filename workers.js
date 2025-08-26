@@ -25,6 +25,44 @@ const mistralApiKeys = [
 ];
 let mistralKeyIndex = 0;
 
+const braveApiKeys = [
+  "BSAP1ZmJl9wMXKDvGnGM78r9__i_VuG",
+  "BSAx_ihSqqUJXgGPvZJduSZhcZbfnQB",
+  "BSAFHHikdsv2YXSYODQSPES2tTMILHI",
+  "BSA7N3mbuH1WLUgTE-C7wvOS5SR7Srl",
+  "BSAFvyFnGBcWt8IImCnXR_7tgwymtdr",
+  "BSAWAka3FqwUpp3FJP_f5izlPCmXYJE",
+  "BSAN7HoBWjJOUG-zXVN8rkIGXpbsRtq",
+  "BSAttExzgW4_H4rcHMmpHQ9hw7vz2lX",
+  "BSAP0LqtBpuCz19UbWd_SF6BCSTgQbD",
+  "BSAsHWA8JejN8yR7rmQpB6zbiuN0kiz",
+  "BSAsDd5v_DhzOXMvxDp59Up7gE4F9FU",
+  "BSAxGC1s-JGptZejZb7W-srU3C38tUa",
+  "BSANO2wi1X7VobnaHKDZiKtSSUVLJbs",
+  "BSAF0Eghn0LJVunT162U9_hjUTwpoxT",
+  "BSAatEHiEyQVY0E2m5VTZpURgWmwVJs",
+  "BSAhdZD3bibK1I21NLKCOEYIzF92JAg",
+  "BSA5Wbq3XcFhkVnlqkFvWy9oQ6LCpPM",
+  "BSA9cI-ySSlj9AcH1Te378Dns7u-a94",
+  "BSALK6kVOrH0IJeW-y5cFmAkvkdYtXK",
+  "BSA91HObAKlxwVldV5teh4TTKGw8_qN",
+  "BSAhxxZOTsSPVAi4c-5Jye3ZNTxiCpO",
+  "BSApz0194z7SG6DplmVozl7ttFOi0Eo",
+  "BSA_qIkGjGbHL3dAZ8ud30KkrFA-AoR",
+  "BSAtniQaa7lCvHmj0z6gHUTzxfwRmtP",
+  "BSALH5My3WviqKzd52GFKMPb8Nkq-cl",
+  "BSABCX8h0_23my3-3VbXZU2LZscu-LX",
+  "BSACjemCARQailPeTLzGQ9auvrc8bsM",
+  "BSApoyO-93mdXe0VM3BTFtMJUKQALhO",
+  "BSA6k-wEGLawcaINnEb-iIiwBnq9-Y2",
+  "BSArXZ987KsjfuUmJRTvpXPjuYVP7-I",
+  "BSAe7FiTb62lN_g3Qctb-L97QJIqkDF",
+  "BSAYFCph1muTB4F5t5cFNIGQfv9UT8j",
+  "BSAtrR5zhssDQA9iHdKR6rtIqhxilR8",
+  "BSAQ0gsYuaYuEZHayb_Ek1pnl1l2RiW"
+];
+let braveKeyIndex = 0;
+
 const API_KEY = "ahamaipriv05";
 
 const exposedToInternalMap = {
@@ -322,6 +360,10 @@ export default {
 
     if (path === "/v1/defaults" && request.method === "GET") {
       return handleDefaults(corsHeaders);
+    }
+
+    if (path === "/v1/web" && request.method === "POST") {
+      return handleWebSearch(request, corsHeaders);
     }
 
     if (path === "/v1/automation/url" && request.method === "POST") {
@@ -1151,6 +1193,47 @@ function handleDefaults(corsHeaders = {}) {
     vision: defaultModels.vision,
     webSearch: defaultModels.webSearch
   }), {
+    headers: { "Content-Type": "application/json", ...corsHeaders }
+  });
+}
+
+async function handleWebSearch(request, corsHeaders) {
+  const body = await request.json();
+  const query = body.query;
+
+  if (!query) {
+    return new Response(JSON.stringify({ error: "Query parameter is required" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
+
+  const braveKey = braveApiKeys[braveKeyIndex];
+  braveKeyIndex = (braveKeyIndex + 1) % braveApiKeys.length;
+
+  const searchUrl = new URL("https://api.search.brave.com/res/v1/web/search");
+  searchUrl.searchParams.append("q", query);
+
+  const response = await fetch(searchUrl.toString(), {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      "Accept-Encoding": "gzip",
+      "X-Subscription-Token": braveKey
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    return new Response(JSON.stringify({ error: `Brave Search API request failed with status ${response.status}: ${errorText}` }), {
+      status: response.status,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
+
+  const results = await response.json();
+  return new Response(JSON.stringify(results), {
+    status: 200,
     headers: { "Content-Type": "application/json", ...corsHeaders }
   });
 }
