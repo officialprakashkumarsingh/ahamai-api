@@ -47,9 +47,6 @@ const exposedToInternalMap = {
   "groq-kimi-k2": "moonshotai/kimi-k2-instruct",
   "groq-llama-scout": "meta-llama/llama-4-scout-17b-16e-instruct",
   
-  // NVIDIA API Model (1) - OpenAI compatible endpoint ✅
-  "nvidia-gpt-oss-120b": "openai/gpt-oss-120b",
-
   // Mistral AI Vision Model (1) - OpenAI compatible
   "mistral-medium-2508": "mistral-medium-2508",
   "mistral-small-latest": "mistral-small-latest"
@@ -75,9 +72,6 @@ const modelRoutes = {
   "moonshotai/kimi-k2-instruct": "https://api.groq.com/openai/v1/chat/completions",
   "meta-llama/llama-4-scout-17b-16e-instruct": "https://api.groq.com/openai/v1/chat/completions",
   
-  // NVIDIA API (1) - OpenAI compatible endpoint
-  "openai/gpt-oss-120b": "https://integrate.api.nvidia.com/v1/chat/completions",
-
   // Mistral AI (1) - OpenAI compatible endpoint
   "mistral-medium-2508": "https://api.mistral.ai/v1/chat/completions",
   "mistral-small-latest": "https://api.mistral.ai/v1/chat/completions"
@@ -723,9 +717,6 @@ Response approach:
     // For Groq API - Ultra-low latency inference
     const groqKey = "gsk_" + "R8OZ89XTZ4bs8NhKNRqJ" + "WGdyb3FYFjb1A58ol4mYXUJEhREh8Jc0";
     headers["Authorization"] = "Bearer " + groqKey;
-  } else if (modelRoutes[internalModel].includes('integrate.api.nvidia.com')) {
-    // For NVIDIA API - OpenAI compatible endpoint
-    headers["Authorization"] = "Bearer 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";
   } else if (modelRoutes[internalModel].includes('api.mistral.ai')) {
     // Key rotation logic for Mistral AI
     const rotatedKeys = mistralApiKeys.slice(mistralKeyIndex).concat(mistralApiKeys.slice(0, mistralKeyIndex));
@@ -1087,7 +1078,7 @@ function handleChatModelList(corsHeaders = {}) {
   // Start with the primary model
   const primaryModel = {
     id: primaryModelId,
-    name: "Cerebras Qwen 235B",
+    name: "Qwen 235B",
     object: "model",
     owned_by: "aham-ai",
     description: "🚀 PRIMARY MODEL: The fastest and most capable model available."
@@ -1098,7 +1089,7 @@ function handleChatModelList(corsHeaders = {}) {
     .filter(id => id !== primaryModelId)
     .map((id) => ({
       id,
-      name: id,
+      name: id.replace(/^(cerebras-|groq-)/, ''),
       object: "model",
       owned_by: "openai-compatible"
     }));
