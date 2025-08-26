@@ -36,7 +36,10 @@ const exposedToInternalMap = {
   "groq-llama-scout": "meta-llama/llama-4-scout-17b-16e-instruct",
   
   // NVIDIA API Model (1) - OpenAI compatible endpoint ✅
-  "nvidia-gpt-oss-120b": "openai/gpt-oss-120b"
+  "nvidia-gpt-oss-120b": "openai/gpt-oss-120b",
+
+  // Mistral AI Vision Model (1) - OpenAI compatible
+  "mistral-medium-2508": "mistral-medium-2508"
 };
 
 const modelRoutes = {
@@ -75,7 +78,10 @@ const modelRoutes = {
   "meta-llama/llama-4-scout-17b-16e-instruct": "https://api.groq.com/openai/v1/chat/completions",
   
   // NVIDIA API (1) - OpenAI compatible endpoint
-  "openai/gpt-oss-120b": "https://integrate.api.nvidia.com/v1/chat/completions"
+  "openai/gpt-oss-120b": "https://integrate.api.nvidia.com/v1/chat/completions",
+
+  // Mistral AI (1) - OpenAI compatible endpoint
+  "mistral-medium-2508": "https://api.mistral.ai/v1/chat/completions"
 };
 
 
@@ -157,6 +163,17 @@ const visionModels = {
   
   // Potential addition (available but not yet integrated):
   // - meta-llama/llama-4-maverick-17b-128e-instruct (Groq, vision capable)
+
+  "mistral-medium-2508": {
+    provider: "Mistral",
+    name: "Mistral Medium 2508 (Vision)",
+    model: "mistral-medium-2508",
+    capabilities: ["text", "vision", "image-analysis"],
+    maxTokens: 8192,
+    supportedFormats: ["image_url", "base64"],
+    description: "Mistral's vision model with OpenAI compatibility.",
+    verified: true
+  }
 };
 
 // Default models configuration
@@ -846,6 +863,9 @@ Response approach:
   } else if (modelRoutes[internalModel].includes('integrate.api.nvidia.com')) {
     // For NVIDIA API - OpenAI compatible endpoint
     headers["Authorization"] = "Bearer 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";
+  } else if (modelRoutes[internalModel].includes('api.mistral.ai')) {
+    // For Mistral AI - OpenAI compatible endpoint
+    headers["Authorization"] = "Bearer vlVy39wyXd1jkURNevvMkGuqKaPBj3Ek";
   }
 
   const response = await fetch(modelRoutes[internalModel], {
