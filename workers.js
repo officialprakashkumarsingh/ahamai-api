@@ -1,6 +1,7 @@
 const API_KEY = "ahamaipriv05";
 
 const exposedToInternalMap = {
+  "cerebras-qwen-235b": "qwen-3-235b-a22b-instruct-2507",
   // WORKING MODELS ONLY - Verified via comprehensive testing (24 models + default)
   // All models support streaming ✅
   
@@ -25,7 +26,6 @@ const exposedToInternalMap = {
   // v0.dev Models (0) - Vercel's AI models - REMOVED
   
   // Cerebras AI Models (5) - Ultra-fast inference with various model sizes ✅
-  "cerebras-qwen-235b": "qwen-3-235b-a22b-instruct-2507",
   "cerebras-qwen-235b-thinking": "qwen-3-235b-a22b-thinking-2507",
   "cerebras-qwen-coder-480b": "qwen-3-coder-480b",
   "cerebras-qwen-32b": "qwen-3-32b",
@@ -166,64 +166,6 @@ const defaultModels = {
 
 
 
-// Function to detect when image generation is requested and extract model preference
-function needsImageGeneration(messages) {
-  const recentMessages = messages.slice(-2);
-  const conversationText = recentMessages
-    .map(m => typeof m.content === 'string' ? m.content : m.content.map(c => c.text || '').join(' '))
-    .join(' ');
-  
-  const lowerText = conversationText.toLowerCase();
-  
-  // Patterns that indicate image generation request
-  const imagePatterns = [
-    /\b(generate|create|make|draw|design|produce|render)\s+(an?\s+)?(image|picture|photo|illustration|artwork|visual|graphic)/i,
-    /\b(image|picture|photo|illustration|artwork|visual|graphic)\s+(of|showing|depicting|with|containing)/i,
-    /\bcan you (generate|create|make|draw|show me)\b/i,
-    /\b(show me|give me|I want|I need)\s+(an?\s+)?(image|picture|photo|illustration)/i,
-    /\b(visualize|illustrate|depict|represent)\b/i,
-    /\bdall-?e|midjourney|stable\s*diffusion|flux|image\s*gen/i
-  ];
-  
-  let needsImage = false;
-  for (const pattern of imagePatterns) {
-    if (pattern.test(lowerText)) {
-      needsImage = true;
-      break;
-    }
-  }
-  
-  if (!needsImage) return null;
-  
-  // Available image models
-  const availableModels = ['flux', 'turbo', 'img3', 'img4', 'qwen', 'nsfw-gen'];
-  
-  // Check if user specified a model
-  let preferredModel = null;
-  for (const model of availableModels) {
-    // Check for model name with various patterns
-    // Matches: "use img3", "with img3", "img3 model", "via img3", etc.
-    const patterns = [
-      new RegExp(`\\b(use|using|with|via)\\s+${model}\\b`, 'i'),
-      new RegExp(`\\b${model}\\s+(model|to|for)\\b`, 'i'),
-      new RegExp(`\\b${model}\\b`, 'i') // Just the model name itself
-    ];
-    
-    for (const pattern of patterns) {
-      if (pattern.test(conversationText)) {
-        preferredModel = model;
-        break;
-      }
-    }
-    
-    if (preferredModel) break;
-  }
-  
-  return {
-    needed: true,
-    model: preferredModel
-  };
-}
 
 // Function to detect ALL URLs for screenshots - no limits
 function shouldProvideScreenshot(messages) {
@@ -266,98 +208,7 @@ function generateScreenshotUrl(url) {
   return `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=1280&h=960`;
 }
 
-// Speed-optimized model rankings based on actual performance data
-const modelSpeedRanking = [
-  // Tier 1: Lightning Fast (<1s)
-  { model: "groq-kimi-k2", avgResponseTime: 0.040, tier: 1 }, // Groq is INSANELY fast!
-  { model: "cerebras-qwen-235b", avgResponseTime: 0.120, tier: 1 }, // Cerebras is ultra-fast!
-  { model: "groq-llama-scout", avgResponseTime: 0.162, tier: 1 }, // Groq Llama Scout
-  { model: "cerebras-gpt-120b", avgResponseTime: 0.220, tier: 1 }, // GPT-OSS 120B
-  { model: "cerebras-qwen-235b-thinking", avgResponseTime: 0.350, tier: 1 }, // Thinking model
-  { model: "cerebras-qwen-32b", avgResponseTime: 0.450, tier: 1 }, // Smaller but fast
-  { model: "cerebras-qwen-coder-480b", avgResponseTime: 0.480, tier: 1 }, // Specialized for coding
-  { model: "llama-4-scout-17b-16e-instruct", avgResponseTime: 0.567, tier: 1 },
-  { model: "meta-llama/llama-4-scout-17b-16e-instruct", avgResponseTime: 0.567, tier: 1 },
-  { model: "deepseek-r1-distill-llama-70b", avgResponseTime: 0.982, tier: 1 },
-  
-  // Tier 2: Very Fast (1-2s)
-  { model: "v0-1.5-md", avgResponseTime: 1.5, tier: 2 },
-  { model: "v0-1.0-md", avgResponseTime: 1.7, tier: 2 },
-  { model: "glm-4.5-air", avgResponseTime: 1.8, tier: 2 },
-  
-  // Tier 3: Fast (2-3s)
-  { model: "felo", avgResponseTime: 2.1, tier: 3 },
-  { model: "perplexed", avgResponseTime: 2.3, tier: 3 },
-  { model: "exaanswer", avgResponseTime: 2.5, tier: 3 },
-  { model: "glm-4.5", avgResponseTime: 2.7, tier: 3 },
-  
-    // Tier 4: Standard (3s+)
-  { model: "qwen-3-coder-480b", avgResponseTime: 3.5, tier: 4 }
 
-];
-
-// Track failed models during a request to avoid retrying them
-let failedModelsInRequest = new Set();
-
-// Dynamic response time tracking (in-memory for this session)
-const responseTimeTracking = new Map();
-
-// Function to update response time tracking
-function updateResponseTime(model, responseTime) {
-  if (!responseTimeTracking.has(model)) {
-    responseTimeTracking.set(model, {
-      totalTime: 0,
-      count: 0,
-      avgTime: 0,
-      lastUpdated: Date.now()
-    });
-  }
-  
-  const stats = responseTimeTracking.get(model);
-  stats.totalTime += responseTime;
-  stats.count += 1;
-  stats.avgTime = stats.totalTime / stats.count;
-  stats.lastUpdated = Date.now();
-  
-  console.log(`[Performance] ${model}: ${responseTime}ms (avg: ${stats.avgTime.toFixed(0)}ms over ${stats.count} requests)`);
-}
-
-// Function to get the next fastest available model (with dynamic adjustment)
-function getNextFastestModel(excludeModels = []) {
-  // Create a combined ranking using both static and dynamic data
-  const combinedRanking = modelSpeedRanking.map(modelInfo => {
-    const dynamicStats = responseTimeTracking.get(modelInfo.model);
-    
-    // If we have dynamic data, use weighted average (70% dynamic, 30% static)
-    let effectiveTime = modelInfo.avgResponseTime * 1000; // Convert to ms
-    if (dynamicStats && dynamicStats.count >= 3) {
-      effectiveTime = (dynamicStats.avgTime * 0.7) + (modelInfo.avgResponseTime * 1000 * 0.3);
-    }
-    
-    return {
-      ...modelInfo,
-      effectiveTime
-    };
-  }).sort((a, b) => a.effectiveTime - b.effectiveTime);
-  
-  // Find the first available model
-  for (const modelInfo of combinedRanking) {
-    // Skip if model is in exclude list or has failed in this request
-    if (excludeModels.includes(modelInfo.model) || failedModelsInRequest.has(modelInfo.model)) {
-      continue;
-    }
-    
-    // Check if model exists in our mapping
-    if (exposedToInternalMap[modelInfo.model]) {
-      console.log(`[Model Rotation] Selected model: ${modelInfo.model}`);
-      return modelInfo.model;
-    }
-  }
-  
-  // If absolutely everything fails, return null
-  console.log(`[Model Rotation] All models exhausted`);
-  return null;
-}
 
 
 // Keep-alive configuration for Render endpoint
@@ -1002,11 +853,8 @@ Response guidelines:
     });
   }
 
-  if (!exposedToInternalMap[exposedModel]) {
-    return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
+  if (!exposedModel || !exposedToInternalMap[exposedModel]) {
+    exposedModel = "cerebras-qwen-235b";
   }
 
   try {
@@ -1024,48 +872,6 @@ Response guidelines:
       if (systemMessageIndex >= 0) {
         body.messages[systemMessageIndex].content += `\n\n[WEBSITES DETECTED - YOU MUST PROVIDE SCREENSHOTS]:${screenshotInfo}
 \n[CRITICAL]: You MUST display ALL screenshots above using the exact markdown format shown. This is NOT optional - ALWAYS show website previews!`;
-      }
-    }
-    
-    // Check if image generation is requested
-    const imageGenRequest = needsImageGeneration(body.messages);
-    if (imageGenRequest && imageGenRequest.needed) {
-      const systemMessageIndex = body.messages.findIndex(m => m.role === 'system');
-      if (systemMessageIndex >= 0) {
-        const preferredModelInfo = imageGenRequest.model 
-          ? `\n🎯 USER REQUESTED MODEL: ${imageGenRequest.model} - USE THIS MODEL!`
-          : '\n💡 No specific model requested - choose the best one for the task';
-          
-        body.messages[systemMessageIndex].content += `\n\n[IMAGE GENERATION REQUESTED]${preferredModelInfo}
-
-Available image models at https://ahamai-api.officialprakashkrsingh.workers.dev/v1/images/generations:
-• flux - High quality artistic images (Pollinations) - WORKING ✅
-• turbo - Fast generation (Pollinations) - WORKING ✅
-• img3, img4 - General purpose (InfIP) - WORKING ✅
-• qwen - Versatile creation (InfIP) - WORKING ✅
-• nsfw-gen - Unrestricted (HideMe) - WORKING ✅
-
-⚠️ CRITICAL MODEL SELECTION:
-${imageGenRequest.model 
-  ? `USER SPECIFIED MODEL: "${imageGenRequest.model}" - YOU MUST USE THIS EXACT MODEL!`
-  : 'NO MODEL SPECIFIED - USE DEFAULT: "flux" (high quality)'}
-
-CORRECT API USAGE:
-1. Model to use: ${imageGenRequest.model || 'flux'}
-2. Endpoint: POST https://ahamai-api.officialprakashkrsingh.workers.dev/v1/images/generations
-3. Body: { "model": "${imageGenRequest.model || 'flux'}", "prompt": "[user's description]", "n": 1, "size": "1024x1024" }
-
-WATERMARK REMOVAL:
-- flux/turbo: ALWAYS add ?nologo=true to the returned URL
-- img3/img4/qwen: These don't have watermarks, use URL as-is
-- Display: ![Generated Image](url?nologo=true) for ALL Pollinations models
-
-IMPORTANT RULES:
-✅ If user says "use img3" → model: "img3" in API call
-✅ If user says "with flux" → model: "flux" in API call  
-✅ If no model specified → model: "flux" (default)
-❌ NEVER say you're using one model but call another
-❌ NEVER substitute models`;
       }
     }
     
@@ -1222,18 +1028,29 @@ async function handleImage(request, corsHeaders) {
 
 
 function handleChatModelList(corsHeaders = {}) {
-  const chatModels = Object.keys(exposedToInternalMap).map((id) => {
-    return {
+  const primaryModelId = "cerebras-qwen-235b";
+
+  // Start with the primary model
+  const primaryModel = {
+    id: primaryModelId,
+    name: "Cerebras Qwen 235B",
+    object: "model",
+    owned_by: "aham-ai",
+    description: "🚀 PRIMARY MODEL: The fastest and most capable model available."
+  };
+
+  // Get the rest of the models, excluding the primary one
+  const otherModels = Object.keys(exposedToInternalMap)
+    .filter(id => id !== primaryModelId)
+    .map((id) => ({
       id,
       name: id,
       object: "model",
-      owned_by: "openai-compatible",
-      priority: 1
-    };
-  });
+      owned_by: "openai-compatible"
+    }));
 
-  // Sort to ensure default appears first
-  chatModels.sort((a, b) => a.priority - b.priority);
+  // Combine them, with the primary model first
+  const chatModels = [primaryModel, ...otherModels];
 
   return new Response(JSON.stringify({
     object: "list",
