@@ -39,7 +39,8 @@ const exposedToInternalMap = {
   "nvidia-gpt-oss-120b": "openai/gpt-oss-120b",
 
   // Mistral AI Vision Model (1) - OpenAI compatible
-  "mistral-medium-2508": "mistral-medium-2508"
+  "mistral-medium-2508": "mistral-medium-2508",
+  "mistral-small-latest": "mistral-small-latest"
 };
 
 const modelRoutes = {
@@ -81,7 +82,8 @@ const modelRoutes = {
   "openai/gpt-oss-120b": "https://integrate.api.nvidia.com/v1/chat/completions",
 
   // Mistral AI (1) - OpenAI compatible endpoint
-  "mistral-medium-2508": "https://api.mistral.ai/v1/chat/completions"
+  "mistral-medium-2508": "https://api.mistral.ai/v1/chat/completions",
+  "mistral-small-latest": "https://api.mistral.ai/v1/chat/completions"
 };
 
 
@@ -144,26 +146,6 @@ const imageModelRoutes = {
 // Vision models configuration
 // UPDATED: Groq's Llama Scout model has verified vision support!
 const visionModels = {
-  // ✅ WORKING VISION MODEL (Verified Aug 23, 2025)
-  "groq-llama-scout": {
-    provider: "Groq",
-    name: "Meta Llama 4 Scout 17B (Vision)",
-    model: "meta-llama/llama-4-scout-17b-16e-instruct",
-    capabilities: ["text", "vision", "image-analysis"],
-    maxTokens: 8192,
-    supportedFormats: ["image_url", "base64"],
-    description: "Ultra-fast vision model with 0.162s response time",
-    verified: true
-  }
-  
-  // Note: Other models tested but don't support vision:
-  // - All Cerebras models (text-only, optimized for speed)
-  // - groq-kimi-k2 (text-only, fastest at 0.040s)
-  // - Most proxy models don't properly handle multimodal content
-  
-  // Potential addition (available but not yet integrated):
-  // - meta-llama/llama-4-maverick-17b-128e-instruct (Groq, vision capable)
-
   "mistral-medium-2508": {
     provider: "Mistral",
     name: "Mistral Medium 2508 (Vision)",
