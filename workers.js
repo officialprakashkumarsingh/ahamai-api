@@ -4,9 +4,6 @@ const exposedToInternalMap = {
   // WORKING MODELS ONLY - Verified via comprehensive testing (24 models + default)
   // All models support streaming ✅
   
-  // PRIMARY MODEL - Automatically selects fastest available model
-  "default": "default", // 🚀 RECOMMENDED: Always fastest response with automatic fallback
-  
   // Proxy Models (3) - All working with streaming
   "perplexed": "perplexed",
   "felo": "felo",
@@ -392,89 +389,6 @@ function getNextFastestModel(excludeModels = []) {
   return null;
 }
 
-// Function to handle the default model routing
-async function handleDefaultModel(body, stream, corsHeaders) {
-  // Clear failed models for new request
-  failedModelsInRequest.clear();
-  
-  const maxRetries = 10; // Increase retries to try more models
-  let attemptedModels = [];
-  let lastError = null;
-  
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    // Get the next fastest model that hasn't been tried
-    const selectedModel = getNextFastestModel(attemptedModels);
-    
-    if (!selectedModel) {
-      // No more models to try
-      console.log(`[Default Model] No more models available after ${attempt} attempts`);
-      break;
-    }
-    
-    console.log(`[Default Model] Attempt ${attempt + 1}: Using ${selectedModel} (Tier ${modelSpeedRanking.find(m => m.model === selectedModel)?.tier || 'Unknown'})`);
-    attemptedModels.push(selectedModel);
-    
-    try {
-      // Replace the model in the request
-      const modifiedBody = { ...body, model: selectedModel };
-      
-      // Try to make the request with the selected model
-      const startTime = Date.now();
-      
-      const response = await makeModelRequest(selectedModel, modifiedBody, stream, corsHeaders);
-      
-      // Log and track successful response time
-      const responseTime = Date.now() - startTime;
-      console.log(`[Default Model] Success with ${selectedModel} in ${responseTime}ms`);
-      
-      // Update dynamic response time tracking
-      updateResponseTime(selectedModel, responseTime);
-      
-      // Add metadata about which model was used
-      if (!stream && response.headers.get('content-type')?.includes('json')) {
-        const responseData = await response.json();
-        responseData.model = `default (via ${selectedModel})`;
-        responseData.metadata = {
-          actual_model: selectedModel,
-          response_time_ms: responseTime,
-          attempt: attempt + 1,
-          tier: modelSpeedRanking.find(m => m.model === selectedModel)?.tier || 'Unknown'
-        };
-        return new Response(JSON.stringify(responseData), {
-          status: response.status,
-          headers: response.headers
-        });
-      }
-      
-      // For streaming responses, add a header to indicate which model was used
-      const modifiedHeaders = new Headers(response.headers);
-      modifiedHeaders.set('X-Actual-Model', selectedModel);
-      modifiedHeaders.set('X-Response-Time', responseTime.toString());
-      
-      return new Response(response.body, {
-        status: response.status,
-        headers: modifiedHeaders
-      });
-      
-    } catch (error) {
-      console.log(`[Default Model] Failed with ${selectedModel}: ${error.message}`);
-      attemptedModels.push(selectedModel);
-      lastError = error;
-      failedModelsInRequest.add(selectedModel);
-      
-      // Log progress for transparency
-      if (attemptedModels.length >= 3) {
-        console.log(`[Default Model] Rotation progress: tried ${attemptedModels.length} models, continuing...`);
-      }
-      
-      // Continue to next model
-      continue;
-    }
-  }
-  
-  // All attempts failed
-  throw new Error(`Default model failed after ${attemptedModels.length} attempts. Last error: ${lastError?.message || 'Unknown error'}. Tried models: ${attemptedModels.join(', ')}`);
-}
 
 // Keep-alive configuration for Render endpoint
 let lastPingTime = 0;
@@ -1123,10 +1037,6 @@ Response guidelines:
   }
 
   try {
-    // Handle the special "default" model that routes to fastest available
-    if (exposedModel === "default") {
-      return await handleDefaultModel(body, stream, corsHeaders);
-    }
     // Check for ALL URLs and provide screenshots (no limits)
     const screenshotUrls = shouldProvideScreenshot(body.messages);
     if (screenshotUrls && screenshotUrls.length > 0) {
@@ -1340,18 +1250,6 @@ async function handleImage(request, corsHeaders) {
 
 function handleChatModelList(corsHeaders = {}) {
   const chatModels = Object.keys(exposedToInternalMap).map((id) => {
-    // Special handling for default model
-    if (id === "default") {
-      return {
-        id: "default",
-        name: "Default (Speed-Optimized)",
-        object: "model",
-        owned_by: "speed-optimized",
-        description: "🚀 RECOMMENDED: Automatically selects the fastest available model with intelligent fallback",
-        priority: 0 // Highest priority
-      };
-    }
-    
     return {
       id,
       name: id,
