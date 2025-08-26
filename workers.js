@@ -9,20 +9,11 @@ const exposedToInternalMap = {
   "felo": "felo",
   "exaanswer": "exaanswer",
   
-  // Google Gemini Models (5) - Working perfectly with streaming
-  "gemini-2.0-flash": "gemini-2.0-flash",
-  "gemini-2.0-flash-thinking-exp-01-21": "gemini-2.0-flash-thinking-exp-01-21",
-  "gemini-2.5-flash-lite-preview-06-17": "gemini-2.5-flash-lite-preview-06-17",
-  "gemini-2.5-flash": "gemini-2.5-flash",
-  
   // DeepSeek Models (1) - Working with streaming
   "deepseek-r1-distill-llama-70b": "deepseek-r1-distill-llama-70b",
   
   // Meta Llama Models (1) - Working with streaming
   "llama-4-scout-17b-16e-instruct": "llama-4-scout-17b-16e-instruct",
-  
-  // FastAPI Free Models (1) - Working with streaming
-  "gemini-2.5-flash-preview-04-17": "gemini-2.5-flash-preview-04-17",
   
   // DeepInfra Models (1) - Working with streaming (100 requests/day with IP rotation)
   "qwen-3-coder-480b": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
@@ -32,9 +23,6 @@ const exposedToInternalMap = {
   "glm-4.5": "zai-org/GLM-4.5",
   
   // v0.dev Models (0) - Vercel's AI models - REMOVED
-  
-  // Airforce API Model (1) - WARNING: Severe rate limit (1 req/min)
-  "airforce-gpt-4o-mini": "gpt-4o-mini",
   
   // Cerebras AI Models (5) - Ultra-fast inference with various model sizes ✅
   "cerebras-qwen-235b": "qwen-3-235b-a22b-instruct-2507",
@@ -60,20 +48,11 @@ const modelRoutes = {
   "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   "exaanswer": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
-  // Google Gemini Models (5) - All working perfectly
-  "gemini-2.0-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "gemini-2.0-flash-thinking-exp-01-21": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "gemini-2.5-flash-lite-preview-06-17": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "gemini-2.5-flash": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
   // DeepSeek Models (1) - Working perfectly
   "deepseek-r1-distill-llama-70b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
   // Meta Llama Models (1) - Working perfectly
   "llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
-  // FastAPI Free Models (1) - Working perfectly
-  "gemini-2.5-flash-preview-04-17": "https://api.free.fastapi.pro/v1/chat/completions",
   
   // DeepInfra Models (1) - Working perfectly with streaming (100 requests/day with IP rotation)
   "Qwen/Qwen3-Coder-480B-A35B-Instruct": "https://api.deepinfra.com/v1/openai/chat/completions",
@@ -83,9 +62,6 @@ const modelRoutes = {
   "zai-org/GLM-4.5": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
   // v0.dev Models (0) - Vercel's AI models - REMOVED
-  
-  // Airforce API (1) - WARNING: 1 request per minute rate limit!
-  "gpt-4o-mini": "https://api.airforce/v1/chat/completions",
   
   // Cerebras AI (5) - Ultra-fast inference with various model sizes
   "qwen-3-235b-a22b-instruct-2507": "https://api.cerebras.ai/v1/chat/completions",
@@ -303,14 +279,9 @@ const modelSpeedRanking = [
   { model: "cerebras-qwen-coder-480b", avgResponseTime: 0.480, tier: 1 }, // Specialized for coding
   { model: "llama-4-scout-17b-16e-instruct", avgResponseTime: 0.567, tier: 1 },
   { model: "meta-llama/llama-4-scout-17b-16e-instruct", avgResponseTime: 0.567, tier: 1 },
-  { model: "gemini-2.5-flash-lite-preview-06-17", avgResponseTime: 0.797, tier: 1 },
-  { model: "gemini-2.0-flash", avgResponseTime: 0.806, tier: 1 },
-  { model: "gemini-2.0-flash-thinking-exp-01-21", avgResponseTime: 0.904, tier: 1 },
   { model: "deepseek-r1-distill-llama-70b", avgResponseTime: 0.982, tier: 1 },
   
   // Tier 2: Very Fast (1-2s)
-  { model: "gemini-2.5-flash", avgResponseTime: 1.2, tier: 2 },
-  { model: "gemini-2.5-flash-preview-04-17", avgResponseTime: 1.3, tier: 2 },
   { model: "v0-1.5-md", avgResponseTime: 1.5, tier: 2 },
   { model: "v0-1.0-md", avgResponseTime: 1.7, tier: 2 },
   { model: "glm-4.5-air", avgResponseTime: 1.8, tier: 2 },
