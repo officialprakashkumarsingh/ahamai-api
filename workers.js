@@ -18,6 +18,13 @@ const cerebrasApiKeys = [
 ];
 let cerebrasKeyIndex = 0;
 
+const mistralApiKeys = [
+  "vlVy39wyXd1jkURNevvMkGuqKaPBj3Ek",
+  "jszBhAcZLBhNgJeO0hCHIVc8SLKQ8RIk",
+  "Lu7xpXn9EScc0UkfDxGFY6HOpAlsFFRR"
+];
+let mistralKeyIndex = 0;
+
 const API_KEY = "ahamaipriv05";
 
 const exposedToInternalMap = {
@@ -25,23 +32,8 @@ const exposedToInternalMap = {
   // WORKING MODELS ONLY - Verified via comprehensive testing (24 models + default)
   // All models support streaming ✅
   
-  // Proxy Models (3) - All working with streaming
-  "perplexed": "perplexed",
-  "felo": "felo",
-  "exaanswer": "exaanswer",
-  
-  // DeepSeek Models (1) - Working with streaming
-  "deepseek-r1-distill-llama-70b": "deepseek-r1-distill-llama-70b",
-  
-  // Meta Llama Models (1) - Working with streaming
-  "llama-4-scout-17b-16e-instruct": "llama-4-scout-17b-16e-instruct",
-  
   // DeepInfra Models (1) - Working with streaming (100 requests/day with IP rotation)
   "qwen-3-coder-480b": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
-  
-  // GLM Models (2) - Available via Render proxy - Working with streaming ✅
-  "glm-4.5-air": "zai-org/GLM-4.5-Air",
-  "glm-4.5": "zai-org/GLM-4.5",
   
   // v0.dev Models (0) - Vercel's AI models - REMOVED
   
@@ -67,23 +59,8 @@ const modelRoutes = {
   // WORKING MODELS ONLY - Verified via comprehensive testing (24 models)
   // All models support streaming ✅
   
-  // Proxy Models via Render (3)
-  "perplexed": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "exaanswer": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
-  // DeepSeek Models (1) - Working perfectly
-  "deepseek-r1-distill-llama-70b": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
-  // Meta Llama Models (1) - Working perfectly
-  "llama-4-scout-17b-16e-instruct": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  
   // DeepInfra Models (1) - Working perfectly with streaming (100 requests/day with IP rotation)
   "Qwen/Qwen3-Coder-480B-A35B-Instruct": "https://api.deepinfra.com/v1/openai/chat/completions",
-  
-  // GLM Models (2) - Available via Render proxy
-  "zai-org/GLM-4.5-Air": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "zai-org/GLM-4.5": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
   
   // v0.dev Models (0) - Vercel's AI models - REMOVED
   
@@ -181,7 +158,7 @@ const visionModels = {
 // Default models configuration
 const defaultModels = {
   vision: "groq-llama-scout", // Groq's Llama Scout - only verified working vision model
-  webSearch: "perplexed" // Default web search model (verified working)
+  webSearch: "groq-llama-scout" // Default web search model (verified working)
 };
 
 
@@ -750,8 +727,37 @@ Response approach:
     // For NVIDIA API - OpenAI compatible endpoint
     headers["Authorization"] = "Bearer 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";
   } else if (modelRoutes[internalModel].includes('api.mistral.ai')) {
-    // For Mistral AI - OpenAI compatible endpoint
-    headers["Authorization"] = "Bearer vlVy39wyXd1jkURNevvMkGuqKaPBj3Ek";
+    // Key rotation logic for Mistral AI
+    const rotatedKeys = mistralApiKeys.slice(mistralKeyIndex).concat(mistralApiKeys.slice(0, mistralKeyIndex));
+    mistralKeyIndex = (mistralKeyIndex + 1) % mistralApiKeys.length;
+
+    let lastError = null;
+    for (const key of rotatedKeys) {
+      try {
+        headers["Authorization"] = `Bearer ${key.trim()}`;
+        const response = await fetch(modelRoutes[internalModel], {
+          method: "POST",
+          headers: headers,
+          body: JSON.stringify({ ...requestBody, messages: processedMessages, model: internalModel })
+        });
+
+        if (response.status === 401 || response.status === 403 || response.status === 429) {
+          console.log(`Mistral key failed with status ${response.status}. Trying next key.`);
+          lastError = new Error(`Mistral API key failed with status ${response.status}`);
+          continue;
+        }
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Model '${modelId}' request failed with status ${response.status}: ${errorText}`);
+        }
+
+        return response; // Success!
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw new Error(`All Mistral API keys failed. Last error: ${lastError?.message || 'Unknown error'}`);
   }
 
   const response = await fetch(modelRoutes[internalModel], {
