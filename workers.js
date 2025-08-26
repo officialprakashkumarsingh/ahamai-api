@@ -265,7 +265,7 @@ async function checkAndSendKeepAlive() {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     // Check if we should send a keep-alive ping (non-blocking)
     checkAndSendKeepAlive();
     
@@ -310,7 +310,7 @@ export default {
     }
 
     if (path === "/v1/chat/completions" && request.method === "POST") {
-      return handleChat(request, corsHeaders);
+      return handleChat(request, corsHeaders, env);
     }
 
     if (path === "/v1/images/generations" && request.method === "POST") {
@@ -523,11 +523,51 @@ async function makeGeminiRequestWithFallback(visionModel, geminiRequest, modelId
 }
 
 // Make a request to the specified model only (no fallback)
-async function makeModelRequest(modelId, requestBody, stream, corsHeaders) {
+async function makeModelRequest(modelId, requestBody, stream, corsHeaders, env) {
   let internalModel = exposedToInternalMap[modelId];
   
   if (!internalModel || !modelRoutes[internalModel]) {
     throw new Error(`Model '${modelId}' is not supported or not configured.`);
+  }
+
+  // Handle Cerebras API key rotation
+  if (modelRoutes[internalModel].includes('api.cerebras.ai')) {
+    const cerebrasKeys = env.CEREBRAS_API_KEYS ? env.CEREBRAS_API_KEYS.split(',') : [];
+    if (cerebrasKeys.length === 0) {
+      throw new Error("Cerebras API keys not found in environment variables.");
+    }
+
+    let lastError = null;
+    for (const key of cerebrasKeys) {
+      try {
+        const headers = {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${key.trim()}`
+        };
+        const response = await fetch(modelRoutes[internalModel], {
+          method: "POST",
+          headers: headers,
+          body: JSON.stringify({ ...requestBody, model: internalModel })
+        });
+
+        if (response.status === 401 || response.status === 403 || response.status === 429) {
+          console.log(`Cerebras key failed with status ${response.status}. Trying next key.`);
+          lastError = new Error(`Cerebras API key failed with status ${response.status}`);
+          continue; // Try the next key
+        }
+
+        if (!response.ok) {
+          throw new Error(`Model '${modelId}' request failed with status ${response.status}: ${response.statusText}`);
+        }
+
+        return response; // Success, return the response
+      } catch (error) {
+        lastError = error;
+        console.log(`Request with a Cerebras key failed: ${error.message}`);
+      }
+    }
+    // If all keys failed
+    throw new Error(`All Cerebras API keys failed. Last error: ${lastError?.message || 'Unknown error'}`);
   }
 
   // Models that properly support system prompts
@@ -686,9 +726,6 @@ Response approach:
   } else if (modelRoutes[internalModel].includes('api.airforce')) {
     // For Airforce API - WARNING: 1 request per minute rate limit!
     headers["Authorization"] = "Bearer sk-air-BmMhxzoWJTGpa54lrsPlmlqgItxqFRt0xcI0gAp5g6BvBqT8ekmQwR61CVSRRUC1";
-  } else if (modelRoutes[internalModel].includes('api.cerebras.ai')) {
-    // For Cerebras AI - Ultra-fast inference with Qwen 235B model
-    headers["Authorization"] = "Bearer csk-58ejjkyrrfr49der248ctwwnmehrene8c3ynntwfr2jd8th2";
   } else if (modelRoutes[internalModel].includes('api.groq.com')) {
     // For Groq API - Ultra-low latency inference
     const groqKey = "gsk_" + "R8OZ89XTZ4bs8NhKNRqJ" + "WGdyb3FYFjb1A58ol4mYXUJEhREh8Jc0";
@@ -709,11 +746,6 @@ Response approach:
 
   // Check if response indicates an error
   if (!response.ok) {
-    // Track failed model based on status code
-    if (response.status >= 500 || response.status === 429 || response.status === 403) {
-      failedModelsInRequest.add(modelId);
-      console.log(`[Model Request] Model ${modelId} failed with ${response.status}, marking as failed for this request`);
-    }
     throw new Error(`Model '${modelId}' request failed with status ${response.status}: ${response.statusText}`);
   }
 
@@ -798,7 +830,7 @@ Response approach:
 }
 
 
-async function handleChat(request, corsHeaders) {
+async function handleChat(request, corsHeaders, env) {
   const body = await request.json();
   let exposedModel = body.model;  // Changed to let to allow reassignment
   const stream = body.stream === true;
@@ -876,7 +908,7 @@ Response guidelines:
     }
     
     // Make regular request without web search
-    return await makeModelRequest(exposedModel, body, stream, corsHeaders);
+    return await makeModelRequest(exposedModel, body, stream, corsHeaders, env);
 
   } catch (error) {
     // Return error if model fails
