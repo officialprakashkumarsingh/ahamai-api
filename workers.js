@@ -1,3 +1,23 @@
+const cerebrasApiKeys = [
+  "csk-e6pf3kwtrm8h2ejw8yhxjynpwtt3hxx3v392mjfwj6xvw298",
+  "csk-fnm6jre49fr9cvhtxe2knmcpd9h6jdr3em6mr283rcmd9ftd",
+  "csk-t2jcnr6258vty3tk2j32n48mdp4n2p2e5vrcyke2c5hp4f26",
+  "csk-cte9m5ww3y3x32wjpd6xcdcpemw8f89v8c64n35njcfdxr5x",
+  "csk-hj385f55y6jm2pdpf6tfe9c4wcwm8mr3hepmrwwh2yh6cw56",
+  "csk-xdrjwt8dmrnxnvv3f2p3x8vmkxfwrxhdyx84ppyyjrk4nk2d",
+  "csk-4p6vcmtkh6jpkpmkd2xen64h2mmm2f2nr6p228fwcmycnctf",
+  "csk-v8rxt524nkk2rrw2wrp4dr8d5yf4v9ryjkjk8mvm3j8wnxvx",
+  "csk-hcphy33jwvtkxy2j363yddhnwnhj4pn6cv4ktmc9erxhvk39",
+  "csk-jw6drkvjmyfwfwxpfmc8rx32v6j8kpm93ymt8vdt8nw882vd",
+  "csk-5396pvpvvx5xfrcvjtfd9h39p9h8jyxjj8ww6562jwvyje8t",
+  "csk-exh3fft5rjnc5t9wtyck9p64v6pdf2nn8h9pveh8jk6f3fte",
+  "csk-fmjd5vpr8vrh6whk2959prtk3xnrkpp4rynyxjejpnff3w9c",
+  "csk-e5vw9jrhkpmtejx9wdwrf3v8cx5cmmdvnxpnwpmck58j45jn",
+  "csk-9xyv89n52ed6hfnedxy69vr4vm8t9xt59dk5jv3m8e8n3cef",
+  "csk-t9225v824mtxdxmvx3nm2yyw9dfrjmvte5tdjk4pvx22tcjy"
+];
+let cerebrasKeyIndex = 0;
+
 const API_KEY = "ahamaipriv05";
 
 const exposedToInternalMap = {
@@ -668,12 +688,13 @@ Response approach:
 
   // Use different authentication for different endpoints
   if (modelRoutes[internalModel].includes('api.cerebras.ai')) {
-    const cerebrasKeys = env.CEREBRAS_API_KEYS ? env.CEREBRAS_API_KEYS.split(',') : [];
-    if (cerebrasKeys.length === 0) {
-      throw new Error("Cerebras API keys not found in environment variables.");
-    }
+    // Key rotation logic: Create a rotated list of keys for this request.
+    const rotatedKeys = cerebrasApiKeys.slice(cerebrasKeyIndex).concat(cerebrasApiKeys.slice(0, cerebrasKeyIndex));
+    // Increment the global index for the *next* request.
+    cerebrasKeyIndex = (cerebrasKeyIndex + 1) % cerebrasApiKeys.length;
+
     let lastError = null;
-    for (const key of cerebrasKeys) {
+    for (const key of rotatedKeys) {
       try {
         headers["Authorization"] = `Bearer ${key.trim()}`;
         const response = await fetch(modelRoutes[internalModel], {
@@ -681,19 +702,26 @@ Response approach:
           headers: headers,
           body: JSON.stringify({ ...requestBody, messages: processedMessages, model: internalModel })
         });
+
+        // If key is bad, try the next one.
         if (response.status === 401 || response.status === 403 || response.status === 429) {
           console.log(`Cerebras key failed with status ${response.status}. Trying next key.`);
           lastError = new Error(`Cerebras API key failed with status ${response.status}`);
           continue;
         }
+
+        // For other errors, throw and fail the request.
         if (!response.ok) {
-          throw new Error(`Model '${modelId}' request failed with status ${response.status}: ${response.statusText}`);
+          const errorText = await response.text();
+          throw new Error(`Model '${modelId}' request failed with status ${response.status}: ${errorText}`);
         }
-        return response;
+
+        return response; // Success!
       } catch (error) {
         lastError = error;
       }
     }
+    // If all keys in the rotated list failed.
     throw new Error(`All Cerebras API keys failed. Last error: ${lastError?.message || 'Unknown error'}`);
 
   } else if (modelRoutes[internalModel].includes('fast.typegpt.net')) {
