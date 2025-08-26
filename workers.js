@@ -530,51 +530,10 @@ async function makeModelRequest(modelId, requestBody, stream, corsHeaders, env) 
     throw new Error(`Model '${modelId}' is not supported or not configured.`);
   }
 
-  // Handle Cerebras API key rotation
-  if (modelRoutes[internalModel].includes('api.cerebras.ai')) {
-    const cerebrasKeys = env.CEREBRAS_API_KEYS ? env.CEREBRAS_API_KEYS.split(',') : [];
-    if (cerebrasKeys.length === 0) {
-      throw new Error("Cerebras API keys not found in environment variables.");
-    }
-
-    let lastError = null;
-    for (const key of cerebrasKeys) {
-      try {
-        const headers = {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${key.trim()}`
-        };
-        const response = await fetch(modelRoutes[internalModel], {
-          method: "POST",
-          headers: headers,
-          body: JSON.stringify({ ...requestBody, model: internalModel })
-        });
-
-        if (response.status === 401 || response.status === 403 || response.status === 429) {
-          console.log(`Cerebras key failed with status ${response.status}. Trying next key.`);
-          lastError = new Error(`Cerebras API key failed with status ${response.status}`);
-          continue; // Try the next key
-        }
-
-        if (!response.ok) {
-          throw new Error(`Model '${modelId}' request failed with status ${response.status}: ${response.statusText}`);
-        }
-
-        return response; // Success, return the response
-      } catch (error) {
-        lastError = error;
-        console.log(`Request with a Cerebras key failed: ${error.message}`);
-      }
-    }
-    // If all keys failed
-    throw new Error(`All Cerebras API keys failed. Last error: ${lastError?.message || 'Unknown error'}`);
-  }
-
   // Models that properly support system prompts
   const modelsWithSystemPromptSupport = [
     "gemini-2.5-flash-preview-04-17",
     "Qwen/Qwen3-Coder-480B-A35B-Instruct",
-
   ];
   
   // Get current date/time for all models (in IST)
@@ -708,7 +667,36 @@ Response approach:
   };
 
   // Use different authentication for different endpoints
-  if (modelRoutes[internalModel].includes('fast.typegpt.net')) {
+  if (modelRoutes[internalModel].includes('api.cerebras.ai')) {
+    const cerebrasKeys = env.CEREBRAS_API_KEYS ? env.CEREBRAS_API_KEYS.split(',') : [];
+    if (cerebrasKeys.length === 0) {
+      throw new Error("Cerebras API keys not found in environment variables.");
+    }
+    let lastError = null;
+    for (const key of cerebrasKeys) {
+      try {
+        headers["Authorization"] = `Bearer ${key.trim()}`;
+        const response = await fetch(modelRoutes[internalModel], {
+          method: "POST",
+          headers: headers,
+          body: JSON.stringify({ ...requestBody, messages: processedMessages, model: internalModel })
+        });
+        if (response.status === 401 || response.status === 403 || response.status === 429) {
+          console.log(`Cerebras key failed with status ${response.status}. Trying next key.`);
+          lastError = new Error(`Cerebras API key failed with status ${response.status}`);
+          continue;
+        }
+        if (!response.ok) {
+          throw new Error(`Model '${modelId}' request failed with status ${response.status}: ${response.statusText}`);
+        }
+        return response;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw new Error(`All Cerebras API keys failed. Last error: ${lastError?.message || 'Unknown error'}`);
+
+  } else if (modelRoutes[internalModel].includes('fast.typegpt.net')) {
     // For DeepSeek R1 endpoint
     headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
   } else if (modelRoutes[internalModel].includes('gpt-oss-openai-proxy.onrender.com')) {
