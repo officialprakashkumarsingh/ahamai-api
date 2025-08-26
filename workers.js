@@ -28,7 +28,7 @@ let mistralKeyIndex = 0;
 const API_KEY = "ahamaipriv05";
 
 const exposedToInternalMap = {
-  "cerebras-qwen-235b": "qwen-3-235b-a22b-instruct-2507",
+  "qwen-235b": "qwen-3-235b-a22b-instruct-2507",
   // WORKING MODELS ONLY - Verified via comprehensive testing (24 models + default)
   // All models support streaming ✅
   
@@ -38,14 +38,14 @@ const exposedToInternalMap = {
   // v0.dev Models (0) - Vercel's AI models - REMOVED
   
   // Cerebras AI Models (5) - Ultra-fast inference with various model sizes ✅
-  "cerebras-qwen-235b-thinking": "qwen-3-235b-a22b-thinking-2507",
-  "cerebras-qwen-coder-480b": "qwen-3-coder-480b",
-  "cerebras-qwen-32b": "qwen-3-32b",
-  "cerebras-gpt-120b": "gpt-oss-120b",
+  "qwen-235b-thinking": "qwen-3-235b-a22b-thinking-2507",
+  "qwen-coder-480b": "qwen-3-coder-480b",
+  "qwen-32b": "qwen-3-32b",
+  "gpt-120b": "gpt-oss-120b",
   
   // Groq API Models (2) - Ultra-low latency inference ✅
-  "groq-kimi-k2": "moonshotai/kimi-k2-instruct",
-  "groq-llama-scout": "meta-llama/llama-4-scout-17b-16e-instruct",
+  "kimi-k2": "moonshotai/kimi-k2-instruct",
+  "llama-scout": "meta-llama/llama-4-scout-17b-16e-instruct",
   
   // Mistral AI Vision Model (1) - OpenAI compatible
   "mistral-medium-2508": "mistral-medium-2508",
@@ -151,8 +151,8 @@ const visionModels = {
 
 // Default models configuration
 const defaultModels = {
-  vision: "groq-llama-scout", // Groq's Llama Scout - only verified working vision model
-  webSearch: "groq-llama-scout" // Default web search model (verified working)
+  vision: "llama-scout", // Groq's Llama Scout - only verified working vision model
+  webSearch: "llama-scout" // Default web search model (verified working)
 };
 
 
@@ -1073,7 +1073,7 @@ async function handleImage(request, corsHeaders) {
 
 
 function handleChatModelList(corsHeaders = {}) {
-  const primaryModelId = "cerebras-qwen-235b";
+  const primaryModelId = "qwen-235b";
 
   // Start with the primary model
   const primaryModel = {
