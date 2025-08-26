@@ -192,80 +192,6 @@ const defaultModels = {
   webSearch: "perplexed" // Default web search model (verified working)
 };
 
-// Web search models configuration with performance metrics
-const webSearchModels = {
-  "exaanswer": {
-    priority: 1,  // Highest priority (fastest)
-    avgResponseTime: 1.2,  // seconds
-    reliability: 0.95
-  },
-  "perplexed": {
-    priority: 2,
-    avgResponseTime: 1.5,
-    reliability: 0.98
-  },
-  "felo": {
-    priority: 3,
-    avgResponseTime: 1.8,
-    reliability: 0.92
-  }
-};
-
-// Query patterns that indicate web search is needed
-const webSearchPatterns = [
-  // EXPLICIT USER REQUESTS FOR WEB SEARCH
-  /\b(search|google|look up|find online|search online|web search|internet search|search the web|search for)\b/i,
-  /\b(search about|google about|find information about|look for information)\b/i,
-  /\b(can you search|please search|could you search|search and tell)\b/i,
-  
-  // Current events and news
-  /\b(latest|recent|current|today|yesterday|this week|this month|this year|news|update|announcement)\b/i,
-  /\b(what happened|what's happening|what is happening)\b/i,
-  /\b(20\d{2})\b/,  // Years from 2000 onwards
-  
-  // Real-time information
-  /\b(weather|temperature|forecast|climate)\b/i,
-  /\b(score|match|game|sports|tournament|championship)\b/i,
-  
-  // Factual queries
-  /\b(who is|what is|where is|when is|when was|how much|how many)\b/i,
-  /\b(statistics|data|facts|figures|numbers)\b/i,
-  /\b(population|gdp|economy|inflation)\b/i,
-  
-  // Product and service information
-  /\b(review|rating|comparison|best|top|recommended)\b/i,
-  /\b(price of|cost of|how much does|where to buy|where can I)\b/i,
-  
-  // Location and travel
-  /\b(directions|route|distance|travel|flight|hotel|restaurant)\b/i,
-  /\b(open now|hours|schedule|timetable)\b/i,
-  
-  // Technology and updates
-  /\b(version|release|update|patch|changelog)\b/i,
-  /\b(download|install|setup|configure)\b/i,
-  
-  // Specific entities that often need current info
-  /\b(president|prime minister|ceo|election|government)\b/i,
-  /\b(company|corporation|startup|ipo)\b/i
-];
-
-// Function to determine if a query needs web search
-function needsWebSearch(messages) {
-  // Web search is disabled.
-  return false;
-}
-
-// Function to select the best available web search model
-function selectWebSearchModel() {
-  // Sort models by priority (lower is better)
-  const sortedModels = Object.entries(webSearchModels)
-    .sort((a, b) => a[1].priority - b[1].priority)
-    .map(([name]) => name);
-  
-  // Return the first available model
-  // In production, you might want to check model availability
-  return sortedModels[0] || "perplexed";
-}
 
 
 // Function to detect when image generation is requested and extract model preference
@@ -430,10 +356,7 @@ function updateResponseTime(model, responseTime) {
 }
 
 // Function to get the next fastest available model (with dynamic adjustment)
-function getNextFastestModel(excludeModels = [], prioritizeNonWebSearch = true) {
-  // Web search models - these should be used as last resort
-  const webSearchModels = ["perplexed", "exaanswer", "felo"];
-  
+function getNextFastestModel(excludeModels = []) {
   // Create a combined ranking using both static and dynamic data
   const combinedRanking = modelSpeedRanking.map(modelInfo => {
     const dynamicStats = responseTimeTracking.get(modelInfo.model);
@@ -450,34 +373,8 @@ function getNextFastestModel(excludeModels = [], prioritizeNonWebSearch = true) 
     };
   }).sort((a, b) => a.effectiveTime - b.effectiveTime);
   
-  // First pass: Try non-web-search models if prioritizeNonWebSearch is true
-  if (prioritizeNonWebSearch) {
-    for (const modelInfo of combinedRanking) {
-      // Skip web search models in first pass
-      if (webSearchModels.includes(modelInfo.model)) {
-        continue;
-      }
-      
-      // Skip if model is in exclude list or has failed in this request
-      if (excludeModels.includes(modelInfo.model) || failedModelsInRequest.has(modelInfo.model)) {
-        continue;
-      }
-      
-      // Check if model exists in our mapping
-      if (exposedToInternalMap[modelInfo.model]) {
-        console.log(`[Model Rotation] Selected primary model: ${modelInfo.model}`);
-        return modelInfo.model;
-      }
-    }
-  }
-  
-  // Second pass: Try web search models as last resort
+  // Find the first available model
   for (const modelInfo of combinedRanking) {
-    // Only web search models this time
-    if (!webSearchModels.includes(modelInfo.model)) {
-      continue;
-    }
-    
     // Skip if model is in exclude list or has failed in this request
     if (excludeModels.includes(modelInfo.model) || failedModelsInRequest.has(modelInfo.model)) {
       continue;
@@ -485,7 +382,7 @@ function getNextFastestModel(excludeModels = [], prioritizeNonWebSearch = true) 
     
     // Check if model exists in our mapping
     if (exposedToInternalMap[modelInfo.model]) {
-      console.log(`[Model Rotation] Using web search model as last resort: ${modelInfo.model}`);
+      console.log(`[Model Rotation] Selected model: ${modelInfo.model}`);
       return modelInfo.model;
     }
   }
@@ -500,26 +397,13 @@ async function handleDefaultModel(body, stream, corsHeaders) {
   // Clear failed models for new request
   failedModelsInRequest.clear();
   
-  // First check if web search is needed
-  const webSearchMode = body.web_search;
-  let useWebSearch = false;
-  
-  if (webSearchMode === true) {
-    useWebSearch = true;
-  } else if (webSearchMode === false) {
-    useWebSearch = false;
-  } else {
-    // Auto-detect based on query content
-    useWebSearch = needsWebSearch(body.messages);
-  }
-  
   const maxRetries = 10; // Increase retries to try more models
   let attemptedModels = [];
   let lastError = null;
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    // Get the next fastest model that hasn't been tried (prioritize non-web-search models)
-    const selectedModel = getNextFastestModel(attemptedModels, true);
+    // Get the next fastest model that hasn't been tried
+    const selectedModel = getNextFastestModel(attemptedModels);
     
     if (!selectedModel) {
       // No more models to try
@@ -537,14 +421,7 @@ async function handleDefaultModel(body, stream, corsHeaders) {
       // Try to make the request with the selected model
       const startTime = Date.now();
       
-      // If web search is needed, use handleChatWithWebSearch
-      let response;
-      if (useWebSearch) {
-        console.log(`[Default Model] Web search detected, using Google Search with ${selectedModel}`);
-        response = await handleChatWithWebSearch(selectedModel, modifiedBody, stream, corsHeaders);
-      } else {
-        response = await makeModelRequest(selectedModel, modifiedBody, stream, corsHeaders);
-      }
+      const response = await makeModelRequest(selectedModel, modifiedBody, stream, corsHeaders);
       
       // Log and track successful response time
       const responseTime = Date.now() - startTime;
@@ -1182,452 +1059,11 @@ Response approach:
   });
 }
 
-// Brave Search API configuration
-const BRAVE_SEARCH_API_KEY = "BSAGvn27KGywhzSPWjem5a_r41ZYaB2";
-const BRAVE_SEARCH_API_URL = "https://api.search.brave.com/res/v1/web/search";
-
-// Function to perform Brave Search
-async function performBraveSearch(query, count = 20) {
-  try {
-    console.log(`[Brave Search] Performing search for: ${query}`);
-    
-    const url = `${BRAVE_SEARCH_API_URL}?q=${encodeURIComponent(query)}&count=${count}`;
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Accept-Encoding': 'gzip',
-        'X-Subscription-Token': BRAVE_SEARCH_API_KEY
-      },
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`Brave Search API error: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.web && data.web.results && data.web.results.length > 0) {
-      // Format Brave search results similar to Google search
-      const searchResults = `Found ${data.web.results.length} search results:\n\n`;
-      const formattedResults = data.web.results.map((result, index) => {
-        return `${index + 1}. **${result.title}**\n   ${result.description}\n   Source: ${result.url}`;
-      }).join('\n\n');
-      
-      console.log(`[Brave Search] Successfully retrieved ${data.web.results.length} results`);
-      return searchResults + formattedResults;
-    } else {
-      console.log(`[Brave Search] No results found`);
-      return "No search results found.";
-    }
-  } catch (error) {
-    console.error(`[Brave Search] Error:`, error);
-    if (error.name === 'AbortError') {
-      return "Brave search timed out. Proceeding with available information.";
-    }
-    return null; // Return null to indicate failure
-  }
-}
-
-// Function to handle chat with integrated web search
-async function handleChatWithWebSearch(originalModel, body, stream, corsHeaders) {
-  try {
-    // Don't use web search models initially - they're last resort
-    let modelToUse = originalModel;
-    
-    // Get current date and time (in IST)
-    const now = new Date();
-    const dateTimeContext = `Current date and time: ${now.toLocaleDateString('en-IN', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      timeZone: 'Asia/Kolkata'
-    })}, ${now.toLocaleTimeString('en-IN', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      hour12: true,
-      timeZone: 'Asia/Kolkata'
-    })} IST`;
-    
-    // Get the last user message for context
-    const lastUserMessage = body.messages.filter(m => m.role === 'user').pop();
-    const userQuery = typeof lastUserMessage.content === 'string' 
-      ? lastUserMessage.content 
-      : lastUserMessage.content.map(c => c.text || '').join(' ');
-    
-    // Get conversation context for better search
-    const recentMessages = body.messages.slice(-5); // Get more context
-    const conversationContext = recentMessages
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : m.content.map(c => c.text || '').join(' ')}`)
-      .join('\n');
-    
-    // Extract entities and important context from previous messages
-    const extractEntities = (text) => {
-      // Extract names, places, dates, and other entities
-      const patterns = {
-        names: /\b[A-Z][a-z]+ [A-Z][a-z]+\b/g,
-        titles: /\b(CEO|CTO|President|Minister|Chief|Director|Manager|Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s+[A-Z][a-z]+/g,
-        places: /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+(?:City|State|Country|Province|District))\b/g,
-        dates: /\b\d{4}\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b/g,
-        organizations: /\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*(?:\s+(?:Inc|Corp|LLC|Ltd|Company|Organization|Institute|University))\b/g
-      };
-      
-      let entities = [];
-      for (const [type, pattern] of Object.entries(patterns)) {
-        const matches = text.match(pattern);
-        if (matches) {
-          entities.push(...matches);
-        }
-      }
-      return [...new Set(entities)]; // Remove duplicates
-    };
-    
-    // Extract entities from conversation
-    const entities = extractEntities(conversationContext);
-    const entityContext = entities.length > 0 ? `\n\nKey entities mentioned: ${entities.join(', ')}` : '';
-    
-    // Build smart search query
-    let searchQuery = userQuery;
-    
-    // If it's a follow-up question (pronouns or short questions), enhance it
-    if (/^(when|where|why|how|what|who)\s+(did\s+)?(he|she|it|they|that|this)/i.test(userQuery) ||
-        /^(tell me more|more about|what about|explain|details)/i.test(userQuery)) {
-      // This is likely a follow-up - include entity context
-      searchQuery = `${userQuery}${entityContext}\n\nContext: ${conversationContext.slice(-500)}`; // Last 500 chars of context
-    }
-    
-    // Step 1: Perform web search - try Google first, then Brave as fallback
-    console.log(`[Web Search] Performing search for: ${searchQuery}`);
-    
-    let searchResults = "";
-    
-    // Try Google Search first
-    try {
-      const googleSearchUrl = `https://googlesearchapi.nepcoderapis.workers.dev/?q=${encodeURIComponent(searchQuery)}&num=20`;
-      
-      // Add timeout to prevent hanging (10 seconds)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      const searchResponse = await fetch(googleSearchUrl, {
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      
-      const searchData = await searchResponse.json();
-      
-      if (Array.isArray(searchData) && searchData.length > 0) {
-        // Format search results into a readable string
-        searchResults = `Found ${searchData.length} search results:\n\n`;
-        searchResults += searchData.map((result, index) => {
-          return `${index + 1}. **${result.title}**\n   ${result.snippet}\n   Source: ${result.link}`;
-        }).join('\n\n');
-        
-        console.log(`[Google Search] Successfully retrieved ${searchData.length} results`);
-      } else {
-        searchResults = "No search results found.";
-        console.log(`[Google Search] No results found`);
-      }
-    } catch (googleError) {
-      console.error(`[Google Search] Error:`, googleError);
-      
-      // Try Brave Search as fallback
-      console.log(`[Web Search] Google failed, trying Brave Search...`);
-      const braveResults = await performBraveSearch(searchQuery, 20);
-      
-      if (braveResults && braveResults !== null) {
-        searchResults = braveResults;
-        console.log(`[Web Search] Brave Search succeeded as fallback`);
-      } else {
-        // Both searches failed
-        searchResults = "Web search unavailable. Proceeding with available information.";
-        console.log(`[Web Search] Both Google and Brave searches failed`);
-      }
-    }
-    
-    // Step 2: Prepare enhanced context for the original model
-    const enhancedMessages = [...body.messages];
-    
-    // Get current date and time for the model (in IST)
-    const currentTime = new Date();
-    const dateTimeInfo = `${currentTime.toLocaleDateString('en-IN', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      timeZone: 'Asia/Kolkata'
-    })}, ${currentTime.toLocaleTimeString('en-IN', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true,
-      timeZone: 'Asia/Kolkata'
-    })} IST`;
-    
-    // Find or create system message
-    let systemMessageIndex = enhancedMessages.findIndex(m => m.role === 'system');
-    const webSearchContext = `\n\n[IMPORTANT]: You do NOT have a knowledge cutoff. You have real-time access to current information through web search.\n\n[Current Date/Time]: ${dateTimeInfo}\n\n[Google Web Search Results (20 results)]:\n${searchResults}\n\n[Instructions]: 
-- You have REAL-TIME web search capabilities - no knowledge cutoff
-- The above search results contain current, up-to-date information from Google
-- Use this information to provide accurate responses
-- You can access fresh web searches for any follow-up questions
-- NEVER mention having a knowledge cutoff or training data limitations
-- You have access to current events and real-time information`;
-    
-    if (systemMessageIndex >= 0) {
-      // Append to existing system message
-      enhancedMessages[systemMessageIndex].content += webSearchContext;
-    } else {
-      // Add new system message at the beginning
-              enhancedMessages.unshift({
-          role: "system",
-          content: `You have real-time capabilities.
-Current Time (IST): ${dateTimeInfo}
-
-YOUR CAPABILITIES:
-• Web search results (shown below)
-• SCREENSHOT WEBSITES: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
-  Example: ![Site](https://s.wordpress.com/mshots/v1/https://example.com?w=1280&h=960)
-• IMAGE GENERATION: Create AI images
-  Default: flux (if no model specified)
-  Available: flux, turbo, img3, img4, qwen, nsfw-gen
-  CRITICAL: Use exact model in API {"model": "[user_specified_or_flux]"}
-  Always: ![Image](url?nologo=true) for flux/turbo
-• No knowledge cutoff
-
-ALWAYS screenshot any website mentioned using the format above.
-Use natural formatting where it helps clarity.${webSearchContext}`
-        });
-    }
-    
-    // Step 3: Make request to the model with enhanced context
-    // Use the selected web search model if available, otherwise use original
-    const enhancedBody = {
-      ...body,
-      messages: enhancedMessages,
-      model: modelToUse // Use the selected model
-    };
-    
-    // If streaming is requested, add a note about web search being performed
-    if (stream) {
-      // Send initial message about web search
-      const encoder = new TextEncoder();
-      const streamResponse = new ReadableStream({
-        async start(controller) {
-          try {
-            // Send initial web search notification with date/time
-            const searchNotification = `[Performing Google web search (20 results)...]\n[Current: ${dateTimeInfo}]\n\n`;
-            const initialChunk = {
-              id: `chatcmpl-${Date.now()}`,
-              object: "chat.completion.chunk",
-              created: Math.floor(Date.now() / 1000),
-              model: originalModel,
-              choices: [{
-                index: 0,
-                delta: { content: searchNotification },
-                finish_reason: null
-              }]
-            };
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(initialChunk)}\n\n`));
-            
-            // Make the actual request with error handling
-            let response;
-            try {
-              response = await makeModelRequest(modelToUse, enhancedBody, true, corsHeaders);
-            } catch (modelError) {
-              console.error(`[Web Search] Model request failed:`, modelError);
-              
-              // Actually retry with model rotation
-              try {
-                console.log(`[Web Search] Model failed, trying rotation without web search`);
-                
-                // Try multiple models in rotation
-                let rotationAttempts = 0;
-                let rotationSuccess = false;
-                const maxRotationAttempts = 5;
-                const attemptedModels = [modelToUse];
-                
-                while (rotationAttempts < maxRotationAttempts && !rotationSuccess) {
-                  // Get next model (prioritize non-web-search models)
-                  const nextModel = getNextFastestModel(attemptedModels, true);
-                  
-                  if (!nextModel) {
-                    console.log(`[Web Search] No more models available for rotation`);
-                    break;
-                  }
-                  
-                  try {
-                    console.log(`[Web Search] Rotation attempt ${rotationAttempts + 1}: trying ${nextModel}`);
-                    response = await makeModelRequest(nextModel, body, true, corsHeaders);
-                    rotationSuccess = true;
-                    console.log(`[Web Search] Rotation succeeded with ${nextModel}`);
-                  } catch (rotationError) {
-                    console.log(`[Web Search] Rotation model ${nextModel} failed:`, rotationError.message);
-                    attemptedModels.push(nextModel);
-                    failedModelsInRequest.add(nextModel);
-                    rotationAttempts++;
-                  }
-                }
-                
-                if (!rotationSuccess) {
-                  throw new Error("All rotation attempts failed");
-                }
-                
-                // If successful, pass through the stream
-                const reader = response.body.getReader();
-                try {
-                  while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    controller.enqueue(value);
-                  }
-                } catch (readError) {
-                  console.error(`[Web Search] Fallback stream reading error:`, readError);
-                } finally {
-                  try {
-                    controller.close();
-                  } catch (e) {
-                    // Already closed
-                  }
-                }
-                return;
-              } catch (fallbackError) {
-                console.error(`[Web Search] Fallback also failed:`, fallbackError);
-                // Send error message to stream
-                const errorChunk = {
-                  id: `chatcmpl-${Date.now()}`,
-                  object: "chat.completion.chunk",
-                  created: Math.floor(Date.now() / 1000),
-                  model: originalModel,
-                  choices: [{
-                    index: 0,
-                    delta: { content: `\n\n[Error: Unable to process request. Please try again.]` },
-                    finish_reason: "stop"
-                  }]
-                };
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`));
-                controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-                controller.close();
-                return;
-              }
-            }
-            
-            const reader = response.body.getReader();
-            
-            // Pass through the stream with error handling
-            try {
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                controller.enqueue(value);
-              }
-            } catch (readError) {
-              console.error(`[Web Search] Stream reading error:`, readError);
-              // Try to send a final error message if possible
-              try {
-                const errorChunk = {
-                  id: `chatcmpl-${Date.now()}`,
-                  object: "chat.completion.chunk",
-                  created: Math.floor(Date.now() / 1000),
-                  model: originalModel,
-                  choices: [{
-                    index: 0,
-                    delta: { content: `\n\n[Stream interrupted. Please try again.]` },
-                    finish_reason: "stop"
-                  }]
-                };
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`));
-                controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-              } catch (e) {
-                // Ignore if we can't send the error message
-              }
-            } finally {
-              // Always try to close the controller
-              try {
-                controller.close();
-              } catch (e) {
-                // Controller might already be closed
-              }
-            }
-          } catch (error) {
-            console.error(`[Web Search] Streaming error:`, error);
-            // Try to send error to stream
-            try {
-              const errorChunk = {
-                id: `chatcmpl-${Date.now()}`,
-                object: "chat.completion.chunk",
-                created: Math.floor(Date.now() / 1000),
-                model: originalModel,
-                choices: [{
-                  index: 0,
-                  delta: { content: `\n\n[Error: ${error.message}]` },
-                  finish_reason: "stop"
-                }]
-              };
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`));
-              controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-              controller.close();
-            } catch (e) {
-              // If we can't even send the error, just close
-              try {
-                controller.close();
-              } catch (closeError) {
-                // Already closed
-              }
-            }
-          }
-        }
-      });
-      
-      return new Response(streamResponse, {
-        status: 200,
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          "Connection": "keep-alive",
-          ...corsHeaders
-        }
-      });
-    } else {
-      // Non-streaming response
-      const response = await makeModelRequest(modelToUse, enhancedBody, false, corsHeaders);
-      const responseData = await response.json();
-      
-      // Add metadata about web search and date/time
-      if (responseData.choices && responseData.choices[0]) {
-        responseData.choices[0].message.content = 
-          `[Google web search performed (20 results)]\n[Current: ${dateTimeInfo}]\n\n${responseData.choices[0].message.content}`;
-      }
-      
-      return new Response(JSON.stringify(responseData), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders }
-      });
-    }
-    
-  } catch (error) {
-    console.error("Web search integration error:", error);
-    // Fallback to regular model without web search
-    return await makeModelRequest(originalModel, body, stream, corsHeaders);
-  }
-}
 
 async function handleChat(request, corsHeaders) {
   const body = await request.json();
   let exposedModel = body.model;  // Changed to let to allow reassignment
   const stream = body.stream === true;
-  
-  // Allow users to explicitly control web search behavior
-  // They can set web_search: true to force it, false to disable it, or leave undefined for auto-detection
-  const webSearchMode = body.web_search;
   
   // Ensure there's always a system message about real-time capabilities
   if (!body.messages.some(m => m.role === 'system')) {
@@ -1750,39 +1186,9 @@ IMPORTANT RULES:
       }
     }
     
-    // Stock queries will be handled by web search
-    // Determine if web search should be used
-    let useWebSearch = false;
-    
-    // If the model is a web search model (perplexed, felo, exaanswer), 
-    // redirect to use Google Search instead
-    const isWebSearchModel = ['perplexed', 'felo', 'exaanswer'].includes(exposedModel);
-    
-    if (isWebSearchModel) {
-      // These models are web search models, use Google Search instead
-      useWebSearch = true;
-      // Use a fast general model for the response generation
-      exposedModel = 'gemini-2.0-flash'; // Fast and reliable model
-      console.log(`[Web Search] Redirecting ${body.model} to Google Search + ${exposedModel}`);
-    } else if (webSearchMode === true) {
-      // User explicitly wants web search
-      useWebSearch = true;
-    } else if (webSearchMode === false) {
-      // User explicitly disabled web search
-      useWebSearch = false;
-    } else {
-      // Auto-detect based on query content
-      useWebSearch = needsWebSearch(body.messages);
-    }
-    
-    // If web search is needed, always use Google Search API
-    if (useWebSearch) {
-      // Perform Google web search integration
-      return await handleChatWithWebSearch(exposedModel, body, stream, corsHeaders);
-    } else {
-      // Make regular request without web search
-      return await makeModelRequest(exposedModel, body, stream, corsHeaders);
-    }
+    // Make regular request without web search
+    return await makeModelRequest(exposedModel, body, stream, corsHeaders);
+
   } catch (error) {
     // Return error if model fails
     return new Response(JSON.stringify({ 
