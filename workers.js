@@ -570,9 +570,10 @@ async function makeGeminiRequestWithFallback(visionModel, geminiRequest, modelId
 }
 
 // Helper function to execute the actual model request with provider-specific logic
-async function executeModelRequest(internalModel, payload) {
-  let headers = { "Content-Type": "application/json", "Accept": "application/json" };
+async function executeModelRequest(internalModel, payload, stream = false) {
+  let headers = { "Content-Type": "application/json", "Accept": stream ? "text/event-stream" : "application/json" };
   const modelRoute = modelRoutes[internalModel];
+  const requestPayload = { ...payload, stream }; // Ensure stream is in the payload
 
   // Provider-specific logic for authentication and key rotation
   if (modelRoute.includes('api.cerebras.ai')) {
@@ -581,14 +582,14 @@ async function executeModelRequest(internalModel, payload) {
     for (const key of rotatedKeys) {
       try {
         headers["Authorization"] = `Bearer ${key.trim()}`;
-        const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(payload) });
+        const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(requestPayload) });
         if (response.status === 401 || response.status === 403 || response.status === 429) {
             lastError = new Error(`Cerebras key failed with status ${response.status}`);
             continue;
         }
         if (!response.ok) throw new Error(`Cerebras request failed with status ${response.status}: ${await response.text()}`);
         cerebrasKeyIndex = (cerebrasApiKeys.indexOf(key) + 1) % cerebrasApiKeys.length;
-        return response.json();
+        return stream ? response : await response.json();
       } catch (error) {
         lastError = error;
         console.log(`Cerebras key failed, trying next. Error: ${error.message}`);
@@ -602,14 +603,14 @@ async function executeModelRequest(internalModel, payload) {
     for (const key of rotatedKeys) {
       try {
         headers["Authorization"] = `Bearer ${key.trim()}`;
-        const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(payload) });
+        const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(requestPayload) });
         if (response.status === 401 || response.status === 403 || response.status === 429) {
             lastError = new Error(`Mistral key failed with status ${response.status}`);
             continue;
         }
         if (!response.ok) throw new Error(`Mistral request failed with status ${response.status}: ${await response.text()}`);
         mistralKeyIndex = (mistralApiKeys.indexOf(key) + 1) % mistralApiKeys.length;
-        return response.json();
+        return stream ? response : await response.json();
       } catch (error) {
         lastError = error;
         console.log(`Mistral key failed, trying next. Error: ${error.message}`);
@@ -623,11 +624,11 @@ async function executeModelRequest(internalModel, payload) {
   }
   // Add other provider-specific auth here if needed (e.g., DeepInfra has no auth)
 
-  const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(payload) });
+  const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(requestPayload) });
   if (!response.ok) {
     throw new Error(`Model request to ${modelRoute} failed: ${response.status} ${response.statusText}`);
   }
-  return response.json();
+  return stream ? response : await response.json();
 }
 
 
@@ -637,15 +638,7 @@ async function handleChat(request, corsHeaders, env) {
   const stream = requestBody.stream === true;
   let messages = requestBody.messages;
 
-  // For now, tool calling is not supported with streaming responses.
-  if (stream) {
-    return new Response(JSON.stringify({ error: "Tool calling is not supported with streaming responses yet." }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
-  }
-  
-  // System prompt injection logic
+  // System prompt injection...
   if (!messages.some(m => m.role === 'system')) {
     const now = new Date();
     const dateTime = `${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata'})}, ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'})} IST`;
@@ -655,64 +648,73 @@ async function handleChat(request, corsHeaders, env) {
     });
   }
 
-  const MAX_TOOL_CALLS = 3;
-  let toolCallCount = 0;
-
   try {
-    while (toolCallCount < MAX_TOOL_CALLS) {
-      const internalModel = exposedToInternalMap[exposedModel];
-      if (!internalModel) {
-        return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), { status: 400, headers: corsHeaders });
-      }
+    const internalModel = exposedToInternalMap[exposedModel];
+    if (!internalModel) {
+      return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), { status: 400, headers: corsHeaders });
+    }
 
-      let tools = [WEB_SEARCH_TOOL];
-      if (modelRoutes[internalModel].includes('api.cerebras.ai')) {
-        tools = tools.map(t => ({ ...t, function: { ...t.function, strict: true } }));
-      }
+    let tools = [WEB_SEARCH_TOOL];
+    if (modelRoutes[internalModel].includes('api.cerebras.ai')) {
+      tools = tools.map(t => ({ ...t, function: { ...t.function, strict: true } }));
+    }
 
-      const payload = {
-        ...requestBody,
-        model: internalModel,
-        messages: messages,
-        tools: tools,
-        tool_choice: "auto",
-        stream: false, // Ensure stream is false for tool calling logic
-      };
+    // Step 1: Always make a non-streaming call first to check for tools.
+    const initialPayload = { ...requestBody, model: internalModel, messages, tools, tool_choice: "auto", stream: false };
+    const responseJson = await executeModelRequest(internalModel, initialPayload, false);
+    const message = responseJson.choices[0].message;
+    messages.push(message);
 
-      const responseJson = await executeModelRequest(internalModel, payload);
-      const message = responseJson.choices[0].message;
-      messages.push(message);
+    // Step 2: Check for tool calls.
+    if (!message.tool_calls || message.tool_calls.length === 0) {
+      // No tool call.
+      if (stream) {
+        // User wanted a stream, so we need to make a new request.
+        const streamingPayload = { ...requestBody, model: internalModel, messages: requestBody.messages }; // Use original messages
+        const streamingResponse = await executeModelRequest(internalModel, streamingPayload, true);
+        const newHeaders = new Headers(streamingResponse.headers);
+        Object.entries(corsHeaders).forEach(([key, value]) => newHeaders.set(key, value));
+        return new Response(streamingResponse.body, {
+            status: streamingResponse.status,
+            statusText: streamingResponse.statusText,
+            headers: newHeaders
+        });
 
-      if (!message.tool_calls || message.tool_calls.length === 0) {
+      } else {
+        // User didn't want a stream, return the response we already have.
         return new Response(JSON.stringify(responseJson), { status: 200, headers: corsHeaders });
       }
+    }
 
-      toolCallCount++;
-      const toolCalls = message.tool_calls;
-      
-      for (const toolCall of toolCalls) {
-        if (toolCall.function.name === 'web_search') {
-          const args = JSON.parse(toolCall.function.arguments);
-          try {
-            const searchResults = await performWebSearch(args.query);
-            messages.push({
-              role: "tool",
-              tool_call_id: toolCall.id,
-              name: toolCall.function.name,
-              content: JSON.stringify(searchResults),
-            });
-          } catch (error) {
-            messages.push({
-              role: "tool",
-              tool_call_id: toolCall.id,
-              name: toolCall.function.name,
-              content: JSON.stringify({ error: error.message }),
-            });
-          }
+    // Step 3: Execute tool calls.
+    const toolCalls = message.tool_calls;
+    for (const toolCall of toolCalls) {
+      if (toolCall.function.name === 'web_search') {
+        const args = JSON.parse(toolCall.function.arguments);
+        try {
+          const searchResults = await performWebSearch(args.query);
+          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify(searchResults) });
+        } catch (error) {
+          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify({ error: error.message }) });
         }
       }
     }
-    return new Response(JSON.stringify({ error: "Exceeded maximum number of tool calls." }), { status: 500, headers: corsHeaders });
+
+    // Step 4: Make the final call to the model, respecting the original stream preference.
+    const finalPayload = { ...requestBody, model: internalModel, messages, stream };
+    const finalResponse = await executeModelRequest(internalModel, finalPayload, stream);
+
+    if (stream) {
+        const newHeaders = new Headers(finalResponse.headers);
+        Object.entries(corsHeaders).forEach(([key, value]) => newHeaders.set(key, value));
+        return new Response(finalResponse.body, {
+            status: finalResponse.status,
+            statusText: finalResponse.statusText,
+            headers: newHeaders
+        });
+    } else {
+        return new Response(JSON.stringify(finalResponse), { status: 200, headers: corsHeaders });
+    }
 
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message, model: exposedModel }), {
