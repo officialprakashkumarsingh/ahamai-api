@@ -63,6 +63,24 @@ const braveApiKeys = [
 ];
 let braveKeyIndex = 0;
 
+const WEB_SEARCH_TOOL = {
+  type: "function",
+  function: {
+    name: "web_search",
+    description: "Performs a web search to find up-to-date information on a given topic. Use this for recent events, current affairs, or any topic where real-time information is required.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "The search query to look up."
+        }
+      },
+      required: ["query"]
+    }
+  }
+};
+
 const API_KEY = "ahamaipriv05";
 
 const exposedToInternalMap = {
@@ -362,11 +380,6 @@ export default {
       return handleDefaults(corsHeaders);
     }
 
-    if (path === "/v1/web" && request.method === "POST") {
-      return handleWebSearch(request, corsHeaders);
-    }
-
-
     if (path === "/v1/automation/url" && request.method === "POST") {
       return handleUrlAutomation(request, corsHeaders);
     }
@@ -556,423 +569,144 @@ async function makeGeminiRequestWithFallback(visionModel, geminiRequest, modelId
   throw new Error(`All Gemini API keys failed. Last error: ${lastError?.message || 'Unknown error'}`);
 }
 
-// Make a request to the specified model only (no fallback)
-async function makeModelRequest(modelId, requestBody, stream, corsHeaders, env) {
-  let internalModel = exposedToInternalMap[modelId];
-  
-  if (!internalModel || !modelRoutes[internalModel]) {
-    throw new Error(`Model '${modelId}' is not supported or not configured.`);
-  }
+// Helper function to execute the actual model request with provider-specific logic
+async function executeModelRequest(internalModel, payload) {
+  let headers = { "Content-Type": "application/json", "Accept": "application/json" };
+  const modelRoute = modelRoutes[internalModel];
 
-  // Models that properly support system prompts
-  const modelsWithSystemPromptSupport = [
-    "gemini-2.5-flash-preview-04-17",
-    "Qwen/Qwen3-Coder-480B-A35B-Instruct",
-  ];
-  
-  // Get current date/time for all models (in IST)
-  const now = new Date();
-  const currentDateTime = now.toLocaleDateString('en-IN', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    timeZone: 'Asia/Kolkata'
-  }) + ', ' + now.toLocaleTimeString('en-IN', { 
-    hour: '2-digit', 
-    minute: '2-digit',
-    hour12: true,
-    timeZone: 'Asia/Kolkata'
-  }) + ' IST';
-  
-  // Process messages to handle system prompts and ensure conversation memory
-  let processedMessages = requestBody.messages;
-  
-  if (!modelsWithSystemPromptSupport.includes(internalModel)) {
-    // Convert system prompts to user messages for models that don't support them
-    processedMessages = [];
-    let systemContent = null;
-    let conversationSummary = "";
-    
-    // Build conversation summary for context
-    const previousMessages = requestBody.messages.slice(0, -1); // All except last
-    if (previousMessages.length > 0) {
-      conversationSummary = "\n[Previous conversation context:";
-      previousMessages.forEach(msg => {
-        if (msg.role === "user" || msg.role === "assistant") {
-          const content = typeof msg.content === 'string' ? msg.content : msg.content.map(c => c.text || '').join(' ');
-          conversationSummary += `\n${msg.role}: ${content.slice(0, 100)}...`; // First 100 chars
-        }
-      });
-      conversationSummary += "]\n";
-    }
-    
-    for (const msg of requestBody.messages) {
-      if (msg.role === "system") {
-        // Enhanced system content with all capabilities
-        systemContent = `${msg.content}
-
-Current date/time (IST): ${currentDateTime}
-
-YOUR CAPABILITIES:
-• Real-time web search for current information
-• SCREENSHOT WEBSITES: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
-  Example: ![Site](https://s.wordpress.com/mshots/v1/https://example.com?w=1280&h=960)
-• IMAGE GENERATION: Create AI images
-  Default model: flux (if none specified)
-  Available: flux, turbo, img3, img4, qwen, nsfw-gen
-  USE EXACT MODEL NAME in API: {"model": "img3"} not {"model": "flux"}
-  WATERMARK: Add ?nologo=true for flux/turbo URLs
-• No knowledge cutoff - access to current data
-
-SCREENSHOT RULE: When ANY website is mentioned → ALWAYS provide screenshot using format above
-
-Response guidelines:
-• Use formatting naturally where it improves clarity
-• ALWAYS embed screenshots for websites mentioned
-• Add emojis when they enhance understanding
-• Apply markdown for structure
-• Be conversational and helpful`;
-      } else if (msg.role === "user") {
-        if (systemContent) {
-          // Include system content and conversation summary with user message
-          processedMessages.push({
-            role: "user",
-            content: `[System: ${systemContent}]${conversationSummary}\n\nUser: ${msg.content}`
-          });
-          // Keep systemContent for consistency but clear conversation summary
-          conversationSummary = "";
-        } else {
-          processedMessages.push({
-            role: "user", 
-            content: msg.content
-          });
-        }
-      } else if (msg.role === "assistant") {
-        // Keep assistant messages to maintain conversation flow
-        processedMessages.push(msg);
-      }
-    }
-    
-    // If there's a system message but no user message yet, add it
-    if (systemContent && processedMessages.length === 0) {
-      processedMessages.push({
-        role: "user",
-        content: `[System: ${systemContent}]`
-      });
-    }
-  } else {
-    // For models that support system prompts, still add date/time and all capabilities
-    processedMessages = requestBody.messages.map(msg => {
-      if (msg.role === "system") {
-        return {
-          ...msg,
-          content: `${msg.content}
-
-Current Time (IST): ${currentDateTime}
-
-YOUR CAPABILITIES:
-• Real-time web search for current information
-• SCREENSHOT ANY WEBSITE: ![Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
-  Example: ![Google](https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)
-• IMAGE GENERATION: Create images using AI models
-  Default: flux (when no model specified)
-  Models: flux, turbo, img3, img4, qwen, nsfw-gen
-  API call must use EXACT model: {"model": "img3"} if user wants img3
-  Always add ?nologo=true for flux/turbo URLs
-• No knowledge cutoff - real-time access
-
-SCREENSHOT RULE: When user demand or anywhere needed then and don't use this unless it is demanded or somewhere really needed then use→ PROVIDE SCREENSHOT using format above
-
-Response approach:
-• Use natural formatting that enhances readability
-• ALWAYS embed screenshots for websites
-• Include emojis when contextually appropriate
-• Be helpful and conversational`
-        };
-      }
-      return msg;
-    });
-  }
-
-  // Handle other models with existing logic
-  let headers = { 
-    "Content-Type": "application/json"
-  };
-
-  // Use different authentication for different endpoints
-  if (modelRoutes[internalModel].includes('api.cerebras.ai')) {
-    // Key rotation logic: Create a rotated list of keys for this request.
+  // Provider-specific logic for authentication and key rotation
+  if (modelRoute.includes('api.cerebras.ai')) {
     const rotatedKeys = cerebrasApiKeys.slice(cerebrasKeyIndex).concat(cerebrasApiKeys.slice(0, cerebrasKeyIndex));
-    // Increment the global index for the *next* request.
-    cerebrasKeyIndex = (cerebrasKeyIndex + 1) % cerebrasApiKeys.length;
-
-    let lastError = null;
     for (const key of rotatedKeys) {
       try {
         headers["Authorization"] = `Bearer ${key.trim()}`;
-        const response = await fetch(modelRoutes[internalModel], {
-          method: "POST",
-          headers: headers,
-          body: JSON.stringify({ ...requestBody, messages: processedMessages, model: internalModel })
-        });
-
-        // If key is bad, try the next one.
-        if (response.status === 401 || response.status === 403 || response.status === 429) {
-          console.log(`Cerebras key failed with status ${response.status}. Trying next key.`);
-          lastError = new Error(`Cerebras API key failed with status ${response.status}`);
-          continue;
-        }
-
-        // For other errors, throw and fail the request.
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Model '${modelId}' request failed with status ${response.status}: ${errorText}`);
-        }
-
-        return response; // Success!
+        const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(payload) });
+        if (response.status === 401 || response.status === 403 || response.status === 429) continue;
+        if (!response.ok) throw new Error(`Cerebras request failed with status ${response.status}: ${await response.text()}`);
+        cerebrasKeyIndex = (cerebrasApiKeys.indexOf(key) + 1) % cerebrasApiKeys.length;
+        return response.json();
       } catch (error) {
-        lastError = error;
+        console.log(`Cerebras key failed, trying next. Error: ${error.message}`);
       }
     }
-    // If all keys in the rotated list failed.
-    throw new Error(`All Cerebras API keys failed. Last error: ${lastError?.message || 'Unknown error'}`);
+    throw new Error("All Cerebras API keys failed.");
 
-  } else if (modelRoutes[internalModel].includes('fast.typegpt.net')) {
-    // For DeepSeek R1 endpoint
-    headers["Authorization"] = "Bearer sk-BiEn3R0oF1aUTAwK8pWUEqvsxBvoHXffvtLBaC5NApX4SViv";
-  } else if (modelRoutes[internalModel].includes('gpt-oss-openai-proxy.onrender.com')) {
-    // For OpenAI-compatible onrender proxy
-    headers["Authorization"] = `Bearer ${API_KEY}`;
-  } else if (modelRoutes[internalModel].includes('api.free.fastapi.pro')) {
-    // For FastAPI free endpoint
-    headers["Authorization"] = "Bearer sk-FastAPIHc1M0KijyI7VaA3Nuj2cJ1GfA0VSFN5U4qOvm9gZH";
-  } else if (modelRoutes[internalModel].includes('api.deepinfra.com')) {
-    // For DeepInfra endpoint - no authentication required (100 requests/day with IP rotation)
-    // No Authorization header needed
-  } else if (modelRoutes[internalModel].includes('api.v0.dev')) {
-    // For v0.dev endpoint - Vercel's AI models
-    headers["Authorization"] = "Bearer v1:team_m5jgJm4W1wUMbgEjKzSQVapS:1QFTMtR5LJB9gqjdafPGyct1";
-  } else if (modelRoutes[internalModel].includes('api.airforce')) {
-    // For Airforce API - WARNING: 1 request per minute rate limit!
-    headers["Authorization"] = "Bearer sk-air-BmMhxzoWJTGpa54lrsPlmlqgItxqFRt0xcI0gAp5g6BvBqT8ekmQwR61CVSRRUC1";
-  } else if (modelRoutes[internalModel].includes('api.groq.com')) {
-    // For Groq API - Ultra-low latency inference
+  } else if (modelRoute.includes('api.mistral.ai')) {
+    const rotatedKeys = mistralApiKeys.slice(mistralKeyIndex).concat(mistralApiKeys.slice(0, mistralKeyIndex));
+    for (const key of rotatedKeys) {
+      try {
+        headers["Authorization"] = `Bearer ${key.trim()}`;
+        const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(payload) });
+        if (response.status === 401 || response.status === 403 || response.status === 429) continue;
+        if (!response.ok) throw new Error(`Mistral request failed with status ${response.status}: ${await response.text()}`);
+        mistralKeyIndex = (mistralApiKeys.indexOf(key) + 1) % mistralApiKeys.length;
+        return response.json();
+      } catch (error) {
+        console.log(`Mistral key failed, trying next. Error: ${error.message}`);
+      }
+    }
+    throw new Error("All Mistral API keys failed.");
+
+  } else if (modelRoute.includes('api.groq.com')) {
     const groqKey = "gsk_" + "R8OZ89XTZ4bs8NhKNRqJ" + "WGdyb3FYFjb1A58ol4mYXUJEhREh8Jc0";
     headers["Authorization"] = "Bearer " + groqKey;
-  } else if (modelRoutes[internalModel].includes('api.mistral.ai')) {
-    // Key rotation logic for Mistral AI
-    const rotatedKeys = mistralApiKeys.slice(mistralKeyIndex).concat(mistralApiKeys.slice(0, mistralKeyIndex));
-    mistralKeyIndex = (mistralKeyIndex + 1) % mistralApiKeys.length;
-
-    let lastError = null;
-    for (const key of rotatedKeys) {
-      try {
-        headers["Authorization"] = `Bearer ${key.trim()}`;
-        const response = await fetch(modelRoutes[internalModel], {
-          method: "POST",
-          headers: headers,
-          body: JSON.stringify({ ...requestBody, messages: processedMessages, model: internalModel })
-        });
-
-        if (response.status === 401 || response.status === 403 || response.status === 429) {
-          console.log(`Mistral key failed with status ${response.status}. Trying next key.`);
-          lastError = new Error(`Mistral API key failed with status ${response.status}`);
-          continue;
-        }
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Model '${modelId}' request failed with status ${response.status}: ${errorText}`);
-        }
-
-        return response; // Success!
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    throw new Error(`All Mistral API keys failed. Last error: ${lastError?.message || 'Unknown error'}`);
   }
+  // Add other provider-specific auth here if needed (e.g., DeepInfra has no auth)
 
-  const response = await fetch(modelRoutes[internalModel], {
-    method: "POST",
-    headers: headers,
-    body: JSON.stringify({ ...requestBody, messages: processedMessages, model: internalModel })
-  });
-
-  // Check if response indicates an error
+  const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(payload) });
   if (!response.ok) {
-    throw new Error(`Model '${modelId}' request failed with status ${response.status}: ${response.statusText}`);
+    throw new Error(`Model request to ${modelRoute} failed: ${response.status} ${response.statusText}`);
   }
-
-  // For non-streaming, return JSON response
-  if (!stream) {
-    const responseText = await response.text();
-    const responseJson = JSON.parse(responseText);
-    
-    // Check for API errors in response
-    if (responseJson.error) {
-      throw new Error(`Model '${modelId}' returned error: ${responseJson.error.message || responseJson.error}`);
-    }
-    
-    return new Response(JSON.stringify(responseJson), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
-  }
-
-  // For streaming responses, we need to process chunks and format thinking tags
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  
-  const transformStream = new TransformStream({
-    buffer: '',
-    
-    async transform(chunk, controller) {
-      const text = decoder.decode(chunk, { stream: true });
-      this.buffer += text;
-      
-      // Process complete SSE messages
-      const lines = this.buffer.split('\n');
-      this.buffer = lines.pop() || ''; // Keep incomplete line in buffer
-      
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') {
-            controller.enqueue(encoder.encode(line + '\n'));
-            continue;
-          }
-          
-          try {
-            const json = JSON.parse(data);
-            
-            // Format thinking tags in streaming chunks
-            if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
-              // For streaming, we'll collect content and format at the end
-              // This is complex for streaming, so we'll just pass through for now
-              // The thinking tags will be visible but not formatted in streaming mode
-            }
-            
-            controller.enqueue(encoder.encode(line + '\n'));
-          } catch (e) {
-            // Not JSON, pass through as-is
-            controller.enqueue(encoder.encode(line + '\n'));
-          }
-        } else {
-          controller.enqueue(encoder.encode(line + '\n'));
-        }
-      }
-    },
-    
-    flush(controller) {
-      // Process any remaining buffer
-      if (this.buffer) {
-        controller.enqueue(encoder.encode(this.buffer));
-      }
-    }
-  });
-  
-  // Return streaming response with transform
-  return new Response(response.body.pipeThrough(transformStream), {
-    status: response.status,
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Transfer-Encoding": "chunked",
-      "Cache-Control": "no-cache",
-      ...corsHeaders
-    }
-  });
+  return response.json();
 }
 
 
 async function handleChat(request, corsHeaders, env) {
-  const body = await request.json();
-  let exposedModel = body.model;  // Changed to let to allow reassignment
-  const stream = body.stream === true;
+  const requestBody = await request.json();
+  const exposedModel = requestBody.model || "cerebras-qwen-235b";
+  const stream = requestBody.stream === true;
+  let messages = requestBody.messages;
+
+  // For now, tool calling is not supported with streaming responses.
+  if (stream) {
+    return new Response(JSON.stringify({ error: "Tool calling is not supported with streaming responses yet." }), {
+      status: 400,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
   
-  // Ensure there's always a system message about real-time capabilities
-  if (!body.messages.some(m => m.role === 'system')) {
+  // System prompt injection logic
+  if (!messages.some(m => m.role === 'system')) {
     const now = new Date();
-    const dateTime = `${now.toLocaleDateString('en-IN', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      timeZone: 'Asia/Kolkata'
-    })}, ${now.toLocaleTimeString('en-IN', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true,
-      timeZone: 'Asia/Kolkata'
-    })} IST`;
-    
-    body.messages.unshift({
+    const dateTime = `${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata'})}, ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'})} IST`;
+    messages.unshift({
       role: "system",
-      content: `You are a helpful AI assistant with real-time capabilities.
-Current date/time (IST): ${dateTime}
-
-IMPORTANT CAPABILITIES:
-• Web search for current information
-• SCREENSHOT ANY WEBSITE - Use this format: ![Website Name](https://s.wordpress.com/mshots/v1/[URL]?w=1280&h=960)
-  Example: ![Google](https://s.wordpress.com/mshots/v1/https://google.com?w=1280&h=960)
-• IMAGE GENERATION - Create custom images on request
-  Models: flux (default), turbo, img3, img4, qwen, nsfw-gen
-  DEFAULT: Use "flux" if no model specified
-  USER CHOICE: Use EXACT model if specified
-  WATERMARK: Always add ?nologo=true for flux/turbo
-  API: POST /v1/images/generations with {"model": "[exact_model_name]", "prompt": "..."}
-  Display: ![Generated Image](url?nologo=true)
-• No knowledge cutoff - real-time data access
-
-SCREENSHOT INSTRUCTIONS:
-• When ANY website is mentioned → ALWAYS provide a screenshot
-• Format: ![Description](https://s.wordpress.com/mshots/v1/[ENCODED-URL]?w=1280&h=960)
-• Replace [ENCODED-URL] with the actual URL (URL encode if needed)
-• This shows a live preview of the website
-• NO LIMITS - screenshot every website mentioned
-
-Response guidelines:
-• Use formatting naturally where it improves clarity
-• Apply markdown for better structure
-• Include emojis when they enhance the message
-• ALWAYS embed screenshots for websites
-• Be conversational and helpful`
+      content: `You are a helpful AI assistant. Today's date is ${dateTime}. You have access to a web search tool.`
     });
   }
 
-  if (!exposedModel || !exposedToInternalMap[exposedModel]) {
-    exposedModel = "cerebras-qwen-235b";
-  }
+  const MAX_TOOL_CALLS = 3;
+  let toolCallCount = 0;
 
   try {
-    // Check for ALL URLs and provide screenshots (no limits)
-    const screenshotUrls = shouldProvideScreenshot(body.messages);
-    if (screenshotUrls && screenshotUrls.length > 0) {
-      // Generate screenshots for ALL URLs
-      const screenshotInfo = screenshotUrls.map(url => {
-        const screenshotLink = generateScreenshotUrl(url);
-        return `\n📸 **${url}**\n![Screenshot of ${url}](${screenshotLink})`;
-      }).join('\n');
+    while (toolCallCount < MAX_TOOL_CALLS) {
+      const internalModel = exposedToInternalMap[exposedModel];
+      if (!internalModel) {
+        return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), { status: 400, headers: corsHeaders });
+      }
+
+      let tools = [WEB_SEARCH_TOOL];
+      if (modelRoutes[internalModel].includes('api.cerebras.ai')) {
+        tools = tools.map(t => ({ ...t, function: { ...t.function, strict: true } }));
+      }
+
+      const payload = {
+        ...requestBody,
+        model: internalModel,
+        messages: messages,
+        tools: tools,
+        tool_choice: "auto",
+        stream: false, // Ensure stream is false for tool calling logic
+      };
+
+      const responseJson = await executeModelRequest(internalModel, payload);
+      const message = responseJson.choices[0].message;
+      messages.push(message);
+
+      if (!message.tool_calls || message.tool_calls.length === 0) {
+        return new Response(JSON.stringify(responseJson), { status: 200, headers: corsHeaders });
+      }
+
+      toolCallCount++;
+      const toolCalls = message.tool_calls;
       
-      // Enhance the system message with ALL screenshot info
-      const systemMessageIndex = body.messages.findIndex(m => m.role === 'system');
-      if (systemMessageIndex >= 0) {
-        body.messages[systemMessageIndex].content += `\n\n[WEBSITES DETECTED - YOU MUST PROVIDE SCREENSHOTS]:${screenshotInfo}
-\n[CRITICAL]: You MUST display ALL screenshots above using the exact markdown format shown. This is NOT optional - ALWAYS show website previews!`;
+      for (const toolCall of toolCalls) {
+        if (toolCall.function.name === 'web_search') {
+          const args = JSON.parse(toolCall.function.arguments);
+          try {
+            const searchResults = await performWebSearch(args.query);
+            messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              name: toolCall.function.name,
+              content: JSON.stringify(searchResults),
+            });
+          } catch (error) {
+            messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              name: toolCall.function.name,
+              content: JSON.stringify({ error: error.message }),
+            });
+          }
+        }
       }
     }
-    
-    // Make regular request without web search
-    return await makeModelRequest(exposedModel, body, stream, corsHeaders, env);
+    return new Response(JSON.stringify({ error: "Exceeded maximum number of tool calls." }), { status: 500, headers: corsHeaders });
 
   } catch (error) {
-    // Return error if model fails
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      model: exposedModel
-    }), {
-      status: 503,
+    return new Response(JSON.stringify({ error: error.message, model: exposedModel }), {
+      status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
   }
@@ -1231,15 +965,9 @@ async function fetchBraveSearch(query, count, offset, apiKey) {
   return results.web && results.web.results ? results.web.results : [];
 }
 
-async function handleWebSearch(request, corsHeaders) {
-  const body = await request.json();
-  const query = body.query;
-
+async function performWebSearch(query) {
   if (!query) {
-    return new Response(JSON.stringify({ error: "Query parameter is required" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
+    throw new Error("Query parameter is required for web search.");
   }
 
   let lastError = null;
@@ -1270,29 +998,22 @@ async function handleWebSearch(request, corsHeaders) {
         image: result.thumbnail ? result.thumbnail.src : null
       }));
 
-      return new Response(JSON.stringify(formattedResults), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders }
-      });
+      // Return the formatted results directly
+      return formattedResults;
 
     } catch (error) {
       lastError = error;
-      // The error from fetchBraveSearch will tell us if we should continue
       if (error.shouldRetry) {
         console.log(`Brave API key failed. Trying next key. Error: ${error.message}`);
-        continue; // Try the next key
+        continue;
       } else {
-        // This was a non-retriable error, so we should stop.
         break;
       }
     }
   }
 
   // If we get here, all keys failed.
-  return new Response(JSON.stringify({ error: `All Brave API keys failed. Last error: ${lastError ? lastError.message : 'Unknown error'}` }), {
-    status: 500,
-    headers: { "Content-Type": "application/json", ...corsHeaders }
-  });
+  throw new Error(`All Brave API keys failed. Last error: ${lastError ? lastError.message : 'Unknown error'}`);
 }
 
 async function handleUrlAutomation(request, corsHeaders) {
