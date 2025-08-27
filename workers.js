@@ -1198,6 +1198,39 @@ function handleDefaults(corsHeaders = {}) {
   });
 }
 
+// Helper function to fetch from Brave Search API
+async function fetchBraveSearch(query, count, offset, apiKey) {
+  const searchUrl = new URL("https://api.search.brave.com/res/v1/web/search");
+  searchUrl.searchParams.append("q", query);
+  searchUrl.searchParams.append("count", count.toString());
+  searchUrl.searchParams.append("offset", offset.toString());
+
+  const response = await fetch(searchUrl.toString(), {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      "Accept-Encoding": "gzip",
+      "X-Subscription-Token": apiKey
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    const error = new Error(`Brave Search API request failed with status ${response.status}: ${errorText}`);
+
+    // Check for statuses that should trigger a key rotation
+    if ([401, 403, 422, 429, 500, 503].includes(response.status)) {
+      error.shouldRetry = true;
+    } else {
+      error.shouldRetry = false;
+    }
+    throw error;
+  }
+
+  const results = await response.json();
+  return results.web && results.web.results ? results.web.results : [];
+}
+
 async function handleWebSearch(request, corsHeaders) {
   const body = await request.json();
   const query = body.query;
@@ -1209,47 +1242,55 @@ async function handleWebSearch(request, corsHeaders) {
     });
   }
 
-  const braveKey = braveApiKeys[braveKeyIndex];
-  braveKeyIndex = (braveKeyIndex + 1) % braveApiKeys.length;
+  let lastError = null;
 
-  const searchUrl = new URL("https://api.search.brave.com/res/v1/web/search");
-  searchUrl.searchParams.append("q", query);
-  searchUrl.searchParams.append("count", "20"); // Request 20 results
+  // Create a rotated list of keys to try for this request
+  const rotatedKeys = braveApiKeys.slice(braveKeyIndex).concat(braveApiKeys.slice(0, braveKeyIndex));
 
-  const response = await fetch(searchUrl.toString(), {
-    method: "GET",
-    headers: {
-      "Accept": "application/json",
-      "Accept-Encoding": "gzip",
-      "X-Subscription-Token": braveKey
+  for (const key of rotatedKeys) {
+    try {
+      // Fetch two pages of results
+      const results1 = await fetchBraveSearch(query, 20, 0, key);
+      const results2 = await fetchBraveSearch(query, 20, 1, key);
+
+      // If we get here, the key worked. Update the index for the next request.
+      braveKeyIndex = (braveApiKeys.indexOf(key) + 1) % braveApiKeys.length;
+
+      // Combine and de-duplicate results
+      const allResults = [...results1, ...results2];
+      const uniqueResults = Array.from(new Map(allResults.map(item => [item.url, item])).values());
+
+      // Take the first 30
+      const finalResults = uniqueResults.slice(0, 30);
+
+      // Format the results
+      const formattedResults = finalResults.map(result => ({
+        title: result.title,
+        description: result.description,
+        image: result.thumbnail ? result.thumbnail.src : null
+      }));
+
+      return new Response(JSON.stringify(formattedResults), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+
+    } catch (error) {
+      lastError = error;
+      // The error from fetchBraveSearch will tell us if we should continue
+      if (error.shouldRetry) {
+        console.log(`Brave API key failed. Trying next key. Error: ${error.message}`);
+        continue; // Try the next key
+      } else {
+        // This was a non-retriable error, so we should stop.
+        break;
+      }
     }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    return new Response(JSON.stringify({ error: `Brave Search API request failed with status ${response.status}: ${errorText}` }), {
-      status: response.status,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
   }
 
-  const results = await response.json();
-
-  if (!results.web || !results.web.results) {
-    return new Response(JSON.stringify([]), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
-  }
-
-  const formattedResults = results.web.results.map(result => ({
-    title: result.title,
-    description: result.description,
-    image: result.thumbnail ? result.thumbnail.src : null
-  }));
-
-  return new Response(JSON.stringify(formattedResults), {
-    status: 200,
+  // If we get here, all keys failed.
+  return new Response(JSON.stringify({ error: `All Brave API keys failed. Last error: ${lastError ? lastError.message : 'Unknown error'}` }), {
+    status: 500,
     headers: { "Content-Type": "application/json", ...corsHeaders }
   });
 }
