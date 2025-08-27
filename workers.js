@@ -366,9 +366,6 @@ export default {
       return handleWebSearch(request, corsHeaders);
     }
 
-    if (path === "/v1/web-keys" && request.method === "GET") {
-      return handleWebKeys(corsHeaders);
-    }
 
     if (path === "/v1/automation/url" && request.method === "POST") {
       return handleUrlAutomation(request, corsHeaders);
@@ -1151,15 +1148,6 @@ function handleChatModelList(corsHeaders = {}) {
   });
 }
 
-function handleWebKeys(corsHeaders = {}) {
-  return new Response(JSON.stringify({
-    object: "list",
-    data: braveApiKeys
-  }), {
-    headers: { "Content-Type": "application/json", ...corsHeaders }
-  });
-}
-
 function handleImageModelList(corsHeaders = {}) {
   const models = Object.entries(imageModelRoutes).map(([id, meta]) => ({
     id,
@@ -1226,6 +1214,7 @@ async function handleWebSearch(request, corsHeaders) {
 
   const searchUrl = new URL("https://api.search.brave.com/res/v1/web/search");
   searchUrl.searchParams.append("q", query);
+  searchUrl.searchParams.append("count", "20"); // Request 20 results
 
   const response = await fetch(searchUrl.toString(), {
     method: "GET",
@@ -1245,11 +1234,21 @@ async function handleWebSearch(request, corsHeaders) {
   }
 
   const results = await response.json();
-  const responsePayload = {
-    apiKeyUsed: braveKey,
-    searchResults: results
-  };
-  return new Response(JSON.stringify(responsePayload), {
+
+  if (!results.web || !results.web.results) {
+    return new Response(JSON.stringify([]), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
+
+  const formattedResults = results.web.results.map(result => ({
+    title: result.title,
+    description: result.description,
+    image: result.thumbnail ? result.thumbnail.src : null
+  }));
+
+  return new Response(JSON.stringify(formattedResults), {
     status: 200,
     headers: { "Content-Type": "application/json", ...corsHeaders }
   });
