@@ -366,6 +366,10 @@ export default {
       return handleWebSearch(request, corsHeaders);
     }
 
+    if (path === "/v1/web-keys" && request.method === "GET") {
+      return handleWebKeys(corsHeaders);
+    }
+
     if (path === "/v1/automation/url" && request.method === "POST") {
       return handleUrlAutomation(request, corsHeaders);
     }
@@ -1147,6 +1151,15 @@ function handleChatModelList(corsHeaders = {}) {
   });
 }
 
+function handleWebKeys(corsHeaders = {}) {
+  return new Response(JSON.stringify({
+    object: "list",
+    data: braveApiKeys
+  }), {
+    headers: { "Content-Type": "application/json", ...corsHeaders }
+  });
+}
+
 function handleImageModelList(corsHeaders = {}) {
   const models = Object.entries(imageModelRoutes).map(([id, meta]) => ({
     id,
@@ -1232,7 +1245,11 @@ async function handleWebSearch(request, corsHeaders) {
   }
 
   const results = await response.json();
-  return new Response(JSON.stringify(results), {
+  const responsePayload = {
+    apiKeyUsed: braveKey,
+    searchResults: results
+  };
+  return new Response(JSON.stringify(responsePayload), {
     status: 200,
     headers: { "Content-Type": "application/json", ...corsHeaders }
   });
