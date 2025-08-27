@@ -577,35 +577,45 @@ async function executeModelRequest(internalModel, payload) {
   // Provider-specific logic for authentication and key rotation
   if (modelRoute.includes('api.cerebras.ai')) {
     const rotatedKeys = cerebrasApiKeys.slice(cerebrasKeyIndex).concat(cerebrasApiKeys.slice(0, cerebrasKeyIndex));
+    let lastError = null;
     for (const key of rotatedKeys) {
       try {
         headers["Authorization"] = `Bearer ${key.trim()}`;
         const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(payload) });
-        if (response.status === 401 || response.status === 403 || response.status === 429) continue;
+        if (response.status === 401 || response.status === 403 || response.status === 429) {
+            lastError = new Error(`Cerebras key failed with status ${response.status}`);
+            continue;
+        }
         if (!response.ok) throw new Error(`Cerebras request failed with status ${response.status}: ${await response.text()}`);
         cerebrasKeyIndex = (cerebrasApiKeys.indexOf(key) + 1) % cerebrasApiKeys.length;
         return response.json();
       } catch (error) {
+        lastError = error;
         console.log(`Cerebras key failed, trying next. Error: ${error.message}`);
       }
     }
-    throw new Error("All Cerebras API keys failed.");
+    throw lastError || new Error("All Cerebras API keys failed.");
 
   } else if (modelRoute.includes('api.mistral.ai')) {
     const rotatedKeys = mistralApiKeys.slice(mistralKeyIndex).concat(mistralApiKeys.slice(0, mistralKeyIndex));
+    let lastError = null;
     for (const key of rotatedKeys) {
       try {
         headers["Authorization"] = `Bearer ${key.trim()}`;
         const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(payload) });
-        if (response.status === 401 || response.status === 403 || response.status === 429) continue;
+        if (response.status === 401 || response.status === 403 || response.status === 429) {
+            lastError = new Error(`Mistral key failed with status ${response.status}`);
+            continue;
+        }
         if (!response.ok) throw new Error(`Mistral request failed with status ${response.status}: ${await response.text()}`);
         mistralKeyIndex = (mistralApiKeys.indexOf(key) + 1) % mistralApiKeys.length;
         return response.json();
       } catch (error) {
+        lastError = error;
         console.log(`Mistral key failed, trying next. Error: ${error.message}`);
       }
     }
-    throw new Error("All Mistral API keys failed.");
+    throw lastError || new Error("All Mistral API keys failed.");
 
   } else if (modelRoute.includes('api.groq.com')) {
     const groqKey = "gsk_" + "R8OZ89XTZ4bs8NhKNRqJ" + "WGdyb3FYFjb1A58ol4mYXUJEhREh8Jc0";
