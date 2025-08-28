@@ -570,15 +570,20 @@ async function executeModelRequest(internalModel, payload, stream = false) {
         headers["Authorization"] = `Bearer ${key.trim()}`;
         const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(requestPayload) });
         if (response.status === 401 || response.status === 403 || response.status === 429) {
-            lastError = new Error(`Cerebras key failed with status ${response.status}`);
-            continue;
+            throw new Error(`Cerebras key failed with status ${response.status}`);
         }
-        if (!response.ok) throw new Error(`Cerebras request failed with status ${response.status}: ${await response.text()}`);
+        if (!response.ok) {
+            throw new Error(`Cerebras request failed with status ${response.status}: ${await response.text()}`);
+        }
+
         cerebrasKeyIndex = (cerebrasApiKeys.indexOf(key) + 1) % cerebrasApiKeys.length;
         return stream ? response : await response.json();
       } catch (error) {
         lastError = error;
         console.log(`Cerebras key failed, trying next. Error: ${error.message}`);
+        if (cerebrasApiKeys[cerebrasKeyIndex] === key) {
+            cerebrasKeyIndex = (cerebrasKeyIndex + 1) % cerebrasApiKeys.length;
+        }
       }
     }
     throw lastError || new Error("All Cerebras API keys failed.");
@@ -591,15 +596,20 @@ async function executeModelRequest(internalModel, payload, stream = false) {
         headers["Authorization"] = `Bearer ${key.trim()}`;
         const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(requestPayload) });
         if (response.status === 401 || response.status === 403 || response.status === 429) {
-            lastError = new Error(`Mistral key failed with status ${response.status}`);
-            continue;
+            throw new Error(`Mistral key failed with status ${response.status}`);
         }
-        if (!response.ok) throw new Error(`Mistral request failed with status ${response.status}: ${await response.text()}`);
+        if (!response.ok) {
+            throw new Error(`Mistral request failed with status ${response.status}: ${await response.text()}`);
+        }
+
         mistralKeyIndex = (mistralApiKeys.indexOf(key) + 1) % mistralApiKeys.length;
         return stream ? response : await response.json();
       } catch (error) {
         lastError = error;
         console.log(`Mistral key failed, trying next. Error: ${error.message}`);
+        if (mistralApiKeys[mistralKeyIndex] === key) {
+            mistralKeyIndex = (mistralKeyIndex + 1) % mistralApiKeys.length;
+        }
       }
     }
     throw lastError || new Error("All Mistral API keys failed.");
@@ -958,6 +968,9 @@ async function performWebSearch(query) {
       lastError = error;
       if (error.shouldRetry) {
         console.log(`Brave API key failed. Trying next key. Error: ${error.message}`);
+        if (braveApiKeys[braveKeyIndex] === key) {
+            braveKeyIndex = (braveKeyIndex + 1) % braveApiKeys.length;
+        }
         continue;
       } else {
         break;
