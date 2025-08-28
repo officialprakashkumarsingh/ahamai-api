@@ -63,24 +63,6 @@ const braveApiKeys = [
 ];
 let braveKeyIndex = 0;
 
-const WEB_SEARCH_TOOL = {
-  type: "function",
-  function: {
-    name: "web_search",
-    description: "Performs a web search to find up-to-date information on a given topic. Use this for recent events, current affairs, or any topic where real-time information is required.",
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "The search query to look up."
-        }
-      },
-      required: ["query"]
-    }
-  }
-};
-
 const API_KEY = "ahamaipriv05";
 
 const exposedToInternalMap = {
@@ -384,6 +366,10 @@ export default {
       return handleUrlAutomation(request, corsHeaders);
     }
 
+    if (path === "/web" && request.method === "GET") {
+      return handleWebSearch(request, corsHeaders);
+    }
+
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
       headers: { "Content-Type": "application/json", ...corsHeaders }
@@ -644,7 +630,7 @@ async function handleChat(request, corsHeaders, env) {
     const dateTime = `${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata'})}, ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'})} IST`;
     messages.unshift({
       role: "system",
-      content: `You are a helpful AI assistant. Today's date is ${dateTime}. You have access to a web search tool.`
+      content: `You are a helpful AI assistant. Today's date is ${dateTime}. You can use web search by making a request to the /web endpoint.`
     });
   }
 
@@ -654,55 +640,9 @@ async function handleChat(request, corsHeaders, env) {
       return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), { status: 400, headers: corsHeaders });
     }
 
-    let tools = [WEB_SEARCH_TOOL];
-    if (modelRoutes[internalModel].includes('api.cerebras.ai')) {
-      tools = tools.map(t => ({ ...t, function: { ...t.function, strict: true } }));
-    }
-
-    // Step 1: Always make a non-streaming call first to check for tools.
-    const initialPayload = { ...requestBody, model: internalModel, messages, tools, tool_choice: "auto", stream: false };
-    const responseJson = await executeModelRequest(internalModel, initialPayload, false);
-    const message = responseJson.choices[0].message;
-    messages.push(message);
-
-    // Step 2: Check for tool calls.
-    if (!message.tool_calls || message.tool_calls.length === 0) {
-      // No tool call.
-      if (stream) {
-        // User wanted a stream, so we need to make a new request.
-        const streamingPayload = { ...requestBody, model: internalModel, messages: requestBody.messages }; // Use original messages
-        const streamingResponse = await executeModelRequest(internalModel, streamingPayload, true);
-        const newHeaders = new Headers(streamingResponse.headers);
-        Object.entries(corsHeaders).forEach(([key, value]) => newHeaders.set(key, value));
-        return new Response(streamingResponse.body, {
-            status: streamingResponse.status,
-            statusText: streamingResponse.statusText,
-            headers: newHeaders
-        });
-
-      } else {
-        // User didn't want a stream, return the response we already have.
-        return new Response(JSON.stringify(responseJson), { status: 200, headers: corsHeaders });
-      }
-    }
-
-    // Step 3: Execute tool calls.
-    const toolCalls = message.tool_calls;
-    for (const toolCall of toolCalls) {
-      if (toolCall.function.name === 'web_search') {
-        const args = JSON.parse(toolCall.function.arguments);
-        try {
-          const searchResults = await performWebSearch(args.query);
-          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify(searchResults) });
-        } catch (error) {
-          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify({ error: error.message }) });
-        }
-      }
-    }
-
-    // Step 4: Make the final call to the model, respecting the original stream preference.
-    const finalPayload = { ...requestBody, model: internalModel, messages, stream };
-    const finalResponse = await executeModelRequest(internalModel, finalPayload, stream);
+    // Directly call the model without tool logic
+    const payload = { ...requestBody, model: internalModel, messages, stream };
+    const finalResponse = await executeModelRequest(internalModel, payload, stream);
 
     if (stream) {
         const newHeaders = new Headers(finalResponse.headers);
@@ -1006,6 +946,7 @@ async function performWebSearch(query) {
       // Format the results
       const formattedResults = finalResults.map(result => ({
         title: result.title,
+        url: result.url,
         description: result.description,
         image: result.thumbnail ? result.thumbnail.src : null
       }));
@@ -1026,6 +967,36 @@ async function performWebSearch(query) {
 
   // If we get here, all keys failed.
   throw new Error(`All Brave API keys failed. Last error: ${lastError ? lastError.message : 'Unknown error'}`);
+}
+
+async function handleWebSearch(request, corsHeaders) {
+    const url = new URL(request.url);
+    const query = url.searchParams.get('q');
+
+    if (!query) {
+        return new Response("Missing search query. Use ?q=<query>", {
+            status: 400,
+            headers: { "Content-Type": "text/plain", ...corsHeaders }
+        });
+    }
+
+    try {
+        const searchResults = await performWebSearch(query);
+
+        const plainTextResults = searchResults.map(result => {
+            return `Title: ${result.title}\nURL: ${result.url}\nDescription: ${result.description}\nImage: ${result.image || 'N/A'}`;
+        }).join('\n\n---\n\n');
+
+        return new Response(plainTextResults, {
+            status: 200,
+            headers: { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders }
+        });
+    } catch (error) {
+        return new Response(`Error performing web search: ${error.message}`, {
+            status: 500,
+            headers: { "Content-Type": "text/plain", ...corsHeaders }
+        });
+    }
 }
 
 async function handleUrlAutomation(request, corsHeaders) {
