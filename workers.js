@@ -650,8 +650,21 @@ async function handleChat(request, corsHeaders, env) {
       return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), { status: 400, headers: corsHeaders });
     }
 
-    // Directly call the model without tool logic
-    const payload = { ...requestBody, model: internalModel, messages, stream };
+    // Sanitize the payload to remove any tool-related parameters
+    const payload = {
+        model: internalModel,
+        messages: messages,
+        stream: stream,
+        temperature: requestBody.temperature,
+        max_tokens: requestBody.max_tokens,
+        top_p: requestBody.top_p,
+        seed: requestBody.seed,
+        stop: requestBody.stop
+    };
+
+    // Remove undefined properties to avoid sending them in the request
+    Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+
     const finalResponse = await executeModelRequest(internalModel, payload, stream);
 
     if (stream) {
