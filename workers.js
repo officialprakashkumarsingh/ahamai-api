@@ -63,7 +63,38 @@ const braveApiKeys = [
 ];
 let braveKeyIndex = 0;
 
+const WEB_SCRAPER_TOOL = {
+  type: "function",
+  function: {
+    name: "web_scraper",
+    description: "Scrapes the content of a given URL. Use this to get information from a specific webpage.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: {
+          type: "string",
+          description: "The URL of the webpage to scrape."
+        }
+      },
+      required: ["url"]
+    }
+  }
+};
+
 const API_KEY = "ahamaipriv05";
+
+function shouldTriggerWebSearch(messageContent) {
+    const keywords = ['web', 'search', 'currently', 'live', 'updates', 'check', 'now', 'what', 'when', 'which', 'where', 'how', 'who'];
+    const lowerCaseMessage = messageContent.toLowerCase();
+
+    for (const keyword of keywords) {
+        const regex = new RegExp(`\\b${keyword}\\b`);
+        if (regex.test(lowerCaseMessage)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 const exposedToInternalMap = {
   "qwen-235b": "qwen-3-235b-a22b-instruct-2507",
@@ -640,8 +671,25 @@ async function handleChat(request, corsHeaders, env) {
     const dateTime = `${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata'})}, ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'})} IST`;
     messages.unshift({
       role: "system",
-      content: `You are a helpful AI assistant. Today's date is ${dateTime}. You can use web search by making a request to the /web endpoint.`
+      content: `You are a helpful AI assistant. Today's date is ${dateTime}. You have access to a web scraper tool.`
     });
+  }
+
+  // Keyword-triggered web search
+  const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+  if (lastUserMessage && typeof lastUserMessage.content === 'string' && shouldTriggerWebSearch(lastUserMessage.content)) {
+    try {
+        console.log("Triggering automatic web search...");
+        const searchResults = await performWebSearch(lastUserMessage.content);
+        const formattedResults = searchResults.map(r => `Title: ${r.title}\nURL: ${r.url}\nDescription: ${r.description}`).join('\n\n');
+
+        messages.push({
+            role: "system",
+            content: `Here are the web search results for the user's query:\n\n${formattedResults}`
+        });
+    } catch (error) {
+        console.error("Error performing automatic web search:", error);
+    }
   }
 
   try {
@@ -650,22 +698,66 @@ async function handleChat(request, corsHeaders, env) {
       return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), { status: 400, headers: corsHeaders });
     }
 
-    // Sanitize the payload to remove any tool-related parameters
-    const payload = {
+    // Step 1: Make an initial call to the model to see if it wants to use a tool.
+    const tools = [WEB_SCRAPER_TOOL];
+    const safePayload = {
         model: internalModel,
         messages: messages,
-        stream: stream,
         temperature: requestBody.temperature,
         max_tokens: requestBody.max_tokens,
         top_p: requestBody.top_p,
         seed: requestBody.seed,
-        stop: requestBody.stop
+        stop: requestBody.stop,
+        tools: tools,
+        tool_choice: "auto",
+        stream: false
     };
+    Object.keys(safePayload).forEach(key => safePayload[key] === undefined && delete safePayload[key]);
 
-    // Remove undefined properties to avoid sending them in the request
-    Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+    const responseJson = await executeModelRequest(internalModel, safePayload, false);
+    const message = responseJson.choices[0].message;
+    messages.push(message);
 
-    const finalResponse = await executeModelRequest(internalModel, payload, stream);
+    // Step 2: Check for tool calls.
+    if (!message.tool_calls || message.tool_calls.length === 0) {
+      // No tool call. If user wanted a stream, we need to re-request.
+      if (stream) {
+        const streamPayload = { ...safePayload, messages: requestBody.messages, stream: true };
+        delete streamPayload.tools;
+        delete streamPayload.tool_choice;
+        const streamingResponse = await executeModelRequest(internalModel, streamPayload, true);
+        const newHeaders = new Headers(streamingResponse.headers);
+        Object.entries(corsHeaders).forEach(([key, value]) => newHeaders.set(key, value));
+        return new Response(streamingResponse.body, {
+            status: streamingResponse.status,
+            statusText: streamingResponse.statusText,
+            headers: newHeaders
+        });
+      } else {
+        return new Response(JSON.stringify(responseJson), { status: 200, headers: corsHeaders });
+      }
+    }
+
+    // Step 3: Execute tool calls.
+    const toolCalls = message.tool_calls;
+    for (const toolCall of toolCalls) {
+      if (toolCall.function.name === 'web_scraper') {
+        const args = JSON.parse(toolCall.function.arguments);
+        try {
+          const scrapeResult = await performWebScrape(args.url);
+          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: scrapeResult });
+        } catch (error) {
+          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify({ error: error.message }) });
+        }
+      }
+    }
+
+    // Step 4: Make the final call to the model with the tool results.
+    const finalPayload = { ...safePayload, messages, stream };
+    delete finalPayload.tools;
+    delete finalPayload.tool_choice;
+
+    const finalResponse = await executeModelRequest(internalModel, finalPayload, stream);
 
     if (stream) {
         const newHeaders = new Headers(finalResponse.headers);
@@ -993,6 +1085,27 @@ async function performWebSearch(query) {
 
   // If we get here, all keys failed.
   throw new Error(`All Brave API keys failed. Last error: ${lastError ? lastError.message : 'Unknown error'}`);
+}
+
+async function performWebScrape(url) {
+    if (!url) {
+        throw new Error("URL is required for web scraping.");
+    }
+    console.log(`Scraping URL: ${url}`);
+    const scraperUrl = `https://scrap.ytansh038.workers.dev/?url=${encodeURIComponent(url)}`;
+
+    try {
+        const response = await fetch(scraperUrl);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Web scraper API failed with status ${response.status}: ${errorText}`);
+        }
+        const scrapedText = await response.text();
+        return scrapedText;
+    } catch (error) {
+        console.error("Error calling web scraper API:", error);
+        return `Error: Failed to scrape the URL. ${error.message}`;
+    }
 }
 
 async function handleWebSearch(request, corsHeaders) {
