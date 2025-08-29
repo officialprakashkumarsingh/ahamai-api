@@ -134,7 +134,7 @@ const WEB_SCRAPER_TOOL = {
   type: "function",
   function: {
     name: "web_scraper",
-    description: "Scrapes the content of a given URL. Use this to get information from a specific webpage.",
+    description: "Scrapes the content of a given URL. Use this to get information from a specific webpage. Avoid using for coding questions, programming tutorials, or general conversation - only use when you need to extract content from a specific known URL.",
     parameters: {
       type: "object",
       properties: {
@@ -148,20 +148,25 @@ const WEB_SCRAPER_TOOL = {
   }
 };
 
-const API_KEY = "ahamaipriv05";
-
-function shouldTriggerWebSearch(messageContent) {
-    const keywords = ['web', 'search', 'currently', 'live', 'updates', 'check', 'now', 'what', 'when', 'which', 'where', 'how', 'who'];
-    const lowerCaseMessage = messageContent.toLowerCase();
-
-    for (const keyword of keywords) {
-        const regex = new RegExp(`\\b${keyword}\\b`);
-        if (regex.test(lowerCaseMessage)) {
-            return true;
+const WEB_SEARCH_TOOL = {
+  type: "function",
+  function: {
+    name: "web_search",
+    description: "Performs a web search to find current information, news, or recent developments. Use this when you need up-to-date information, current events, live data, or recent developments. Avoid using for coding questions, programming tutorials, general knowledge that doesn't require current information, or casual conversation.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "The search query to find current information."
         }
+      },
+      required: ["query"]
     }
-    return false;
-}
+  }
+};
+
+const API_KEY = "ahamaipriv05";
 
 const exposedToInternalMap = {
   "qwen-235b": "qwen-3-235b-a22b-instruct-2507",
@@ -808,25 +813,8 @@ async function handleChat(request, corsHeaders, env) {
     const dateTime = `${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata'})}, ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'})} IST`;
     messages.unshift({
       role: "system",
-      content: `You are a helpful AI assistant. Today's date is ${dateTime}. You have access to a web scraper tool.`
+      content: `You are a helpful AI assistant. Today's date is ${dateTime}. You have access to web search and web scraper tools. Use web search for current information, news, or recent developments. Use web scraper for extracting content from specific URLs. Avoid using these tools for coding questions, programming tutorials, or general conversation - respond normally for those topics.`
     });
-  }
-
-  // Keyword-triggered web search
-  const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-  if (lastUserMessage && typeof lastUserMessage.content === 'string' && shouldTriggerWebSearch(lastUserMessage.content)) {
-    try {
-        console.log("Triggering automatic web search...");
-        const searchResults = await performWebSearch(lastUserMessage.content);
-        const formattedResults = searchResults.map(r => `Title: ${r.title}\nURL: ${r.url}\nDescription: ${r.description}`).join('\n\n');
-
-        messages.push({
-            role: "system",
-            content: `Here are the web search results for the user's query:\n\n${formattedResults}`
-        });
-    } catch (error) {
-        console.error("Error performing automatic web search:", error);
-    }
   }
 
   try {
@@ -836,7 +824,7 @@ async function handleChat(request, corsHeaders, env) {
     }
 
     // Step 1: Make an initial call to the model to see if it wants to use a tool.
-    const tools = [WEB_SCRAPER_TOOL];
+    const tools = [WEB_SEARCH_TOOL, WEB_SCRAPER_TOOL];
     const safePayload = {
         model: internalModel,
         messages: messages,
@@ -883,6 +871,15 @@ async function handleChat(request, corsHeaders, env) {
         try {
           const scrapeResult = await performWebScrape(args.url);
           messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: scrapeResult });
+        } catch (error) {
+          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify({ error: error.message }) });
+        }
+      } else if (toolCall.function.name === 'web_search') {
+        const args = JSON.parse(toolCall.function.arguments);
+        try {
+          const searchResults = await performWebSearch(args.query);
+          const formattedResults = searchResults.map(r => `Title: ${r.title}\nURL: ${r.url}\nDescription: ${r.description}`).join('\n\n');
+          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: formattedResults });
         } catch (error) {
           messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify({ error: error.message }) });
         }
