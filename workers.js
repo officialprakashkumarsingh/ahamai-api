@@ -29,45 +29,7 @@ let mistralKeyIndex = 0;
 const mistralFailedKeys = new Set();
 let mistralLastRotation = 0;
 
-const braveApiKeys = [
-  "BSAP1ZmJl9wMXKDvGnGM78r9__i_VuG",
-  "BSAx_ihSqqUJXgGPvZJduSZhcZbfnQB",
-  "BSAFHHikdsv2YXSYODQSPES2tTMILHI",
-  "BSA7N3mbuH1WLUgTE-C7wvOS5SR7Srl",
-  "BSAFvyFnGBcWt8IImCnXR_7tgwymtdr",
-  "BSAWAka3FqwUpp3FJP_f5izlPCmXYJE",
-  "BSAN7HoBWjJOUG-zXVN8rkIGXpbsRtq",
-  "BSAttExzgW4_H4rcHMmpHQ9hw7vz2lX",
-  "BSAP0LqtBpuCz19UbWd_SF6BCSTgQbD",
-  "BSAsHWA8JejN8yR7rmQpB6zbiuN0kiz",
-  "BSAsDd5v_DhzOXMvxDp59Up7gE4F9FU",
-  "BSAxGC1s-JGptZejZb7W-srU3C38tUa",
-  "BSANO2wi1X7VobnaHKDZiKtSSUVLJbs",
-  "BSAF0Eghn0LJVunT162U9_hjUTwpoxT",
-  "BSAatEHiEyQVY0E2m5VTZpURgWmwVJs",
-  "BSAhdZD3bibK1I21NLKCOEYIzF92JAg",
-  "BSA5Wbq3XcFhkVnlqkFvWy9oQ6LCpPM",
-  "BSA9cI-ySSlj9AcH1Te378Dns7u-a94",
-  "BSALK6kVOrH0IJeW-y5cFmAkvkdYtXK",
-  "BSA91HObAKlxwVldV5teh4TTKGw8_qN",
-  "BSAhxxZOTsSPVAi4c-5Jye3ZNTxiCpO",
-  "BSApz0194z7SG6DplmVozl7ttFOi0Eo",
-  "BSA_qIkGjGbHL3dAZ8ud30KkrFA-AoR",
-  "BSAtniQaa7lCvHmj0z6gHUTzxfwRmtP",
-  "BSALH5My3WviqKzd52GFKMPb8Nkq-cl",
-  "BSABCX8h0_23my3-3VbXZU2LZscu-LX",
-  "BSACjemCARQailPeTLzGQ9auvrc8bsM",
-  "BSApoyO-93mdXe0VM3BTFtMJUKQALhO",
-  "BSA6k-wEGLawcaINnEb-iIiwBnq9-Y2",
-  "BSArXZ987KsjfuUmJRTvpXPjuYVP7-I",
-  "BSAe7FiTb62lN_g3Qctb-L97QJIqkDF",
-  "BSAYFCph1muTB4F5t5cFNIGQfv9UT8j",
-  "BSAtrR5zhssDQA9iHdKR6rtIqhxilR8",
-  "BSAQ0gsYuaYuEZHayb_Ek1pnl1l2RiW"
-];
-let braveKeyIndex = 0;
-const braveFailedKeys = new Set();
-let braveLastRotation = 0;
+
 
 // Multiple scraping endpoints with rotation
 const scrapingEndpoints = [
@@ -207,23 +169,7 @@ const WEB_SCRAPER_TOOL = {
   }
 };
 
-const WEB_SEARCH_TOOL = {
-  type: "function",
-  function: {
-    name: "web_search",
-    description: "Performs a web search to find current information, news, or recent developments. Use this when you need up-to-date information, current events, live data, or recent developments. Avoid using for coding questions, programming tutorials, general knowledge that doesn't require current information, or casual conversation.",
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "The search query to find current information."
-        }
-      },
-      required: ["query"]
-    }
-  }
-};
+
 
 const STOCK_VIDEO_SEARCH_TOOL = {
   type: "function",
@@ -595,9 +541,6 @@ export default {
       return handleUrlAutomation(request, corsHeaders);
     }
 
-    if (path === "/web" && request.method === "GET") {
-      return handleWebSearch(request, corsHeaders);
-    }
 
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
@@ -956,7 +899,7 @@ async function handleChat(request, corsHeaders, env) {
     }
 
     // Step 1: Make an initial call to the model to see if it wants to use a tool.
-    const tools = [WEB_SEARCH_TOOL, WEB_SCRAPER_TOOL, STOCK_VIDEO_SEARCH_TOOL, SCREENSHOT_TOOL];
+    const tools = [WEB_SCRAPER_TOOL, STOCK_VIDEO_SEARCH_TOOL, SCREENSHOT_TOOL];
     const safePayload = {
         model: internalModel,
         messages: messages,
@@ -1003,19 +946,6 @@ async function handleChat(request, corsHeaders, env) {
         try {
           const scrapeResult = await performWebScrape(args.url);
           messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: scrapeResult });
-        } catch (error) {
-          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify({ error: error.message }) });
-        }
-      } else if (toolCall.function.name === 'web_search') {
-        const args = JSON.parse(toolCall.function.arguments);
-        try {
-          // Add current date/time context to search query for better results
-          const now = new Date();
-          const dateTime = `${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata'})}, ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'})} IST`;
-          
-          const searchResults = await performWebSearch(args.query);
-          const formattedResults = `[Search performed on: ${dateTime}]\n\n${searchResults.map(r => `Title: ${r.title}\nURL: ${r.url}\nDescription: ${r.description}`).join('\n\n')}`;
-          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: formattedResults });
         } catch (error) {
           messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify({ error: error.message }) });
         }
@@ -1306,39 +1236,7 @@ function handleDefaults(corsHeaders = {}) {
   });
 }
 
-// Helper function to fetch from Brave Search API with enhanced rotation
-async function fetchBraveSearch(query, count, offset, apiKey) {
-  const searchUrl = new URL("https://api.search.brave.com/res/v1/web/search");
-  searchUrl.searchParams.append("q", query);
-  searchUrl.searchParams.append("count", count.toString());
-  searchUrl.searchParams.append("offset", offset.toString());
 
-  const response = await fetch(searchUrl.toString(), {
-    method: "GET",
-    headers: {
-      "Accept": "application/json",
-      "Accept-Encoding": "gzip",
-      "X-Subscription-Token": apiKey
-    },
-    signal: AbortSignal.timeout(15000) // 15 second timeout
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    const error = new Error(`Brave Search API request failed with status ${response.status}: ${errorText}`);
-
-    // Enhanced status code checking for rotation
-    if (shouldRotateOnStatus(response.status)) {
-      error.shouldRetry = true;
-    } else {
-      error.shouldRetry = false;
-    }
-    throw error;
-  }
-
-  const results = await response.json();
-  return results.web && results.web.results ? results.web.results : [];
-}
 
 // Helper function to search for stock videos using Pexels API
 async function performStockVideoSearch(query, page = 1) {
@@ -1386,72 +1284,6 @@ async function performStockVideoSearch(query, page = 1) {
     console.error(`Stock video search error: ${error.message}`);
     throw new Error(`Failed to search stock videos: ${error.message}`);
   }
-}
-
-async function performWebSearch(query) {
-  if (!query) {
-    throw new Error("Query parameter is required for web search.");
-  }
-
-  let attempts = 0;
-  const maxAttempts = braveApiKeys.length;
-  let lastError = null;
-
-  while (attempts < maxAttempts) {
-    const currentKey = braveApiKeys[braveKeyIndex];
-    
-    // Skip this key if it's in cooldown
-    if (shouldSkipDueCooldown(braveFailedKeys, currentKey, braveLastRotation)) {
-      braveKeyIndex = (braveKeyIndex + 1) % braveApiKeys.length;
-      attempts++;
-      continue;
-    }
-
-    try {
-      // Fetch two pages of results
-      const results1 = await fetchBraveSearch(query, 20, 0, currentKey);
-      const results2 = await fetchBraveSearch(query, 20, 1, currentKey);
-
-      // If we get here, the key worked. Log success
-      console.log(`[Brave Search] Request successful with key ${currentKey.substring(0, 8)}...`);
-
-      // Combine and de-duplicate results
-      const allResults = [...results1, ...results2];
-      const uniqueResults = Array.from(new Map(allResults.map(item => [item.url, item])).values());
-
-      // Take the first 30
-      const finalResults = uniqueResults.slice(0, 30);
-
-      // Format the results
-      const formattedResults = finalResults.map(result => ({
-        title: result.title || "No title",
-        url: result.url || "",
-        description: result.description || "No description available",
-        image: result.thumbnail ? result.thumbnail.src : null
-      }));
-
-      // Success - move to next key for next request (balanced load)
-      braveKeyIndex = (braveKeyIndex + 1) % braveApiKeys.length;
-      return formattedResults;
-
-    } catch (error) {
-      lastError = error;
-      if (error.shouldRetry) {
-        const oldKey = currentKey;
-        braveFailedKeys.add(currentKey);
-        braveKeyIndex = (braveKeyIndex + 1) % braveApiKeys.length;
-        braveLastRotation = Date.now();
-        logRotation("Brave Search", oldKey, braveApiKeys[braveKeyIndex], `Error: ${error.message}`);
-        attempts++;
-        continue;
-      } else {
-        throw error;
-      }
-    }
-  }
-
-  // If we get here, all keys failed.
-  throw new Error(`All Brave API keys failed. Last error: ${lastError ? lastError.message : 'Unknown error'}`);
 }
 
 // Enhanced content sanitization function
@@ -1585,36 +1417,6 @@ async function performWebScrape(url) {
     
     // Fallback error response
     return `Scraping service temporarily unavailable for ${url}. All scraping endpoints are currently experiencing issues. Please try again later or provide the content manually.`;
-}
-
-async function handleWebSearch(request, corsHeaders) {
-    const url = new URL(request.url);
-    const query = url.searchParams.get('q');
-
-    if (!query) {
-        return new Response("Missing search query. Use ?q=<query>", {
-            status: 400,
-            headers: { "Content-Type": "text/plain", ...corsHeaders }
-        });
-    }
-
-    try {
-        const searchResults = await performWebSearch(query);
-
-        const plainTextResults = searchResults.map(result => {
-            return `Title: ${result.title}\nURL: ${result.url}\nDescription: ${result.description}\nImage: ${result.image || 'N/A'}`;
-        }).join('\n\n---\n\n');
-
-        return new Response(plainTextResults, {
-            status: 200,
-            headers: { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders }
-        });
-    } catch (error) {
-        return new Response(`Error performing web search: ${error.message}`, {
-            status: 500,
-            headers: { "Content-Type": "text/plain", ...corsHeaders }
-        });
-    }
 }
 
 async function handleUrlAutomation(request, corsHeaders) {
