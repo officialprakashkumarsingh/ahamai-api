@@ -166,6 +166,29 @@ const WEB_SEARCH_TOOL = {
   }
 };
 
+const STOCK_VIDEO_SEARCH_TOOL = {
+  type: "function",
+  function: {
+    name: "stock_video_search",
+    description: "Searches for stock videos based on a query. Use this when you need to find high-quality stock video footage for projects, presentations, or content creation. Returns video results with titles, thumbnails, and download links.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "The search query to find stock videos (e.g., 'nature', 'business', 'technology', 'ocean')."
+        },
+        page: {
+          type: "number",
+          description: "Page number for pagination (optional, defaults to 1).",
+          default: 1
+        }
+      },
+      required: ["query"]
+    }
+  }
+};
+
 const API_KEY = "ahamaipriv05";
 
 const exposedToInternalMap = {
@@ -823,7 +846,7 @@ async function handleChat(request, corsHeaders, env) {
     }
 
     // Step 1: Make an initial call to the model to see if it wants to use a tool.
-    const tools = [WEB_SEARCH_TOOL, WEB_SCRAPER_TOOL];
+    const tools = [WEB_SEARCH_TOOL, WEB_SCRAPER_TOOL, STOCK_VIDEO_SEARCH_TOOL];
     const safePayload = {
         model: internalModel,
         messages: messages,
@@ -878,6 +901,15 @@ async function handleChat(request, corsHeaders, env) {
         try {
           const searchResults = await performWebSearch(args.query);
           const formattedResults = searchResults.map(r => `Title: ${r.title}\nURL: ${r.url}\nDescription: ${r.description}`).join('\n\n');
+          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: formattedResults });
+        } catch (error) {
+          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify({ error: error.message }) });
+        }
+      } else if (toolCall.function.name === 'stock_video_search') {
+        const args = JSON.parse(toolCall.function.arguments);
+        try {
+          const videoResults = await performStockVideoSearch(args.query, args.page);
+          const formattedResults = videoResults.map(v => `Title: ${v.title}\nThumbnail: ${v.thumbnail}\nDownload Link: ${v.download_link}`).join('\n\n');
           messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: formattedResults });
         } catch (error) {
           messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify({ error: error.message }) });
@@ -1163,6 +1195,54 @@ async function fetchBraveSearch(query, count, offset, apiKey) {
 
   const results = await response.json();
   return results.web && results.web.results ? results.web.results : [];
+}
+
+// Helper function to search for stock videos using Pexels API
+async function performStockVideoSearch(query, page = 1) {
+  if (!query) {
+    throw new Error("Query parameter is required for stock video search.");
+  }
+
+  const targetUrl = `https://www.pexels.com/en-us/api/v3/search/videos/?query=${encodeURIComponent(query)}&page=${page}`;
+
+  const headers = {
+    'Host': 'www.pexels.com',
+    'cache-control': 'no-cache, no-store, must-revalidate',
+    'content-type': 'application/json',
+    'secret-key': 'H2jk9uKnhRmL6WPwh89zBezWvr',
+    'expires': '0',
+    'pragma': 'no-cache',
+    'x-client-type': 'mobile',
+    'x-client-version': '7.4.2',
+    'user-agent': 'PexelsMobileApp/7.4.2 (android 28)',
+    'accept-encoding': 'gzip',
+    'cookie': '__cf_bm=dummy; _cfuvid=dummy'
+  };
+
+  try {
+    const response = await fetch(targetUrl, { 
+      headers,
+      signal: AbortSignal.timeout(15000) // 15 second timeout
+    });
+
+    if (!response.ok) {
+      throw new Error(`Pexels API request failed with status ${response.status}: ${response.statusText}`);
+    }
+
+    const json = await response.json();
+
+    const minimal = (json?.data || []).map(video => ({
+      title: video?.attributes?.title || '',
+      thumbnail: video?.attributes?.video?.thumbnail?.medium || '',
+      download_link: video?.attributes?.video?.download_link || ''
+    }));
+
+    return minimal;
+
+  } catch (error) {
+    console.error(`Stock video search error: ${error.message}`);
+    throw new Error(`Failed to search stock videos: ${error.message}`);
+  }
 }
 
 async function performWebSearch(query) {
