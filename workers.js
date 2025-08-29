@@ -960,15 +960,9 @@ async function handleChat(request, corsHeaders, env) {
 
     // For vision models using OpenRouter, handle the request differently
     if (hasImages && actualModel === "gemini-2.5-flash-image-preview") {
-      // Convert to Gemini format for vision requests
-      const geminiRequest = convertToGeminiFormat({
-        messages: messages,
-        max_tokens: requestBody.max_tokens,
-        temperature: requestBody.temperature,
-        top_p: requestBody.top_p
-      });
-
-      // Make request directly to OpenRouter Gemini
+      // For OpenRouter, use the original OpenAI format (no conversion needed)
+      // OpenRouter handles the conversion to Gemini internally
+      
       const openRouterKey = decryptOpenRouterKey();
       const headers = {
         "Content-Type": "application/json",
@@ -977,13 +971,24 @@ async function handleChat(request, corsHeaders, env) {
         "X-Title": "Ahamai API"
       };
 
+      const openRouterPayload = {
+        model: "google/gemini-2.5-flash-image-preview:free",
+        messages: messages,
+        max_tokens: requestBody.max_tokens,
+        temperature: requestBody.temperature,
+        top_p: requestBody.top_p,
+        stream: stream
+      };
+      
+      // Remove undefined values
+      Object.keys(openRouterPayload).forEach(key => 
+        openRouterPayload[key] === undefined && delete openRouterPayload[key]
+      );
+
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: headers,
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image-preview:free",
-          ...geminiRequest
-        }),
+        body: JSON.stringify(openRouterPayload),
         signal: AbortSignal.timeout(30000)
       });
 
@@ -1007,10 +1012,9 @@ async function handleChat(request, corsHeaders, env) {
           headers: newHeaders
         });
       } else {
-        // For non-streaming responses, convert back to OpenAI format
-        const geminiResponse = await response.json();
-        const openaiResponse = convertFromGeminiFormat(geminiResponse, actualModel);
-        return new Response(JSON.stringify(openaiResponse), {
+        // For non-streaming responses, return the OpenAI-compatible response directly
+        const responseData = await response.json();
+        return new Response(JSON.stringify(responseData), {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders }
         });
