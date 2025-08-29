@@ -17,6 +17,8 @@ const cerebrasApiKeys = [
   "csk-t9225v824mtxdxmvx3nm2yyw9dfrjmvte5tdjk4pvx22tcjy"
 ];
 let cerebrasKeyIndex = 0;
+const cerebrasFailedKeys = new Set();
+let cerebrasLastRotation = 0;
 
 const mistralApiKeys = [
   "vlVy39wyXd1jkURNevvMkGuqKaPBj3Ek",
@@ -24,6 +26,8 @@ const mistralApiKeys = [
   "Lu7xpXn9EScc0UkfDxGFY6HOpAlsFFRR"
 ];
 let mistralKeyIndex = 0;
+const mistralFailedKeys = new Set();
+let mistralLastRotation = 0;
 
 const braveApiKeys = [
   "BSAP1ZmJl9wMXKDvGnGM78r9__i_VuG",
@@ -62,6 +66,69 @@ const braveApiKeys = [
   "BSAQ0gsYuaYuEZHayb_Ek1pnl1l2RiW"
 ];
 let braveKeyIndex = 0;
+const braveFailedKeys = new Set();
+let braveLastRotation = 0;
+
+// Multiple scraping endpoints with rotation
+const scrapingEndpoints = [
+  "https://scrap.ytansh038.workers.dev/",
+  "https://scraper-api.smartproxy.com/v2/scrape",
+  "https://api.scraperapi.com/",
+  "https://scrape.abstractapi.com/v1/",
+  "https://api.scrapfly.io/scrape"
+];
+let scrapingEndpointIndex = 0;
+const scrapingFailedEndpoints = new Set();
+let scrapingLastRotation = 0;
+
+// Cooldown period for failed keys/endpoints (5 minutes)
+const COOLDOWN_PERIOD = 5 * 60 * 1000;
+
+// Comprehensive status codes that should trigger rotation
+const ROTATION_STATUS_CODES = [
+  400, // Bad Request (sometimes indicates rate limit)
+  401, // Unauthorized
+  403, // Forbidden
+  404, // Not Found (for some APIs)
+  422, // Unprocessable Entity
+  429, // Too Many Requests
+  500, // Internal Server Error
+  502, // Bad Gateway
+  503, // Service Unavailable
+  504, // Gateway Timeout
+  520, // Unknown Error (Cloudflare)
+  521, // Web Server Is Down (Cloudflare)
+  522, // Connection Timed Out (Cloudflare)
+  523, // Origin Is Unreachable (Cloudflare)
+  524, // A Timeout Occurred (Cloudflare)
+  525, // SSL Handshake Failed (Cloudflare)
+  526, // Invalid SSL Certificate (Cloudflare)
+  527, // Railgun Error (Cloudflare)
+  530  // Origin DNS Error (Cloudflare)
+];
+
+// Helper function to check if a key/endpoint should be skipped due to cooldown
+function shouldSkipDueCooldown(failedSet, key, lastRotationTime) {
+  const now = Date.now();
+  if (failedSet.has(key) && (now - lastRotationTime) < COOLDOWN_PERIOD) {
+    return true;
+  }
+  // Clear failed keys after cooldown period
+  if ((now - lastRotationTime) >= COOLDOWN_PERIOD) {
+    failedSet.clear();
+  }
+  return false;
+}
+
+// Helper function to check if status code should trigger rotation
+function shouldRotateOnStatus(statusCode) {
+  return ROTATION_STATUS_CODES.includes(statusCode);
+}
+
+// Helper function to log rotation events
+function logRotation(provider, oldKey, newKey, reason) {
+  console.log(`[${provider} Rotation] ${reason} - Switching from key ${oldKey.substring(0, 8)}... to ${newKey.substring(0, 8)}...`);
+}
 
 const WEB_SCRAPER_TOOL = {
   type: "function",
@@ -594,56 +661,120 @@ async function executeModelRequest(internalModel, payload, stream = false) {
 
   // Provider-specific logic for authentication and key rotation
   if (modelRoute.includes('api.cerebras.ai')) {
-    const rotatedKeys = cerebrasApiKeys.slice(cerebrasKeyIndex).concat(cerebrasApiKeys.slice(0, cerebrasKeyIndex));
-    let lastError = null;
-    for (const key of rotatedKeys) {
+    // Robust Cerebras API rotation with comprehensive error handling
+    let attempts = 0;
+    const maxAttempts = cerebrasApiKeys.length;
+    
+    while (attempts < maxAttempts) {
+      const currentKey = cerebrasApiKeys[cerebrasKeyIndex];
+      
+      // Skip this key if it's in cooldown
+      if (shouldSkipDueCooldown(cerebrasFailedKeys, currentKey, cerebrasLastRotation)) {
+        cerebrasKeyIndex = (cerebrasKeyIndex + 1) % cerebrasApiKeys.length;
+        attempts++;
+        continue;
+      }
+      
       try {
-        headers["Authorization"] = `Bearer ${key.trim()}`;
-        const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(requestPayload) });
-        if (response.status === 401 || response.status === 403 || response.status === 429) {
-            throw new Error(`Cerebras key failed with status ${response.status}`);
+        headers["Authorization"] = `Bearer ${currentKey.trim()}`;
+        const response = await fetch(modelRoute, { 
+          method: "POST", 
+          headers, 
+          body: JSON.stringify(requestPayload),
+          signal: AbortSignal.timeout(30000) // 30 second timeout
+        });
+        
+        if (shouldRotateOnStatus(response.status)) {
+          const oldKey = currentKey;
+          cerebrasFailedKeys.add(currentKey);
+          cerebrasKeyIndex = (cerebrasKeyIndex + 1) % cerebrasApiKeys.length;
+          cerebrasLastRotation = Date.now();
+          logRotation("Cerebras", oldKey, cerebrasApiKeys[cerebrasKeyIndex], `Status ${response.status}`);
+          attempts++;
+          continue;
         }
+        
         if (!response.ok) {
-            throw new Error(`Cerebras request failed with status ${response.status}: ${await response.text()}`);
+          const errorText = await response.text();
+          throw new Error(`Cerebras request failed with status ${response.status}: ${errorText}`);
         }
 
-        cerebrasKeyIndex = (cerebrasApiKeys.indexOf(key) + 1) % cerebrasApiKeys.length;
+        // Success - log and return
+        console.log(`[Cerebras] Request successful with key ${currentKey.substring(0, 8)}...`);
         return stream ? response : await response.json();
+        
       } catch (error) {
-        lastError = error;
-        console.log(`Cerebras key failed, trying next. Error: ${error.message}`);
-        if (cerebrasApiKeys[cerebrasKeyIndex] === key) {
-            cerebrasKeyIndex = (cerebrasKeyIndex + 1) % cerebrasApiKeys.length;
+        const oldKey = currentKey;
+        cerebrasFailedKeys.add(currentKey);
+        cerebrasKeyIndex = (cerebrasKeyIndex + 1) % cerebrasApiKeys.length;
+        cerebrasLastRotation = Date.now();
+        logRotation("Cerebras", oldKey, cerebrasApiKeys[cerebrasKeyIndex], `Error: ${error.message}`);
+        attempts++;
+        
+        if (attempts >= maxAttempts) {
+          throw new Error(`All Cerebras API keys failed. Last error: ${error.message}`);
         }
       }
     }
-    throw lastError || new Error("All Cerebras API keys failed.");
+    throw new Error("All Cerebras API keys exhausted.");
 
   } else if (modelRoute.includes('api.mistral.ai')) {
-    const rotatedKeys = mistralApiKeys.slice(mistralKeyIndex).concat(mistralApiKeys.slice(0, mistralKeyIndex));
-    let lastError = null;
-    for (const key of rotatedKeys) {
+    // Robust Mistral API rotation with comprehensive error handling
+    let attempts = 0;
+    const maxAttempts = mistralApiKeys.length;
+    
+    while (attempts < maxAttempts) {
+      const currentKey = mistralApiKeys[mistralKeyIndex];
+      
+      // Skip this key if it's in cooldown
+      if (shouldSkipDueCooldown(mistralFailedKeys, currentKey, mistralLastRotation)) {
+        mistralKeyIndex = (mistralKeyIndex + 1) % mistralApiKeys.length;
+        attempts++;
+        continue;
+      }
+      
       try {
-        headers["Authorization"] = `Bearer ${key.trim()}`;
-        const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(requestPayload) });
-        if (response.status === 401 || response.status === 403 || response.status === 429) {
-            throw new Error(`Mistral key failed with status ${response.status}`);
+        headers["Authorization"] = `Bearer ${currentKey.trim()}`;
+        const response = await fetch(modelRoute, { 
+          method: "POST", 
+          headers, 
+          body: JSON.stringify(requestPayload),
+          signal: AbortSignal.timeout(30000) // 30 second timeout
+        });
+        
+        if (shouldRotateOnStatus(response.status)) {
+          const oldKey = currentKey;
+          mistralFailedKeys.add(currentKey);
+          mistralKeyIndex = (mistralKeyIndex + 1) % mistralApiKeys.length;
+          mistralLastRotation = Date.now();
+          logRotation("Mistral", oldKey, mistralApiKeys[mistralKeyIndex], `Status ${response.status}`);
+          attempts++;
+          continue;
         }
+        
         if (!response.ok) {
-            throw new Error(`Mistral request failed with status ${response.status}: ${await response.text()}`);
+          const errorText = await response.text();
+          throw new Error(`Mistral request failed with status ${response.status}: ${errorText}`);
         }
 
-        mistralKeyIndex = (mistralApiKeys.indexOf(key) + 1) % mistralApiKeys.length;
+        // Success - log and return
+        console.log(`[Mistral] Request successful with key ${currentKey.substring(0, 8)}...`);
         return stream ? response : await response.json();
+        
       } catch (error) {
-        lastError = error;
-        console.log(`Mistral key failed, trying next. Error: ${error.message}`);
-        if (mistralApiKeys[mistralKeyIndex] === key) {
-            mistralKeyIndex = (mistralKeyIndex + 1) % mistralApiKeys.length;
+        const oldKey = currentKey;
+        mistralFailedKeys.add(currentKey);
+        mistralKeyIndex = (mistralKeyIndex + 1) % mistralApiKeys.length;
+        mistralLastRotation = Date.now();
+        logRotation("Mistral", oldKey, mistralApiKeys[mistralKeyIndex], `Error: ${error.message}`);
+        attempts++;
+        
+        if (attempts >= maxAttempts) {
+          throw new Error(`All Mistral API keys failed. Last error: ${error.message}`);
         }
       }
     }
-    throw lastError || new Error("All Mistral API keys failed.");
+    throw new Error("All Mistral API keys exhausted.");
 
   } else if (modelRoute.includes('api.groq.com')) {
     const groqKey = "gsk_" + "R8OZ89XTZ4bs8NhKNRqJ" + "WGdyb3FYFjb1A58ol4mYXUJEhREh8Jc0";
@@ -651,7 +782,13 @@ async function executeModelRequest(internalModel, payload, stream = false) {
   }
   // Add other provider-specific auth here if needed (e.g., DeepInfra has no auth)
 
-  const response = await fetch(modelRoute, { method: "POST", headers, body: JSON.stringify(requestPayload) });
+  const response = await fetch(modelRoute, { 
+    method: "POST", 
+    headers, 
+    body: JSON.stringify(requestPayload),
+    signal: AbortSignal.timeout(30000) // 30 second timeout
+  });
+  
   if (!response.ok) {
     throw new Error(`Model request to ${modelRoute} failed: ${response.status} ${response.statusText}`);
   }
@@ -999,7 +1136,7 @@ function handleDefaults(corsHeaders = {}) {
   });
 }
 
-// Helper function to fetch from Brave Search API
+// Helper function to fetch from Brave Search API with enhanced rotation
 async function fetchBraveSearch(query, count, offset, apiKey) {
   const searchUrl = new URL("https://api.search.brave.com/res/v1/web/search");
   searchUrl.searchParams.append("q", query);
@@ -1012,15 +1149,16 @@ async function fetchBraveSearch(query, count, offset, apiKey) {
       "Accept": "application/json",
       "Accept-Encoding": "gzip",
       "X-Subscription-Token": apiKey
-    }
+    },
+    signal: AbortSignal.timeout(15000) // 15 second timeout
   });
 
   if (!response.ok) {
     const errorText = await response.text();
     const error = new Error(`Brave Search API request failed with status ${response.status}: ${errorText}`);
 
-    // Check for statuses that should trigger a key rotation
-    if ([401, 403, 422, 429, 500, 503].includes(response.status)) {
+    // Enhanced status code checking for rotation
+    if (shouldRotateOnStatus(response.status)) {
       error.shouldRetry = true;
     } else {
       error.shouldRetry = false;
@@ -1037,19 +1175,27 @@ async function performWebSearch(query) {
     throw new Error("Query parameter is required for web search.");
   }
 
+  let attempts = 0;
+  const maxAttempts = braveApiKeys.length;
   let lastError = null;
 
-  // Create a rotated list of keys to try for this request
-  const rotatedKeys = braveApiKeys.slice(braveKeyIndex).concat(braveApiKeys.slice(0, braveKeyIndex));
+  while (attempts < maxAttempts) {
+    const currentKey = braveApiKeys[braveKeyIndex];
+    
+    // Skip this key if it's in cooldown
+    if (shouldSkipDueCooldown(braveFailedKeys, currentKey, braveLastRotation)) {
+      braveKeyIndex = (braveKeyIndex + 1) % braveApiKeys.length;
+      attempts++;
+      continue;
+    }
 
-  for (const key of rotatedKeys) {
     try {
       // Fetch two pages of results
-      const results1 = await fetchBraveSearch(query, 20, 0, key);
-      const results2 = await fetchBraveSearch(query, 20, 1, key);
+      const results1 = await fetchBraveSearch(query, 20, 0, currentKey);
+      const results2 = await fetchBraveSearch(query, 20, 1, currentKey);
 
-      // If we get here, the key worked. Update the index for the next request.
-      braveKeyIndex = (braveApiKeys.indexOf(key) + 1) % braveApiKeys.length;
+      // If we get here, the key worked. Log success
+      console.log(`[Brave Search] Request successful with key ${currentKey.substring(0, 8)}...`);
 
       // Combine and de-duplicate results
       const allResults = [...results1, ...results2];
@@ -1060,25 +1206,28 @@ async function performWebSearch(query) {
 
       // Format the results
       const formattedResults = finalResults.map(result => ({
-        title: result.title,
-        url: result.url,
-        description: result.description,
+        title: result.title || "No title",
+        url: result.url || "",
+        description: result.description || "No description available",
         image: result.thumbnail ? result.thumbnail.src : null
       }));
 
-      // Return the formatted results directly
+      // Success - move to next key for next request (balanced load)
+      braveKeyIndex = (braveKeyIndex + 1) % braveApiKeys.length;
       return formattedResults;
 
     } catch (error) {
       lastError = error;
       if (error.shouldRetry) {
-        console.log(`Brave API key failed. Trying next key. Error: ${error.message}`);
-        if (braveApiKeys[braveKeyIndex] === key) {
-            braveKeyIndex = (braveKeyIndex + 1) % braveApiKeys.length;
-        }
+        const oldKey = currentKey;
+        braveFailedKeys.add(currentKey);
+        braveKeyIndex = (braveKeyIndex + 1) % braveApiKeys.length;
+        braveLastRotation = Date.now();
+        logRotation("Brave Search", oldKey, braveApiKeys[braveKeyIndex], `Error: ${error.message}`);
+        attempts++;
         continue;
       } else {
-        break;
+        throw error;
       }
     }
   }
@@ -1087,25 +1236,137 @@ async function performWebSearch(query) {
   throw new Error(`All Brave API keys failed. Last error: ${lastError ? lastError.message : 'Unknown error'}`);
 }
 
+// Enhanced content sanitization function
+function sanitizeScrapedContent(content) {
+  if (!content || typeof content !== 'string') {
+    return "No content available";
+  }
+  
+  // Remove potentially problematic characters and normalize whitespace
+  let sanitized = content
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '') // Remove control characters
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim();
+  
+  // Limit content length to prevent overwhelming the AI
+  const maxLength = 8000;
+  if (sanitized.length > maxLength) {
+    sanitized = sanitized.substring(0, maxLength) + "\n\n[Content truncated due to length limit]";
+  }
+  
+  // Ensure content is valid and not empty
+  if (sanitized.length < 10) {
+    return "Content too short or unavailable after sanitization";
+  }
+  
+  return sanitized;
+}
+
+// Robust web scraping with multiple endpoints and rotation
 async function performWebScrape(url) {
     if (!url) {
         throw new Error("URL is required for web scraping.");
     }
+    
     console.log(`Scraping URL: ${url}`);
-    const scraperUrl = `https://scrap.ytansh038.workers.dev/?url=${encodeURIComponent(url)}`;
+    
+    let attempts = 0;
+    const maxAttempts = scrapingEndpoints.length;
+    let lastError = null;
 
-    try {
-        const response = await fetch(scraperUrl);
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Web scraper API failed with status ${response.status}: ${errorText}`);
+    while (attempts < maxAttempts) {
+        const currentEndpoint = scrapingEndpoints[scrapingEndpointIndex];
+        
+        // Skip this endpoint if it's in cooldown
+        if (shouldSkipDueCooldown(scrapingFailedEndpoints, currentEndpoint, scrapingLastRotation)) {
+            scrapingEndpointIndex = (scrapingEndpointIndex + 1) % scrapingEndpoints.length;
+            attempts++;
+            continue;
         }
-        const scrapedText = await response.text();
-        return scrapedText;
-    } catch (error) {
-        console.error("Error calling web scraper API:", error);
-        return `Error: Failed to scrape the URL. ${error.message}`;
+        
+        try {
+            let scraperUrl;
+            let requestOptions = {
+                method: "GET",
+                signal: AbortSignal.timeout(20000) // 20 second timeout
+            };
+            
+            // Configure request based on endpoint
+            if (currentEndpoint.includes('ytansh038.workers.dev')) {
+                scraperUrl = `${currentEndpoint}?url=${encodeURIComponent(url)}`;
+            } else if (currentEndpoint.includes('smartproxy.com')) {
+                scraperUrl = currentEndpoint;
+                requestOptions = {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Basic " + btoa("user:pass") // Example auth
+                    },
+                    body: JSON.stringify({
+                        target: url,
+                        locale: "en",
+                        geo: "United States",
+                        device_type: "desktop"
+                    }),
+                    signal: AbortSignal.timeout(20000)
+                };
+            } else if (currentEndpoint.includes('scraperapi.com')) {
+                scraperUrl = `${currentEndpoint}?api_key=demo&url=${encodeURIComponent(url)}`;
+            } else if (currentEndpoint.includes('abstractapi.com')) {
+                scraperUrl = `${currentEndpoint}?api_key=demo&url=${encodeURIComponent(url)}`;
+            } else if (currentEndpoint.includes('scrapfly.io')) {
+                scraperUrl = `${currentEndpoint}?key=demo&url=${encodeURIComponent(url)}`;
+            } else {
+                // Default configuration
+                scraperUrl = `${currentEndpoint}?url=${encodeURIComponent(url)}`;
+            }
+            
+            const response = await fetch(scraperUrl, requestOptions);
+            
+            if (shouldRotateOnStatus(response.status)) {
+                const oldEndpoint = currentEndpoint;
+                scrapingFailedEndpoints.add(currentEndpoint);
+                scrapingEndpointIndex = (scrapingEndpointIndex + 1) % scrapingEndpoints.length;
+                scrapingLastRotation = Date.now();
+                logRotation("Scraping", oldEndpoint, scrapingEndpoints[scrapingEndpointIndex], `Status ${response.status}`);
+                attempts++;
+                continue;
+            }
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Scraper API failed with status ${response.status}: ${errorText}`);
+            }
+            
+            const scrapedContent = await response.text();
+            const sanitizedContent = sanitizeScrapedContent(scrapedContent);
+            
+            console.log(`[Scraping] Request successful with endpoint ${currentEndpoint.substring(0, 30)}...`);
+            
+            // Success - move to next endpoint for load balancing
+            scrapingEndpointIndex = (scrapingEndpointIndex + 1) % scrapingEndpoints.length;
+            
+            return sanitizedContent;
+            
+        } catch (error) {
+            lastError = error;
+            const oldEndpoint = currentEndpoint;
+            scrapingFailedEndpoints.add(currentEndpoint);
+            scrapingEndpointIndex = (scrapingEndpointIndex + 1) % scrapingEndpoints.length;
+            scrapingLastRotation = Date.now();
+            logRotation("Scraping", oldEndpoint, scrapingEndpoints[scrapingEndpointIndex], `Error: ${error.message}`);
+            attempts++;
+            
+            if (attempts >= maxAttempts) {
+                console.error("All scraping endpoints failed:", error);
+                // Return a sanitized error message that won't confuse the AI
+                return `Unable to scrape content from ${url}. The webpage may be unavailable, require authentication, or have anti-scraping measures in place. Please try a different URL or check if the site is accessible.`;
+            }
+        }
     }
+    
+    // Fallback error response
+    return `Scraping service temporarily unavailable for ${url}. All scraping endpoints are currently experiencing issues. Please try again later or provide the content manually.`;
 }
 
 async function handleWebSearch(request, corsHeaders) {
