@@ -292,8 +292,7 @@ const visionModels = {
 
 // Default models configuration
 const defaultModels = {
-  vision: "llama-scout", // Groq's Llama Scout - only verified working vision model
-  webSearch: "llama-scout" // Default web search model (verified working)
+  vision: "llama-scout" // Groq's Llama Scout - only verified working vision model
 };
 
 
@@ -1126,8 +1125,7 @@ function handleVisionModelList(corsHeaders = {}) {
 
 function handleDefaults(corsHeaders = {}) {
   return new Response(JSON.stringify({
-    vision: defaultModels.vision,
-    webSearch: defaultModels.webSearch
+    vision: defaultModels.vision
   }), {
     headers: { "Content-Type": "application/json", ...corsHeaders }
   });
