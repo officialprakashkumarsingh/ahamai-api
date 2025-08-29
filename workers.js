@@ -392,18 +392,8 @@ const imageModelRoutes = {
 
 
 // Vision models configuration
-// UPDATED: Groq's Llama Scout model has verified vision support!
+// Using OpenRouter Gemini model for vision support
 const visionModels = {
-  "mistral-medium-2508": {
-    provider: "Mistral",
-    name: "Mistral Medium 2508 (Vision)",
-    model: "mistral-medium-2508",
-    capabilities: ["text", "vision", "image-analysis"],
-    maxTokens: 8192,
-    supportedFormats: ["image_url", "base64"],
-    description: "Mistral's vision model with OpenAI compatibility.",
-    verified: true
-  },
   "gemini-2.5-flash-image-preview": {
     provider: "OpenRouter",
     name: "Google Gemini 2.5 Flash Image Preview (Free)",
@@ -950,9 +940,81 @@ async function handleChat(request, corsHeaders, env) {
   }
 
   try {
-    const internalModel = exposedToInternalMap[exposedModel];
+    // Check if the request contains images (vision content)
+    const hasImages = messages.some(msg => 
+      Array.isArray(msg.content) && 
+      msg.content.some(part => part.type === 'image_url')
+    );
+
+    // If images are present, use the default vision model
+    let actualModel = exposedModel;
+    if (hasImages) {
+      actualModel = defaultModels.vision;
+      console.log(`Vision content detected, switching to vision model: ${actualModel}`);
+    }
+
+    const internalModel = exposedToInternalMap[actualModel];
     if (!internalModel) {
-      return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: `Model '${actualModel}' is not supported.` }), { status: 400, headers: corsHeaders });
+    }
+
+    // For vision models using OpenRouter, handle the request differently
+    if (hasImages && actualModel === "gemini-2.5-flash-image-preview") {
+      // Convert to Gemini format for vision requests
+      const geminiRequest = convertToGeminiFormat({
+        messages: messages,
+        max_tokens: requestBody.max_tokens,
+        temperature: requestBody.temperature,
+        top_p: requestBody.top_p
+      });
+
+      // Make request directly to OpenRouter Gemini
+      const openRouterKey = decryptOpenRouterKey();
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openRouterKey}`,
+        "HTTP-Referer": "https://ahamai-api.com",
+        "X-Title": "Ahamai API"
+      };
+
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image-preview:free",
+          ...geminiRequest
+        }),
+        signal: AbortSignal.timeout(30000)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return new Response(JSON.stringify({ 
+          error: `Vision model request failed: ${response.status} ${response.statusText} - ${errorText}` 
+        }), { 
+          status: response.status, 
+          headers: { "Content-Type": "application/json", ...corsHeaders } 
+        });
+      }
+
+      if (stream) {
+        // For streaming responses, pass through the stream
+        const newHeaders = new Headers(response.headers);
+        Object.entries(corsHeaders).forEach(([key, value]) => newHeaders.set(key, value));
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: newHeaders
+        });
+      } else {
+        // For non-streaming responses, convert back to OpenAI format
+        const geminiResponse = await response.json();
+        const openaiResponse = convertFromGeminiFormat(geminiResponse, actualModel);
+        return new Response(JSON.stringify(openaiResponse), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      }
     }
 
     // Step 1: Make an initial call to the model to see if it wants to use a tool.
