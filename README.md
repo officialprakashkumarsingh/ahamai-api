@@ -1,30 +1,25 @@
 # OpenAI Compatible API Worker
 
-This Cloudflare Worker provides an OpenAI-compatible API that supports 15 verified AI models including OpenAI GPT-4o, Google Gemini, Meta Llama 4, and DeepSeek models with streaming capabilities.
+This Cloudflare Worker provides an OpenAI-compatible API that supports 12 verified AI models including OpenAI GPT-4o, Google Gemini, Meta Llama 4, and DeepSeek models with streaming capabilities.
 
 ## Features
 
-- **Chat Completions**: Support for 15 verified AI models with streaming capabilities
+- **Chat Completions**: Support for 12 verified AI models with streaming capabilities
 - **Image Generation**: AI-powered image generation using Pollinations API
 - **Screenshot Capability**: AI models can generate screenshot URLs using WordPress mshots API
 - **Model Management**: List available chat and image models
 - **Authentication**: Secure API key-based authentication
 - **OpenAI Compatible**: Works with any OpenAI-compatible client library
-- **100% Success Rate**: All 15 models verified working through comprehensive testing
+- **100% Success Rate**: All 12 models verified working through comprehensive testing
 - **High Performance**: Includes fast models like Meta Llama 4 Scout and Google Gemini Flash
 
-## Supported Models (15 Verified Working Models)
+## Supported Models (12 Verified Working Models)
 
 ### 🔄 Core OpenAI Models (4)
 - `gpt-4o` - OpenAI GPT-4o (2.759s response time)
 - `gpt-4o-mini` - OpenAI GPT-4o Mini (0.895s response time) ⚡
 - `gpt-oss-20b` - Open source 20B model (2.379s response time)
 - `gpt-oss-120b` - Open source 120B model (3.829s response time)
-
-### 🔍 Proxy Models (3)
-- `perplexed` - Search/Web-enhanced model (1.514s response time)
-- `felo` - General purpose model (1.804s response time)
-- `exaanswer` - Search and research specialist (7.205s response time)
 
 ### 🤖 Google Gemini Models (4) - All Working Perfectly
 - `gemini-2.5-flash-lite-preview-06-17` - **Fastest Gemini** (0.797s) ⚡
@@ -90,11 +85,6 @@ All these models respond in under 1 second:
 
 ## Model Specializations
 
-### **🔍 Search & Research**
-- `perplexed` - Web-enhanced search with real-time information
-- `exaanswer` - Advanced research and analysis specialist
-- Best for: Real-time information, web search, research tasks
-
 ### **🧠 Reasoning & Problem Solving**
 - `deepseek-r1` - Advanced reasoning and problem-solving
 - `deepseek/deepseek-r1:free` - Free tier reasoning model
@@ -110,7 +100,7 @@ All these models respond in under 1 second:
 ### **🎯 General Purpose & Chat**
 - `gpt-4o` - OpenAI's flagship model
 - `gpt-4o-mini` - Fast and efficient GPT-4
-- `felo` - Versatile general purpose model
+- `gemini-2.0-flash` - Google's versatile model
 - Best for: General conversation, content creation, various tasks
 
 ## API Endpoints
@@ -154,7 +144,7 @@ curl -X POST https://your-worker-domain/v1/chat/completions \
   -H "Authorization: Bearer ahamaibyprakash25" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "perplexed",
+    "model": "gpt-4o",
     "messages": [
       {"role": "user", "content": "What are the latest developments in AI?"}
     ],
@@ -216,11 +206,6 @@ GET /v1/images/models       # Image models only
 ### 👁️ **Vision Capabilities**
 - `llama-3.2-90b-vision-preview` - 90B with vision
 - `gemini-2.0-flash-exp-image-generation` - Image understanding
-
-### 🔍 **Search & Research**
-- `perplexed` - Web search integration
-- `exaanswer` - Research specialist
-- `grok-3-mini-beta` - Real-time information
 
 ### ⚡ **Fastest Response**
 - `llama-3.2-1b-preview` - Ultra-lightweight
