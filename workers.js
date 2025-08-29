@@ -835,7 +835,7 @@ async function handleChat(request, corsHeaders, env) {
     const dateTime = `${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata'})}, ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'})} IST`;
     messages.unshift({
       role: "system",
-      content: `You are a helpful AI assistant. Today's date is ${dateTime}. You have access to web search and web scraper tools. Use web search for current information, news, or recent developments. Use web scraper for extracting content from specific URLs. Avoid using these tools for coding questions, programming tutorials, or general conversation - respond normally for those topics.`
+      content: `You are a helpful AI assistant. Today's date is ${dateTime}. You have access to web search, web scraper, and stock video search tools. Use web search for current information, news, or recent developments. Use web scraper for extracting content from specific URLs. Use stock video search when users need stock video footage for projects, presentations, or content creation. Avoid using these tools for coding questions, programming tutorials, or general conversation - respond normally for those topics.`
     });
   }
 
