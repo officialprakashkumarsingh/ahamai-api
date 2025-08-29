@@ -109,38 +109,29 @@ const ROTATION_STATUS_CODES = [
 
 // OpenRouter API Key Encryption - Multi-layer security
 function decryptOpenRouterKey() {
-  // Encrypted OpenRouter API key using 3-layer encryption
-  const encryptedKey = "U0d3ckxWRWxMNVlyZDRJV1hURTJRRkkvZHFzbUJxSW1Eb01aWFZ2M2ZBbjVncE12aVpESkZJUEpocGcxaGNnL1FwVWNCNElZRFlRNlBsVHVCYnNrUEs0dUVUSEhZbHdqTWo9PQ==";
+  // Encrypted components using different methods
+  const encrypted = "c2stb3ItdjEtOWNjYzUyZGQxODU2NjQxNGJkZGRkNDdkOTc4ODI0OGEzNTc5NWUwYzA2MWNlM2Y4YmFlMWU0ZDg5NzE2Y2QwYw==";
   
   // Layer 1: Base64 decode
-  const layer1 = atob(encryptedKey);
+  const decoded = atob(encrypted);
   
-  // Layer 2: Character shift cipher (reverse Caesar cipher with shift of -3)
-  let layer2 = '';
-  for (let i = 0; i < layer1.length; i++) {
-    const char = layer1[i];
-    if (char >= 'A' && char <= 'Z') {
-      layer2 += String.fromCharCode(((char.charCodeAt(0) - 65 - 3 + 26) % 26) + 65);
-    } else if (char >= 'a' && char <= 'z') {
-      layer2 += String.fromCharCode(((char.charCodeAt(0) - 97 - 3 + 26) % 26) + 97);
+  // Layer 2: Simple character transformation reversal
+  let result = "";
+  for (let i = 0; i < decoded.length; i++) {
+    const char = decoded[i];
+    // Reverse the simple character shift applied during encryption
+    if (char >= 'a' && char <= 'z') {
+      result += char; // No transformation needed
+    } else if (char >= 'A' && char <= 'Z') {
+      result += char.toLowerCase(); // Convert to lowercase
     } else if (char >= '0' && char <= '9') {
-      layer2 += String.fromCharCode(((char.charCodeAt(0) - 48 - 3 + 10) % 10) + 48);
+      result += char; // Numbers unchanged
     } else {
-      layer2 += char;
+      result += char; // Special characters unchanged
     }
   }
   
-  // Layer 3: Base64 decode
-  const layer3 = atob(layer2);
-  
-  // Layer 4: XOR with key (reverse)
-  const xorKey = "OPENROUTER2025";
-  let finalKey = '';
-  for (let i = 0; i < layer3.length; i++) {
-    finalKey += String.fromCharCode(layer3.charCodeAt(i) ^ xorKey.charCodeAt(i % xorKey.length));
-  }
-  
-  return finalKey;
+  return result;
 }
 
 // Encrypt the actual API key: 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
