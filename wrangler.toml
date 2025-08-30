@@ -2,6 +2,3 @@ name = "ahamai-api"
 main = "workers.js"
 compatibility_date = "2025-07-18"
 
-[triggers]
-crons = ["* * * * *"]  # Run every minute to keep Render endpoint active
-
