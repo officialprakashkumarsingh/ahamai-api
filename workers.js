@@ -31,17 +31,7 @@ let mistralLastRotation = 0;
 
 
 
-// Multiple scraping endpoints with rotation
-const scrapingEndpoints = [
-  "https://scrap.ytansh038.workers.dev/",
-  "https://scraper-api.smartproxy.com/v2/scrape",
-  "https://api.scraperapi.com/",
-  "https://scrape.abstractapi.com/v1/",
-  "https://api.scrapfly.io/scrape"
-];
-let scrapingEndpointIndex = 0;
-const scrapingFailedEndpoints = new Set();
-let scrapingLastRotation = 0;
+
 
 // Cooldown period for failed keys/endpoints (5 minutes)
 const COOLDOWN_PERIOD = 5 * 60 * 1000;
@@ -151,76 +141,7 @@ function logRotation(provider, oldKey, newKey, reason) {
   console.log(`[${provider} Rotation] ${reason} - Switching from key ${oldKey.substring(0, 8)}... to ${newKey.substring(0, 8)}...`);
 }
 
-const WEB_SCRAPER_TOOL = {
-  type: "function",
-  function: {
-    name: "web_scraper",
-    description: "Scrapes the content of a given URL. Use this to get information from a specific webpage. Avoid using for coding questions, programming tutorials, or general conversation - only use when you need to extract content from a specific known URL.",
-    parameters: {
-      type: "object",
-      properties: {
-        url: {
-          type: "string",
-          description: "The URL of the webpage to scrape."
-        }
-      },
-      required: ["url"]
-    }
-  }
-};
 
-
-
-const STOCK_VIDEO_SEARCH_TOOL = {
-  type: "function",
-  function: {
-    name: "stock_video_search",
-    description: "Searches for stock videos based on a query. Use this when you need to find high-quality stock video footage for projects, presentations, or content creation. Returns video results with titles, thumbnails, and download links.",
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "The search query to find stock videos (e.g., 'nature', 'business', 'technology', 'ocean')."
-        },
-        page: {
-          type: "number",
-          description: "Page number for pagination (optional, defaults to 1).",
-          default: 1
-        }
-      },
-      required: ["query"]
-    }
-  }
-};
-
-const SCREENSHOT_TOOL = {
-  type: "function",
-  function: {
-    name: "take_screenshot",
-    description: "Takes a screenshot of any website or URL. Use this when users want to see what a website looks like, need a visual preview of a webpage, or request screenshots. Supports any publicly accessible website.",
-    parameters: {
-      type: "object",
-      properties: {
-        url: {
-          type: "string",
-          description: "The URL of the website to screenshot (can include or exclude https://)"
-        },
-        width: {
-          type: "number",
-          description: "Screenshot width in pixels (optional, defaults to 1920)",
-          default: 1920
-        },
-        height: {
-          type: "number",
-          description: "Screenshot height in pixels (optional, defaults to 1080)",
-          default: 1080
-        }
-      },
-      required: ["url"]
-    }
-  }
-};
 
 const API_KEY = "ahamaipriv05";
 
@@ -371,123 +292,17 @@ const defaultModels = {
 
 
 
-// Function to detect ALL URLs for screenshots - no limits
-function shouldProvideScreenshot(messages) {
-  const recentMessages = messages.slice(-3);
-  const conversationText = recentMessages
-    .map(m => typeof m.content === 'string' ? m.content : m.content.map(c => c.text || '').join(' '))
-    .join(' ');
-  
-  // Extract ALL URLs and domains from conversation
-  const urlPattern = /(?:https?:\/\/)?(?:www\.)?([a-z0-9]+(?:[-.]?[a-z0-9]+)*\.[a-z]{2,}(?:\/[^\s]*)?)/gi;
-  const matches = [...new Set(conversationText.match(urlPattern) || [])]; // Get unique URLs
-  
-  if (!matches || matches.length === 0) return null;
-  
-  // Return ALL URLs found for screenshot generation
-  const urls = matches.map(url => {
-    if (!url.startsWith('http')) {
-      return `https://${url.replace(/^www\./i, '')}`;
-    }
-    return url;
-  });
-  
-  // Return all URLs (no limits)
-  return urls;
-}
-
-
-
-// Function to generate screenshot URL
-function generateScreenshotUrl(url) {
-  // Ensure URL has protocol
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = 'https://' + url;
-  }
-  
-  // Encode the URL for WordPress mshots
-  const encodedUrl = encodeURIComponent(url);
-  
-  // Return the screenshot URL with size parameters
-  return `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=1280&h=960`;
-}
 
 
 
 
-// Keep-alive configuration for Render endpoint
-let lastPingTime = 0;
-const PING_INTERVAL = 30000; // 30 seconds
 
-// Function to send keep-alive ping to Render endpoint
-async function sendKeepAlivePing() {
-  try {
-    const keepAliveRequest = {
-      model: "gpt-oss-20b", // Use a lightweight model
-      messages: [{ role: "user", content: "ping" }],
-      max_tokens: 1,
-      temperature: 0,
-      stream: false
-    };
 
-    const response = await fetch("https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${API_KEY}`
-      },
-      body: JSON.stringify(keepAliveRequest),
-      // Add timeout to prevent hanging
-      signal: AbortSignal.timeout(5000)
-    });
-
-    if (response.ok) {
-      console.log(`[Keep-Alive] Render endpoint pinged successfully at ${new Date().toISOString()}`);
-      return true;
-    } else {
-      console.log(`[Keep-Alive] Ping failed with status ${response.status}`);
-      return false;
-    }
-  } catch (error) {
-    console.log(`[Keep-Alive] Error pinging Render endpoint: ${error.message}`);
-    return false;
-  }
-}
-
-// Function to check if we should send a keep-alive ping
-async function checkAndSendKeepAlive() {
-  const now = Date.now();
-  
-  // Send ping if it's been more than 30 seconds since last ping
-  if (now - lastPingTime > PING_INTERVAL) {
-    lastPingTime = now;
-    // Fire and forget - don't await to avoid blocking the main request
-    sendKeepAlivePing().catch(err => 
-      console.log(`[Keep-Alive] Background ping error: ${err.message}`)
-    );
-  }
-}
 
 export default {
   async fetch(request, env) {
-    // Check if we should send a keep-alive ping (non-blocking)
-    checkAndSendKeepAlive();
-    
     const url = new URL(request.url);
     const path = url.pathname;
-    
-    // Special endpoint to manually trigger keep-alive
-    if (path === "/keep-alive" && request.method === "POST") {
-      const result = await sendKeepAlivePing();
-      return new Response(JSON.stringify({ 
-        success: result,
-        message: result ? "Render endpoint pinged successfully" : "Failed to ping Render endpoint",
-        timestamp: new Date().toISOString()
-      }), {
-        status: result ? 200 : 500,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
 
     // CORS headers
     const corsHeaders = {
@@ -546,16 +361,7 @@ export default {
       status: 404,
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
-  },
-  
-  // Scheduled handler for periodic keep-alive
-  async scheduled(event) {
-    console.log(`[Scheduled] Running keep-alive at ${new Date().toISOString()}`);
-    
-    // Send keep-alive ping
-    await sendKeepAlivePing();
-  }
-};
+  };
 
 
 
@@ -878,17 +684,17 @@ async function executeModelRequest(internalModel, payload, stream = false) {
 
 async function handleChat(request, corsHeaders, env) {
   const requestBody = await request.json();
-  const exposedModel = requestBody.model || "cerebras-qwen-235b";
+  const exposedModel = requestBody.model || "qwen-235b";
   const stream = requestBody.stream === true;
   let messages = requestBody.messages;
 
-  // System prompt injection...
+  // System prompt injection (simplified)
   if (!messages.some(m => m.role === 'system')) {
     const now = new Date();
     const dateTime = `${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata'})}, ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'})} IST`;
     messages.unshift({
       role: "system",
-      content: `You are a helpful AI assistant. Today's date is ${dateTime}. You have access to web search, web scraper, stock video search, and screenshot tools. Use web search for current information, news, or recent developments. Use web scraper for extracting content from specific URLs. Use stock video search when users need stock video footage for projects, presentations, or content creation. Use screenshot tool when users want to see what a website looks like or need visual previews of webpages. Avoid using these tools for coding questions, programming tutorials, or general conversation - respond normally for those topics.`
+      content: `You are a helpful AI assistant. Today's date is ${dateTime}.`
     });
   }
 
@@ -898,9 +704,8 @@ async function handleChat(request, corsHeaders, env) {
       return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), { status: 400, headers: corsHeaders });
     }
 
-    // Step 1: Make an initial call to the model to see if it wants to use a tool.
-    const tools = [WEB_SCRAPER_TOOL, STOCK_VIDEO_SEARCH_TOOL, SCREENSHOT_TOOL];
-    const safePayload = {
+    // Direct model request without tools
+    const payload = {
         model: internalModel,
         messages: messages,
         temperature: requestBody.temperature,
@@ -908,105 +713,22 @@ async function handleChat(request, corsHeaders, env) {
         top_p: requestBody.top_p,
         seed: requestBody.seed,
         stop: requestBody.stop,
-        tools: tools,
-        tool_choice: "auto",
-        stream: false
+        stream: stream
     };
-    Object.keys(safePayload).forEach(key => safePayload[key] === undefined && delete safePayload[key]);
+    Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
 
-    const responseJson = await executeModelRequest(internalModel, safePayload, false);
-    const message = responseJson.choices[0].message;
-    messages.push(message);
-
-    // Step 2: Check for tool calls.
-    if (!message.tool_calls || message.tool_calls.length === 0) {
-      // No tool call. If user wanted a stream, we need to re-request.
-      if (stream) {
-        const streamPayload = { ...safePayload, messages: requestBody.messages, stream: true };
-        delete streamPayload.tools;
-        delete streamPayload.tool_choice;
-        const streamingResponse = await executeModelRequest(internalModel, streamPayload, true);
-        const newHeaders = new Headers(streamingResponse.headers);
-        Object.entries(corsHeaders).forEach(([key, value]) => newHeaders.set(key, value));
-        return new Response(streamingResponse.body, {
-            status: streamingResponse.status,
-            statusText: streamingResponse.statusText,
-            headers: newHeaders
-        });
-      } else {
-        return new Response(JSON.stringify(responseJson), { status: 200, headers: corsHeaders });
-      }
-    }
-
-    // Step 3: Execute tool calls.
-    const toolCalls = message.tool_calls;
-    for (const toolCall of toolCalls) {
-      if (toolCall.function.name === 'web_scraper') {
-        const args = JSON.parse(toolCall.function.arguments);
-        try {
-          const scrapeResult = await performWebScrape(args.url);
-          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: scrapeResult });
-        } catch (error) {
-          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify({ error: error.message }) });
-        }
-      } else if (toolCall.function.name === 'stock_video_search') {
-        const args = JSON.parse(toolCall.function.arguments);
-        try {
-          const videoResults = await performStockVideoSearch(args.query, args.page);
-          const formattedResults = videoResults.map(v => `Title: ${v.title}\nThumbnail: ${v.thumbnail}\nDownload Link: ${v.download_link}`).join('\n\n');
-          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: formattedResults });
-        } catch (error) {
-          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify({ error: error.message }) });
-        }
-      } else if (toolCall.function.name === 'take_screenshot') {
-        const args = JSON.parse(toolCall.function.arguments);
-        try {
-          let url = args.url;
-          const width = args.width || 1920;
-          const height = args.height || 1080;
-          
-          // Ensure URL has protocol
-          if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            url = 'https://' + url;
-          }
-          
-          // Encode the URL for WordPress mshots
-          const encodedUrl = encodeURIComponent(url);
-          
-          // Generate screenshot URL
-          const screenshotUrl = `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=${width}&h=${height}`;
-          
-          const result = {
-            screenshot_url: screenshotUrl,
-            original_url: url,
-            dimensions: `${width}x${height}`,
-            message: `Screenshot captured for ${url}. You can view it at the provided URL.`
-          };
-          
-          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify(result) });
-        } catch (error) {
-          messages.push({ role: "tool", tool_call_id: toolCall.id, name: toolCall.function.name, content: JSON.stringify({ error: error.message }) });
-        }
-      }
-    }
-
-    // Step 4: Make the final call to the model with the tool results.
-    const finalPayload = { ...safePayload, messages, stream };
-    delete finalPayload.tools;
-    delete finalPayload.tool_choice;
-
-    const finalResponse = await executeModelRequest(internalModel, finalPayload, stream);
+    const response = await executeModelRequest(internalModel, payload, stream);
 
     if (stream) {
-        const newHeaders = new Headers(finalResponse.headers);
+        const newHeaders = new Headers(response.headers);
         Object.entries(corsHeaders).forEach(([key, value]) => newHeaders.set(key, value));
-        return new Response(finalResponse.body, {
-            status: finalResponse.status,
-            statusText: finalResponse.statusText,
+        return new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
             headers: newHeaders
         });
     } else {
-        return new Response(JSON.stringify(finalResponse), { status: 200, headers: corsHeaders });
+        return new Response(JSON.stringify(response), { status: 200, headers: corsHeaders });
     }
 
   } catch (error) {
@@ -1238,186 +960,11 @@ function handleDefaults(corsHeaders = {}) {
 
 
 
-// Helper function to search for stock videos using Pexels API
-async function performStockVideoSearch(query, page = 1) {
-  if (!query) {
-    throw new Error("Query parameter is required for stock video search.");
-  }
 
-  const targetUrl = `https://www.pexels.com/en-us/api/v3/search/videos/?query=${encodeURIComponent(query)}&page=${page}`;
 
-  const headers = {
-    'Host': 'www.pexels.com',
-    'cache-control': 'no-cache, no-store, must-revalidate',
-    'content-type': 'application/json',
-    'secret-key': 'H2jk9uKnhRmL6WPwh89zBezWvr',
-    'expires': '0',
-    'pragma': 'no-cache',
-    'x-client-type': 'mobile',
-    'x-client-version': '7.4.2',
-    'user-agent': 'PexelsMobileApp/7.4.2 (android 28)',
-    'accept-encoding': 'gzip',
-    'cookie': '__cf_bm=dummy; _cfuvid=dummy'
-  };
 
-  try {
-    const response = await fetch(targetUrl, { 
-      headers,
-      signal: AbortSignal.timeout(15000) // 15 second timeout
-    });
 
-    if (!response.ok) {
-      throw new Error(`Pexels API request failed with status ${response.status}: ${response.statusText}`);
-    }
 
-    const json = await response.json();
-
-    const minimal = (json?.data || []).map(video => ({
-      title: video?.attributes?.title || '',
-      thumbnail: video?.attributes?.video?.thumbnail?.medium || '',
-      download_link: video?.attributes?.video?.download_link || ''
-    }));
-
-    return minimal;
-
-  } catch (error) {
-    console.error(`Stock video search error: ${error.message}`);
-    throw new Error(`Failed to search stock videos: ${error.message}`);
-  }
-}
-
-// Enhanced content sanitization function
-function sanitizeScrapedContent(content) {
-  if (!content || typeof content !== 'string') {
-    return "No content available";
-  }
-  
-  // Remove potentially problematic characters and normalize whitespace
-  let sanitized = content
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '') // Remove control characters
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .trim();
-  
-  // Limit content length to prevent overwhelming the AI
-  const maxLength = 8000;
-  if (sanitized.length > maxLength) {
-    sanitized = sanitized.substring(0, maxLength) + "\n\n[Content truncated due to length limit]";
-  }
-  
-  // Ensure content is valid and not empty
-  if (sanitized.length < 10) {
-    return "Content too short or unavailable after sanitization";
-  }
-  
-  return sanitized;
-}
-
-// Robust web scraping with multiple endpoints and rotation
-async function performWebScrape(url) {
-    if (!url) {
-        throw new Error("URL is required for web scraping.");
-    }
-    
-    console.log(`Scraping URL: ${url}`);
-    
-    let attempts = 0;
-    const maxAttempts = scrapingEndpoints.length;
-    let lastError = null;
-
-    while (attempts < maxAttempts) {
-        const currentEndpoint = scrapingEndpoints[scrapingEndpointIndex];
-        
-        // Skip this endpoint if it's in cooldown
-        if (shouldSkipDueCooldown(scrapingFailedEndpoints, currentEndpoint, scrapingLastRotation)) {
-            scrapingEndpointIndex = (scrapingEndpointIndex + 1) % scrapingEndpoints.length;
-            attempts++;
-            continue;
-        }
-        
-        try {
-            let scraperUrl;
-            let requestOptions = {
-                method: "GET",
-                signal: AbortSignal.timeout(20000) // 20 second timeout
-            };
-            
-            // Configure request based on endpoint
-            if (currentEndpoint.includes('ytansh038.workers.dev')) {
-                scraperUrl = `${currentEndpoint}?url=${encodeURIComponent(url)}`;
-            } else if (currentEndpoint.includes('smartproxy.com')) {
-                scraperUrl = currentEndpoint;
-                requestOptions = {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": "Basic " + btoa("user:pass") // Example auth
-                    },
-                    body: JSON.stringify({
-                        target: url,
-                        locale: "en",
-                        geo: "United States",
-                        device_type: "desktop"
-                    }),
-                    signal: AbortSignal.timeout(20000)
-                };
-            } else if (currentEndpoint.includes('scraperapi.com')) {
-                scraperUrl = `${currentEndpoint}?api_key=demo&url=${encodeURIComponent(url)}`;
-            } else if (currentEndpoint.includes('abstractapi.com')) {
-                scraperUrl = `${currentEndpoint}?api_key=demo&url=${encodeURIComponent(url)}`;
-            } else if (currentEndpoint.includes('scrapfly.io')) {
-                scraperUrl = `${currentEndpoint}?key=demo&url=${encodeURIComponent(url)}`;
-            } else {
-                // Default configuration
-                scraperUrl = `${currentEndpoint}?url=${encodeURIComponent(url)}`;
-            }
-            
-            const response = await fetch(scraperUrl, requestOptions);
-            
-            if (shouldRotateOnStatus(response.status)) {
-                const oldEndpoint = currentEndpoint;
-                scrapingFailedEndpoints.add(currentEndpoint);
-                scrapingEndpointIndex = (scrapingEndpointIndex + 1) % scrapingEndpoints.length;
-                scrapingLastRotation = Date.now();
-                logRotation("Scraping", oldEndpoint, scrapingEndpoints[scrapingEndpointIndex], `Status ${response.status}`);
-                attempts++;
-                continue;
-            }
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Scraper API failed with status ${response.status}: ${errorText}`);
-            }
-            
-            const scrapedContent = await response.text();
-            const sanitizedContent = sanitizeScrapedContent(scrapedContent);
-            
-            console.log(`[Scraping] Request successful with endpoint ${currentEndpoint.substring(0, 30)}...`);
-            
-            // Success - move to next endpoint for load balancing
-            scrapingEndpointIndex = (scrapingEndpointIndex + 1) % scrapingEndpoints.length;
-            
-            return sanitizedContent;
-            
-        } catch (error) {
-            lastError = error;
-            const oldEndpoint = currentEndpoint;
-            scrapingFailedEndpoints.add(currentEndpoint);
-            scrapingEndpointIndex = (scrapingEndpointIndex + 1) % scrapingEndpoints.length;
-            scrapingLastRotation = Date.now();
-            logRotation("Scraping", oldEndpoint, scrapingEndpoints[scrapingEndpointIndex], `Error: ${error.message}`);
-            attempts++;
-            
-            if (attempts >= maxAttempts) {
-                console.error("All scraping endpoints failed:", error);
-                // Return a sanitized error message that won't confuse the AI
-                return `Unable to scrape content from ${url}. The webpage may be unavailable, require authentication, or have anti-scraping measures in place. Please try a different URL or check if the site is accessible.`;
-            }
-        }
-    }
-    
-    // Fallback error response
-    return `Scraping service temporarily unavailable for ${url}. All scraping endpoints are currently experiencing issues. Please try again later or provide the content manually.`;
-}
 
 async function handleUrlAutomation(request, corsHeaders) {
   const body = await request.json();
