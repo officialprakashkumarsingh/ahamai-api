@@ -488,8 +488,8 @@ export default {
       status: 404,
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
-  };
-
+  }
+};
 
 
 // Convert OpenAI chat completion format to Gemini format
