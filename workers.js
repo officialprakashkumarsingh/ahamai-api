@@ -479,11 +479,6 @@ export default {
       return handleDefaults(corsHeaders);
     }
 
-    if (path === "/v1/automation/url" && request.method === "POST") {
-      return handleUrlAutomation(request, corsHeaders);
-    }
-
-
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
       headers: { "Content-Type": "application/json", ...corsHeaders }
@@ -815,16 +810,6 @@ async function handleChat(request, corsHeaders, env) {
   const stream = requestBody.stream === true;
   let messages = requestBody.messages;
 
-  // System prompt injection (simplified)
-  if (!messages.some(m => m.role === 'system')) {
-    const now = new Date();
-    const dateTime = `${now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata'})}, ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'})} IST`;
-    messages.unshift({
-      role: "system",
-      content: `You are a helpful AI assistant. Today's date is ${dateTime}.`
-    });
-  }
-
   try {
     const internalModel = exposedToInternalMap[exposedModel];
     if (!internalModel) {
@@ -1110,65 +1095,6 @@ function handleDefaults(corsHeaders = {}) {
   return new Response(JSON.stringify({
     vision: defaultModels.vision
   }), {
-    headers: { "Content-Type": "application/json", ...corsHeaders }
-  });
-}
-
-
-
-
-
-
-
-
-
-async function handleUrlAutomation(request, corsHeaders) {
-  const body = await request.json();
-  const { action, url, data } = body;
-
-  // URL automation for various actions
-  const automationResponse = {
-    action,
-    url,
-    success: true,
-    message: `Automation action '${action}' processed`,
-    data: data || {}
-  };
-
-  // Handle different automation actions
-  switch (action) {
-    case 'youtube_search':
-      automationResponse.url = `https://www.youtube.com/results?search_query=${encodeURIComponent(data.query)}`;
-      break;
-    case 'scroll_page':
-      automationResponse.script = `window.scrollTo(0, ${data.position || 0});`;
-      break;
-    case 'fill_input':
-      automationResponse.script = `document.querySelector('${data.selector}').value = '${data.value}';`;
-      break;
-    case 'click_element':
-      automationResponse.script = `document.querySelector('${data.selector}').click();`;
-      break;
-    case 'login':
-      automationResponse.script = `
-        document.querySelector('${data.usernameSelector}').value = '${data.username}';
-        document.querySelector('${data.passwordSelector}').value = '${data.password}';
-        document.querySelector('${data.submitSelector}').click();
-      `;
-      break;
-    case 'take_screenshot':
-      const encodedUrl = encodeURIComponent(data.url || url);
-      const width = data.width || 1920;
-      const height = data.height || 1080;
-      automationResponse.screenshot_url = `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=${width}&h=${height}`;
-      automationResponse.message = `Screenshot URL generated for ${data.url || url}`;
-      break;
-    default:
-      automationResponse.success = false;
-      automationResponse.message = `Unknown automation action: ${action}`;
-  }
-
-  return new Response(JSON.stringify(automationResponse), {
     headers: { "Content-Type": "application/json", ...corsHeaders }
   });
 }
