@@ -1124,10 +1124,13 @@ async function processModelResponse(response, modifiedMessages, payload, isAutoM
   let hasToolCalls = false;
   let toolCalls = [];
   
+  console.log('Processing model response for tool calls...');
+  
   // Check for structured tool calls first
   if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.tool_calls) {
     toolCalls = response.choices[0].message.tool_calls;
     hasToolCalls = true;
+    console.log(`Found ${toolCalls.length} structured tool calls`);
   }
   // Check for text-based tool calls in the response content
   else if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.content) {
@@ -1137,11 +1140,16 @@ async function processModelResponse(response, modifiedMessages, payload, isAutoM
     if (parsedToolCalls.length > 0) {
       toolCalls = parsedToolCalls;
       hasToolCalls = true;
+      console.log(`Found ${toolCalls.length} text-based tool calls`);
       
       // Clean the response content by removing tool call markers
       const cleanedContent = removeToolCallsFromText(content, parsedToolCalls);
       response.choices[0].message.content = cleanedContent;
+    } else {
+      console.log('No tool calls found in response content');
     }
+  } else {
+    console.log('No message content found in response');
   }
   
   // Execute tool calls if found
@@ -1203,13 +1211,17 @@ async function processModelResponse(response, modifiedMessages, payload, isAutoM
 // Function to execute built-in tools
 async function executeBuiltInTool(toolCall) {
   const { name, arguments: args } = toolCall.function;
+  console.log(`Executing tool: ${name} with args:`, args);
   
   try {
     const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
+    console.log(`Parsed args:`, parsedArgs);
     
     switch (name) {
       case 'web_scrape':
+        console.log(`Scraping website: ${parsedArgs.url}`);
         const scrapeResult = await scrapeWebsite(parsedArgs.url);
+        console.log(`Scrape result success: ${scrapeResult.success}`);
         return {
           role: 'tool',
           tool_call_id: toolCall.id,
@@ -1217,6 +1229,7 @@ async function executeBuiltInTool(toolCall) {
         };
         
       case 'take_screenshot':
+        console.log(`Taking screenshot of: ${parsedArgs.url}`);
         const screenshotUrl = generateScreenshotUrl(parsedArgs.url);
         return {
           role: 'tool',
@@ -1225,6 +1238,7 @@ async function executeBuiltInTool(toolCall) {
         };
         
       default:
+        console.log(`Unknown tool: ${name}`);
         return {
           role: 'tool',
           tool_call_id: toolCall.id,
@@ -1232,6 +1246,7 @@ async function executeBuiltInTool(toolCall) {
         };
     }
   } catch (error) {
+    console.error(`Tool execution error for ${name}:`, error);
     return {
       role: 'tool',
       tool_call_id: toolCall.id,
@@ -1245,7 +1260,7 @@ async function handleChat(request, corsHeaders, env) {
   const requestBody = await request.json();
   const exposedModel = requestBody.model || "qwen-235b";
   const stream = requestBody.stream === true;
-  const tools = requestBody.tools || [];
+  let tools = requestBody.tools || [];
   const tool_choice = requestBody.tool_choice || 'auto';
   let messages = requestBody.messages;
 
@@ -1263,11 +1278,11 @@ async function handleChat(request, corsHeaders, env) {
 2. **Screenshots**: Take visual screenshots of websites to see how they look
 3. **Function Calling**: Execute specific functions when available with proper parameters
 
-When users mention URLs or ask about websites, you can use the available tools:
+When users mention URLs or ask about websites, you MUST use the available tools:
 - web_scrape: to extract text content from websites
 - take_screenshot: to capture visual appearance of websites
 
-Always provide helpful, accurate responses and use tools when they would enhance your answer.`;
+Always use tools when they would enhance your answer. Call the appropriate function instead of just describing what you would do.`;
 
       messages.unshift({
         role: 'system',
@@ -1277,7 +1292,10 @@ Always provide helpful, accurate responses and use tools when they would enhance
 
     // Provide built-in tools if no tools are specified
     if (!tools || tools.length === 0) {
-      tools.push(...builtInTools);
+      tools = [...builtInTools];
+      console.log('Added built-in tools:', tools.map(t => t.function.name));
+    } else {
+      console.log('Using provided tools:', tools.map(t => t.function?.name || 'unknown'));
     }
 
     // Process external tools (this runs in parallel to avoid slowing down the API)
@@ -1326,9 +1344,11 @@ Always provide helpful, accurate responses and use tools when they would enhance
     // Add tool calling support if tools are provided
     if (tools && tools.length > 0) {
       payload.tools = tools;
-      if (tool_choice && tool_choice !== 'auto') {
-        payload.tool_choice = tool_choice;
-      }
+      // Always set tool_choice to 'auto' to enable function calling
+      payload.tool_choice = tool_choice === 'none' ? 'none' : 'auto';
+      console.log(`Tools configured in payload: ${tools.length} tools, tool_choice: ${payload.tool_choice}`);
+    } else {
+      console.log('No tools configured in payload');
     }
 
     Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
