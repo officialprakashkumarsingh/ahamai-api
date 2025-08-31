@@ -1359,7 +1359,23 @@ Always use tools when they would enhance your answer. Call the appropriate funct
     // Check if using auto model
     if (exposedModel === "auto") {
       // Use auto model selection logic
-      const response = await executeAutoModelRequest(payload, stream);
+      let response;
+      try {
+        response = await executeAutoModelRequest(payload, stream);
+      } catch (error) {
+        // If the request failed and we have tools, try again without tools
+        if (payload.tools && payload.tools.length > 0 && 
+            (error.message.includes('400') || error.message.includes('unsupported') || 
+             error.message.includes('tools') || error.message.includes('function'))) {
+          console.log('Auto model may not support function calling, retrying without tools...');
+          const payloadWithoutTools = { ...payload };
+          delete payloadWithoutTools.tools;
+          delete payloadWithoutTools.tool_choice;
+          response = await executeAutoModelRequest(payloadWithoutTools, stream);
+        } else {
+          throw error; // Re-throw if it's not a tools-related error
+        }
+      }
       
       if (stream) {
           const newHeaders = new Headers(response.headers);
@@ -1377,7 +1393,23 @@ Always use tools when they would enhance your answer. Call the appropriate funct
     }
 
     // Direct model request for non-auto models
-    const response = await executeModelRequest(internalModel, payload, stream);
+    let response;
+    try {
+      response = await executeModelRequest(internalModel, payload, stream);
+    } catch (error) {
+      // If the request failed and we have tools, try again without tools
+      if (payload.tools && payload.tools.length > 0 && 
+          (error.message.includes('400') || error.message.includes('unsupported') || 
+           error.message.includes('tools') || error.message.includes('function'))) {
+        console.log('Model may not support function calling, retrying without tools...');
+        const payloadWithoutTools = { ...payload };
+        delete payloadWithoutTools.tools;
+        delete payloadWithoutTools.tool_choice;
+        response = await executeModelRequest(internalModel, payloadWithoutTools, stream);
+      } else {
+        throw error; // Re-throw if it's not a tools-related error
+      }
+    }
 
     if (stream) {
         const newHeaders = new Headers(response.headers);
