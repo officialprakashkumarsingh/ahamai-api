@@ -803,6 +803,201 @@ async function executeModelRequest(internalModel, payload, stream = false) {
   return stream ? response : await response.json();
 }
 
+// ===== EXTERNAL TOOLS FUNCTIONALITY =====
+
+// Tool detection functions
+function needsWebScraping(messages) {
+  const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
+  const patterns = [
+    /scrape|fetch|get.*content|browse|visit.*site|read.*page|extract.*from/,
+    /what.*on.*website|content.*of.*site|information.*from.*url/,
+    /analyze.*website|check.*site|look.*at.*page/,
+    /content.*from|information.*about.*site|details.*from.*site/,
+    /compare.*sites?|analysis.*of.*website|data.*from.*web/,
+    /know.*about.*content|want.*to.*know.*about/,
+    /get.*information|find.*out.*about/
+  ];
+  return patterns.some(pattern => pattern.test(lastMessage));
+}
+
+function needsScreenshot(messages) {
+  const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
+  const patterns = [
+    /screenshot|capture|show.*looks?.*like|preview|image.*of.*site/,
+    /take.*picture|visual|appearance.*of|what.*does.*look/,
+    /snap.*shot|screen.*grab|view.*of.*website/,
+    /show.*me.*site|display.*website|see.*what.*looks|looks.*like/,
+    /compare.*appearance|visual.*comparison|image.*of.*page/,
+    /show.*me/,
+    /see.*what.*it.*looks|what.*it.*looks.*like/
+  ];
+  return patterns.some(pattern => pattern.test(lastMessage));
+}
+
+// URL normalization function
+function normalizeUrl(url) {
+  if (!url) return '';
+  
+  // Remove quotes and trim
+  url = url.replace(/['"]/g, '').trim();
+  
+  // Add protocol if missing
+  if (!url.match(/^https?:\/\//)) {
+    // Check if it looks like a domain
+    if (url.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/) || url.includes('.')) {
+      url = 'https://' + url;
+    }
+  }
+  
+  return url;
+}
+
+// Extract URLs from messages
+function extractUrls(messages) {
+  const lastMessage = messages[messages.length - 1]?.content || '';
+  const urlPatterns = [
+    /https?:\/\/[^\s]+/g,
+    /www\.[^\s]+/g,
+    /[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}[^\s]*/g
+  ];
+  
+  const urls = [];
+  for (const pattern of urlPatterns) {
+    const matches = lastMessage.match(pattern);
+    if (matches) {
+      urls.push(...matches.map(normalizeUrl));
+    }
+  }
+  
+  return [...new Set(urls)].filter(url => url.length > 0);
+}
+
+// Website scraping function
+async function scrapeWebsite(url) {
+  try {
+    const normalizedUrl = normalizeUrl(url);
+    const scrapingUrl = `https://scrap.ytansh038.workers.dev/?url=${encodeURIComponent(normalizedUrl)}`;
+    
+    const response = await fetch(scrapingUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'AhamAI-Bot/1.0'
+      },
+      signal: AbortSignal.timeout(10000) // 10 second timeout
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Scraping failed: ${response.status}`);
+    }
+    
+    const content = await response.text();
+    return {
+      url: normalizedUrl,
+      content: content.slice(0, 8000), // Limit content to prevent token overflow
+      success: true
+    };
+  } catch (error) {
+    return {
+      url,
+      content: `Error scraping website: ${error.message}`,
+      success: false
+    };
+  }
+}
+
+// Screenshot function with Flutter markdown support
+function generateScreenshotUrl(url) {
+  const normalizedUrl = normalizeUrl(url);
+  const encodedUrl = encodeURIComponent(normalizedUrl);
+  return `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=1280&h=960`;
+}
+
+// Main external tools processor
+async function processExternalTools(messages) {
+  const tools = [];
+  const urls = extractUrls(messages);
+  
+  if (urls.length === 0) {
+    return { tools: [], additionalContext: '' };
+  }
+  
+  const needsScraping = needsWebScraping(messages);
+  const needsScreenshots = needsScreenshot(messages);
+  
+  // Smart auto-detection: if URLs are present but no specific tools detected,
+  // provide screenshot as it's generally most useful for visual context
+  const shouldAutoScreenshot = urls.length > 0 && !needsScraping && !needsScreenshots;
+  
+  // Execute tools in parallel to avoid slowing down the API
+  const promises = [];
+  
+  for (const url of urls.slice(0, 3)) { // Limit to 3 URLs to prevent overload
+    if (needsScraping) {
+      promises.push(
+        scrapeWebsite(url).then(result => ({
+          type: 'webscraping',
+          url: result.url,
+          content: result.content,
+          success: result.success
+        }))
+      );
+    }
+    
+    if (needsScreenshots || shouldAutoScreenshot) {
+      const screenshotUrl = generateScreenshotUrl(url);
+      tools.push({
+        type: 'screenshot',
+        url: url,
+        screenshotUrl: screenshotUrl,
+        success: true
+      });
+    }
+  }
+  
+  // Wait for scraping results with timeout
+  if (promises.length > 0) {
+    try {
+      const results = await Promise.allSettled(promises.map(p => 
+        Promise.race([p, new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Tool timeout')), 8000)
+        )])
+      ));
+      
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          tools.push(result.value);
+        }
+      });
+    } catch (error) {
+      console.error('External tools error:', error);
+    }
+  }
+  
+  // Generate additional context for the AI
+  let additionalContext = '';
+  
+  if (tools.length > 0) {
+    additionalContext += '\n\n=== EXTERNAL TOOLS DATA ===\n';
+    
+    for (const tool of tools) {
+      if (tool.type === 'webscraping' && tool.success) {
+        additionalContext += `\nWebsite Content from ${tool.url}:\n${tool.content}\n`;
+      }
+      
+      if (tool.type === 'screenshot') {
+        additionalContext += `\nScreenshot available: ${tool.screenshotUrl}\n`;
+        additionalContext += `You can display this screenshot in markdown: ![Screenshot of ${tool.url}](${tool.screenshotUrl})\n`;
+        additionalContext += `This screenshot shows the current visual appearance of ${tool.url}.\n`;
+      }
+    }
+    
+    additionalContext += '\nYou have access to the above external data. Use it to provide comprehensive and accurate responses. ';
+    additionalContext += 'You can reference the screenshots, analyze the scraped content, and provide insights based on this real-time data.\n';
+  }
+  
+  return { tools, additionalContext };
+}
+
 
 async function handleChat(request, corsHeaders, env) {
   const requestBody = await request.json();
@@ -816,10 +1011,41 @@ async function handleChat(request, corsHeaders, env) {
       return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), { status: 400, headers: corsHeaders });
     }
 
+    // Process external tools (this runs in parallel to avoid slowing down the API)
+    const externalToolsPromise = processExternalTools(messages);
+    
+    // Continue with model preparation while tools are processing
+    let modifiedMessages = [...messages];
+    
+    // Wait for external tools with a timeout to ensure API responsiveness
+    try {
+      const { tools, additionalContext } = await Promise.race([
+        externalToolsPromise,
+        new Promise((resolve) => setTimeout(() => resolve({ tools: [], additionalContext: '' }), 5000))
+      ]);
+      
+      // If we have additional context from tools, inject it into the conversation
+      if (additionalContext) {
+        // Add the external data as a system message or append to the last user message
+        const lastMessage = modifiedMessages[modifiedMessages.length - 1];
+        if (lastMessage && lastMessage.role === 'user') {
+          lastMessage.content += additionalContext;
+        } else {
+          modifiedMessages.push({
+            role: 'system',
+            content: `External Tools Data: ${additionalContext}`
+          });
+        }
+      }
+    } catch (error) {
+      console.error('External tools processing error:', error);
+      // Continue without external tools data if there's an error
+    }
+
     // Create payload for the request
     const payload = {
         model: internalModel,
-        messages: messages,
+        messages: modifiedMessages,
         temperature: requestBody.temperature,
         max_tokens: requestBody.max_tokens,
         top_p: requestBody.top_p,
