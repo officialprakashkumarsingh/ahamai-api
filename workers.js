@@ -1306,10 +1306,12 @@ Always use tools when they would enhance your answer. Call the appropriate funct
     
     // Wait for external tools with a timeout to ensure API responsiveness
     try {
-      const { tools, additionalContext } = await Promise.race([
+      const { tools: externalToolsData, additionalContext } = await Promise.race([
         externalToolsPromise,
         new Promise((resolve) => setTimeout(() => resolve({ tools: [], additionalContext: '' }), 5000))
       ]);
+      
+      console.log(`External tools processed: ${externalToolsData.length} tools, context length: ${additionalContext.length}`);
       
       // If we have additional context from tools, inject it into the conversation
       if (additionalContext) {
@@ -1347,6 +1349,7 @@ Always use tools when they would enhance your answer. Call the appropriate funct
       // Always set tool_choice to 'auto' to enable function calling
       payload.tool_choice = tool_choice === 'none' ? 'none' : 'auto';
       console.log(`Tools configured in payload: ${tools.length} tools, tool_choice: ${payload.tool_choice}`);
+      console.log('Tool names:', tools.map(t => t.function.name));
     } else {
       console.log('No tools configured in payload');
     }
