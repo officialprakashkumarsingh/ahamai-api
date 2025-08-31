@@ -811,7 +811,11 @@ function needsWebScraping(messages) {
   const patterns = [
     /scrape|fetch|get.*content|browse|visit.*site|read.*page|extract.*from/,
     /what.*on.*website|content.*of.*site|information.*from.*url/,
-    /analyze.*website|check.*site|look.*at.*page/
+    /analyze.*website|check.*site|look.*at.*page/,
+    /content.*from|information.*about.*site|details.*from.*site/,
+    /compare.*sites?|analysis.*of.*website|data.*from.*web/,
+    /know.*about.*content|want.*to.*know.*about/,
+    /get.*information|find.*out.*about/
   ];
   return patterns.some(pattern => pattern.test(lastMessage));
 }
@@ -821,7 +825,11 @@ function needsScreenshot(messages) {
   const patterns = [
     /screenshot|capture|show.*looks?.*like|preview|image.*of.*site/,
     /take.*picture|visual|appearance.*of|what.*does.*look/,
-    /snap.*shot|screen.*grab|view.*of.*website/
+    /snap.*shot|screen.*grab|view.*of.*website/,
+    /show.*me.*site|display.*website|see.*what.*looks|looks.*like/,
+    /compare.*appearance|visual.*comparison|image.*of.*page/,
+    /show.*me/,
+    /see.*what.*it.*looks|what.*it.*looks.*like/
   ];
   return patterns.some(pattern => pattern.test(lastMessage));
 }
@@ -838,14 +846,6 @@ function normalizeUrl(url) {
     // Check if it looks like a domain
     if (url.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/) || url.includes('.')) {
       url = 'https://' + url;
-    }
-  }
-  
-  // Add www if it's a bare domain without subdomain (but not if it already has a subdomain)
-  if (url.match(/^https?:\/\/[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\/|$)/)) {
-    // Only add www if there's no subdomain already
-    if (!url.match(/^https?:\/\/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/)) {
-      url = url.replace(/^(https?:\/\/)/, '$1www.');
     }
   }
   
@@ -924,6 +924,10 @@ async function processExternalTools(messages) {
   const needsScraping = needsWebScraping(messages);
   const needsScreenshots = needsScreenshot(messages);
   
+  // Smart auto-detection: if URLs are present but no specific tools detected,
+  // provide screenshot as it's generally most useful for visual context
+  const shouldAutoScreenshot = urls.length > 0 && !needsScraping && !needsScreenshots;
+  
   // Execute tools in parallel to avoid slowing down the API
   const promises = [];
   
@@ -939,7 +943,7 @@ async function processExternalTools(messages) {
       );
     }
     
-    if (needsScreenshots) {
+    if (needsScreenshots || shouldAutoScreenshot) {
       const screenshotUrl = generateScreenshotUrl(url);
       tools.push({
         type: 'screenshot',
@@ -983,10 +987,12 @@ async function processExternalTools(messages) {
       if (tool.type === 'screenshot') {
         additionalContext += `\nScreenshot available: ${tool.screenshotUrl}\n`;
         additionalContext += `You can display this screenshot in markdown: ![Screenshot of ${tool.url}](${tool.screenshotUrl})\n`;
+        additionalContext += `This screenshot shows the current visual appearance of ${tool.url}.\n`;
       }
     }
     
-    additionalContext += '\nYou have access to the above external data. Use it to provide comprehensive and accurate responses.\n';
+    additionalContext += '\nYou have access to the above external data. Use it to provide comprehensive and accurate responses. ';
+    additionalContext += 'You can reference the screenshots, analyze the scraped content, and provide insights based on this real-time data.\n';
   }
   
   return { tools, additionalContext };
