@@ -999,16 +999,122 @@ async function processExternalTools(messages) {
 }
 
 
+// Built-in tool definitions for AI awareness
+const builtInTools = [
+  {
+    type: "function",
+    function: {
+      name: "web_scrape",
+      description: "Extract text content from a website URL. Useful for getting article content, product information, or any text-based data from web pages.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: {
+            type: "string",
+            description: "The URL of the website to scrape content from"
+          }
+        },
+        required: ["url"]
+      }
+    }
+  },
+  {
+    type: "function", 
+    function: {
+      name: "take_screenshot",
+      description: "Take a visual screenshot of a website to see how it looks. Useful for UI analysis, visual design review, or understanding the visual layout of a webpage.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: {
+            type: "string",
+            description: "The URL of the website to take a screenshot of"
+          }
+        },
+        required: ["url"]
+      }
+    }
+  }
+];
+
+// Function to execute built-in tools
+async function executeBuiltInTool(toolCall) {
+  const { name, arguments: args } = toolCall.function;
+  
+  try {
+    const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
+    
+    switch (name) {
+      case 'web_scrape':
+        const scrapeResult = await scrapeWebsite(parsedArgs.url);
+        return {
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: scrapeResult.success ? scrapeResult.content : `Error scraping: ${scrapeResult.content}`
+        };
+        
+      case 'take_screenshot':
+        const screenshotUrl = generateScreenshotUrl(parsedArgs.url);
+        return {
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: `Screenshot taken: ![Screenshot of ${parsedArgs.url}](${screenshotUrl})`
+        };
+        
+      default:
+        return {
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: `Unknown tool: ${name}`
+        };
+    }
+  } catch (error) {
+    return {
+      role: 'tool',
+      tool_call_id: toolCall.id,
+      content: `Error executing tool: ${error.message}`
+    };
+  }
+}
+
+
 async function handleChat(request, corsHeaders, env) {
   const requestBody = await request.json();
   const exposedModel = requestBody.model || "qwen-235b";
   const stream = requestBody.stream === true;
+  const tools = requestBody.tools || [];
+  const tool_choice = requestBody.tool_choice || 'auto';
   let messages = requestBody.messages;
 
   try {
     const internalModel = exposedToInternalMap[exposedModel];
     if (!internalModel) {
       return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), { status: 400, headers: corsHeaders });
+    }
+
+    // Add default system prompt if no system message exists and make AI aware of tools
+    if (!messages.some(msg => msg.role === 'system')) {
+      const systemPrompt = `You are an advanced AI assistant with access to external tools. You can:
+
+1. **Web Scraping**: Extract content from websites when users provide URLs or ask to analyze web content
+2. **Screenshots**: Take visual screenshots of websites to see how they look
+3. **Function Calling**: Execute specific functions when available with proper parameters
+
+When users mention URLs or ask about websites, you can use the available tools:
+- web_scrape: to extract text content from websites
+- take_screenshot: to capture visual appearance of websites
+
+Always provide helpful, accurate responses and use tools when they would enhance your answer.`;
+
+      messages.unshift({
+        role: 'system',
+        content: systemPrompt
+      });
+    }
+
+    // Provide built-in tools if no tools are specified
+    if (!tools || tools.length === 0) {
+      tools.push(...builtInTools);
     }
 
     // Process external tools (this runs in parallel to avoid slowing down the API)
@@ -1053,6 +1159,15 @@ async function handleChat(request, corsHeaders, env) {
         stop: requestBody.stop,
         stream: stream
     };
+
+    // Add tool calling support if tools are provided
+    if (tools && tools.length > 0) {
+      payload.tools = tools;
+      if (tool_choice && tool_choice !== 'auto') {
+        payload.tool_choice = tool_choice;
+      }
+    }
+
     Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
 
     // Check if using auto model
@@ -1069,6 +1184,31 @@ async function handleChat(request, corsHeaders, env) {
               headers: newHeaders
           });
       } else {
+          // Handle tool calls in auto model non-streaming responses
+          if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.tool_calls) {
+            const toolCalls = response.choices[0].message.tool_calls;
+            
+            // Execute tool calls
+            for (const toolCall of toolCalls) {
+              try {
+                const toolResponse = await executeBuiltInTool(toolCall);
+                modifiedMessages.push(response.choices[0].message); // Add assistant message with tool calls
+                modifiedMessages.push(toolResponse); // Add tool response
+                
+                // Make a follow-up request with the tool results
+                const followUpPayload = {
+                  ...payload,
+                  messages: modifiedMessages
+                };
+                
+                const followUpResponse = await executeAutoModelRequest(followUpPayload, false);
+                return new Response(JSON.stringify(followUpResponse), { status: 200, headers: corsHeaders });
+              } catch (error) {
+                console.error('Tool execution error:', error);
+              }
+            }
+          }
+          
           return new Response(JSON.stringify(response), { status: 200, headers: corsHeaders });
       }
     }
@@ -1085,6 +1225,31 @@ async function handleChat(request, corsHeaders, env) {
             headers: newHeaders
         });
     } else {
+        // Handle tool calls in non-streaming responses
+        if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.tool_calls) {
+          const toolCalls = response.choices[0].message.tool_calls;
+          
+          // Execute tool calls
+          for (const toolCall of toolCalls) {
+            try {
+              const toolResponse = await executeBuiltInTool(toolCall);
+              modifiedMessages.push(response.choices[0].message); // Add assistant message with tool calls
+              modifiedMessages.push(toolResponse); // Add tool response
+              
+              // Make a follow-up request with the tool results
+              const followUpPayload = {
+                ...payload,
+                messages: modifiedMessages
+              };
+              
+              const followUpResponse = await executeModelRequest(internalModel, followUpPayload, false);
+              return new Response(JSON.stringify(followUpResponse), { status: 200, headers: corsHeaders });
+            } catch (error) {
+              console.error('Tool execution error:', error);
+            }
+          }
+        }
+        
         return new Response(JSON.stringify(response), { status: 200, headers: corsHeaders });
     }
 
