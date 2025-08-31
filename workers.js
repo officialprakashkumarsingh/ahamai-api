@@ -1268,10 +1268,126 @@ async function processModelResponse(response, modifiedMessages, payload, isAutoM
       console.log('⚠️ WARNING: AI mentioned web content/screenshots but did not make function calls!');
       console.log('This suggests the AI model may not be properly using function calling capability.');
       
-      // Add a note to the response indicating tools should have been used
+      // Extract URLs from the original messages for fallback execution
+      const urlMatches = [];
+      for (const msg of modifiedMessages) {
+        if (msg.role === 'user' && msg.content) {
+          const urlRegex = /https?:\/\/[^\s]+|www\.[^\s]+|[^\s]+\.[a-z]{2,}/gi;
+          const matches = msg.content.match(urlRegex) || [];
+          urlMatches.push(...matches);
+        }
+      }
+      
+      if (urlMatches.length > 0 && payload.tools && payload.tools.length > 0) {
+        console.log('🔄 ATTEMPTING FALLBACK TOOL EXECUTION...');
+        console.log('URLs found:', urlMatches.slice(0, 2)); // Limit to 2 URLs
+        
+        // Create automatic tool calls for detected scenarios
+        const automaticToolCalls = [];
+        
+        for (const url of urlMatches.slice(0, 2)) {
+          const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+          
+          if (mentionsScraping) {
+            automaticToolCalls.push({
+              id: `auto_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              type: 'function',
+              function: {
+                name: 'web_scrape',
+                arguments: JSON.stringify({ url: normalizedUrl })
+              }
+            });
+          }
+          
+          if (mentionsScreenshot) {
+            automaticToolCalls.push({
+              id: `auto_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              type: 'function',
+              function: {
+                name: 'take_screenshot', 
+                arguments: JSON.stringify({ url: normalizedUrl })
+              }
+            });
+          }
+        }
+        
+        if (automaticToolCalls.length > 0) {
+          console.log(`🔧 EXECUTING ${automaticToolCalls.length} AUTOMATIC TOOL CALLS...`);
+          
+          // Execute automatic tool calls
+          const automaticToolResponses = [];
+          for (const toolCall of automaticToolCalls) {
+            try {
+              const toolResponse = await executeBuiltInTool(toolCall);
+              automaticToolResponses.push(toolResponse);
+              console.log(`✅ Automatic tool ${toolCall.function.name} executed successfully`);
+            } catch (error) {
+              console.error(`❌ Automatic tool execution error:`, error);
+            }
+          }
+          
+          if (automaticToolResponses.length > 0) {
+            // Add automatic tool results to the conversation and get a new response
+            const updatedMessages = [...modifiedMessages];
+            
+            // Add assistant message indicating automatic tool usage
+            updatedMessages.push({
+              role: 'assistant',
+              content: response.choices[0].message.content + '\n\n*Note: I\'ve automatically executed the requested tools to provide you with current data.*',
+              tool_calls: automaticToolCalls
+            });
+            
+            // Add tool responses
+            automaticToolResponses.forEach(tr => updatedMessages.push(tr));
+            
+            // Make a new request with tool results
+            const fallbackPayload = {
+              ...payload,
+              messages: updatedMessages,
+              tools: undefined,
+              tool_choice: undefined
+            };
+            
+            try {
+              let fallbackResponse;
+              if (isAutoModel) {
+                fallbackResponse = await executeAutoModelRequest(fallbackPayload, false);
+              } else {
+                fallbackResponse = await executeModelRequest(payload.model, fallbackPayload, false);
+              }
+              
+              // Add metadata about automatic tool execution
+              if (fallbackResponse.choices && fallbackResponse.choices[0] && fallbackResponse.choices[0].message) {
+                if (debugMode) {
+                  fallbackResponse.choices[0].message.automatic_tool_calls_executed = automaticToolCalls.map(tc => ({
+                    id: tc.id,
+                    function_name: tc.function.name,
+                    arguments: tc.function.arguments
+                  }));
+                }
+                fallbackResponse.tool_execution_summary = {
+                  tools_used: automaticToolCalls.length,
+                  tool_names: automaticToolCalls.map(tc => tc.function.name),
+                  execution_successful: true,
+                  execution_type: 'automatic_fallback'
+                };
+                fallbackResponse.automatic_execution_notice = 'Tools were automatically executed because the AI model did not use function calling';
+                
+                console.log('✅ Automatic tool execution successful, returning enhanced response');
+                return fallbackResponse;
+              }
+            } catch (error) {
+              console.error('❌ Fallback request error:', error);
+            }
+          }
+        }
+      }
+      
+      // Add warning to original response if fallback didn't work
       response.function_calling_warning = {
         message: "AI model may not be using function calling properly",
-        suggestions: ["Check if model supports function calling", "Verify tool definitions", "Test with different model"]
+        suggestions: ["Check if model supports function calling", "Verify tool definitions", "Test with different model"],
+        urls_detected: urlMatches.slice(0, 3)
       };
     }
   }
@@ -1392,9 +1508,9 @@ Example: If a user asks "What's on example.com?", you should call the web_scrape
     }
 
     // Process external tools (this runs in parallel to avoid slowing down the API)
-    // TEMPORARILY DISABLED: Focus on function calling first, then re-enable
-    console.log('🌐 External tools processing disabled - focusing on function calling');
-    const externalToolsPromise = Promise.resolve({ tools: [], additionalContext: '' });
+    // This provides complementary automatic context while function calling handles intentional tool use
+    console.log('🌐 Starting external tools processing for complementary context...');
+    const externalToolsPromise = processExternalTools(messages);
     
     // Continue with model preparation while tools are processing
     let modifiedMessages = [...messages];
@@ -1410,11 +1526,13 @@ Example: If a user asks "What's on example.com?", you should call the web_scrape
       
       // If we have additional context from tools, inject it into the conversation
       if (additionalContext) {
+        // Add context in a way that complements rather than replaces function calling
+        const contextNote = `Background context: ${additionalContext.substring(0, 1000)}${additionalContext.length > 1000 ? '...' : ''}\n\nNote: Use function calls for detailed analysis beyond this background context.`;
         modifiedMessages.push({
           role: 'system',
-          content: `External Tools Data: ${additionalContext}`
+          content: contextNote
         });
-        console.log('📋 Added external tools context');
+        console.log('📋 Added external tools context as background information');
       }
     } catch (error) {
       console.error('External tools processing error:', error);
