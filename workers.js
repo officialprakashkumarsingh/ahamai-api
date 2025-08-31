@@ -1124,37 +1124,49 @@ async function processModelResponse(response, modifiedMessages, payload, isAutoM
   let hasToolCalls = false;
   let toolCalls = [];
   
-  console.log('Processing model response for tool calls...');
+  console.log('=== PROCESSING MODEL RESPONSE FOR TOOL CALLS ===');
+  console.log('Response structure:', {
+    hasChoices: !!(response.choices),
+    choicesLength: response.choices?.length,
+    hasFirstChoice: !!(response.choices?.[0]),
+    hasMessage: !!(response.choices?.[0]?.message),
+    hasToolCalls: !!(response.choices?.[0]?.message?.tool_calls),
+    hasContent: !!(response.choices?.[0]?.message?.content),
+    isAutoModel: isAutoModel
+  });
   
   // Check for structured tool calls first
   if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.tool_calls) {
     toolCalls = response.choices[0].message.tool_calls;
     hasToolCalls = true;
-    console.log(`Found ${toolCalls.length} structured tool calls`);
+    console.log(`✅ Found ${toolCalls.length} structured tool calls:`, toolCalls.map(tc => tc.function?.name));
   }
   // Check for text-based tool calls in the response content
   else if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.content) {
     const content = response.choices[0].message.content;
+    console.log('Checking content for text-based tool calls...');
+    console.log('Content preview:', content.substring(0, 200) + '...');
+    
     const parsedToolCalls = parseTextBasedToolCalls(content);
     
     if (parsedToolCalls.length > 0) {
       toolCalls = parsedToolCalls;
       hasToolCalls = true;
-      console.log(`Found ${toolCalls.length} text-based tool calls`);
+      console.log(`✅ Found ${toolCalls.length} text-based tool calls:`, parsedToolCalls.map(tc => tc.function?.name));
       
       // Clean the response content by removing tool call markers
       const cleanedContent = removeToolCallsFromText(content, parsedToolCalls);
       response.choices[0].message.content = cleanedContent;
     } else {
-      console.log('No tool calls found in response content');
+      console.log('❌ No tool calls found in response content');
     }
   } else {
-    console.log('No message content found in response');
+    console.log('❌ No message content found in response');
   }
   
   // Execute tool calls if found
   if (hasToolCalls && toolCalls.length > 0) {
-    console.log(`Found ${toolCalls.length} tool calls to execute`);
+    console.log(`🔧 EXECUTING ${toolCalls.length} TOOL CALLS...`);
     
     // Add the assistant message with tool calls to the conversation
     const assistantMessage = {
@@ -1163,16 +1175,21 @@ async function processModelResponse(response, modifiedMessages, payload, isAutoM
       tool_calls: toolCalls
     };
     modifiedMessages.push(assistantMessage);
+    console.log('Added assistant message with tool calls to conversation');
     
     // Execute each tool call and add results
     const toolResponses = [];
     for (const toolCall of toolCalls) {
       try {
+        console.log(`🔧 Executing tool: ${toolCall.function.name} with ID: ${toolCall.id}`);
         const toolResponse = await executeBuiltInTool(toolCall);
+        console.log(`✅ Tool ${toolCall.function.name} executed successfully`);
+        console.log('Tool response:', { role: toolResponse.role, tool_call_id: toolResponse.tool_call_id, contentLength: toolResponse.content?.length });
+        
         toolResponses.push(toolResponse);
         modifiedMessages.push(toolResponse);
       } catch (error) {
-        console.error('Tool execution error:', error);
+        console.error(`❌ Tool execution error for ${toolCall.function.name}:`, error);
         const errorResponse = {
           role: 'tool',
           tool_call_id: toolCall.id,
@@ -1182,6 +1199,9 @@ async function processModelResponse(response, modifiedMessages, payload, isAutoM
         modifiedMessages.push(errorResponse);
       }
     }
+    
+    console.log(`🔄 Making follow-up request with ${toolResponses.length} tool results...`);
+    console.log('Modified messages count:', modifiedMessages.length);
     
     // Make a follow-up request with the tool results
     const followUpPayload = {
@@ -1193,65 +1213,89 @@ async function processModelResponse(response, modifiedMessages, payload, isAutoM
     try {
       let followUpResponse;
       if (isAutoModel) {
+        console.log('Making auto model follow-up request...');
         followUpResponse = await executeAutoModelRequest(followUpPayload, false);
       } else {
+        console.log(`Making ${payload.model} follow-up request...`);
         followUpResponse = await executeModelRequest(payload.model, followUpPayload, false);
       }
+      
+      console.log('✅ Follow-up request successful');
+      console.log('Follow-up response:', {
+        hasChoices: !!(followUpResponse.choices),
+        choicesLength: followUpResponse.choices?.length,
+        hasContent: !!(followUpResponse.choices?.[0]?.message?.content),
+        contentLength: followUpResponse.choices?.[0]?.message?.content?.length
+      });
+      
       return followUpResponse;
     } catch (error) {
-      console.error('Follow-up request error:', error);
+      console.error('❌ Follow-up request error:', error);
+      console.log('Returning original response as fallback');
       // Return original response if follow-up fails
       return response;
     }
   }
   
+  console.log('❌ No tool calls found, returning original response');
   return response;
 }
 
 // Function to execute built-in tools
 async function executeBuiltInTool(toolCall) {
   const { name, arguments: args } = toolCall.function;
-  console.log(`Executing tool: ${name} with args:`, args);
+  console.log(`🔧 EXECUTING TOOL: ${name}`);
+  console.log(`Tool call ID: ${toolCall.id}`);
+  console.log(`Raw arguments:`, args);
   
   try {
     const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
-    console.log(`Parsed args:`, parsedArgs);
+    console.log(`✅ Parsed arguments:`, parsedArgs);
     
     switch (name) {
       case 'web_scrape':
-        console.log(`Scraping website: ${parsedArgs.url}`);
+        console.log(`🌐 Scraping website: ${parsedArgs.url}`);
         const scrapeResult = await scrapeWebsite(parsedArgs.url);
-        console.log(`Scrape result success: ${scrapeResult.success}`);
-        return {
+        console.log(`📄 Scrape result - Success: ${scrapeResult.success}, Content length: ${scrapeResult.content?.length}`);
+        
+        const scrapeResponse = {
           role: 'tool',
           tool_call_id: toolCall.id,
           content: scrapeResult.success ? scrapeResult.content : `Error scraping: ${scrapeResult.content}`
         };
+        console.log(`✅ Web scrape tool response prepared - Content length: ${scrapeResponse.content?.length}`);
+        return scrapeResponse;
         
       case 'take_screenshot':
-        console.log(`Taking screenshot of: ${parsedArgs.url}`);
+        console.log(`📸 Taking screenshot of: ${parsedArgs.url}`);
         const screenshotUrl = generateScreenshotUrl(parsedArgs.url);
-        return {
+        console.log(`🖼️ Generated screenshot URL: ${screenshotUrl}`);
+        
+        const screenshotResponse = {
           role: 'tool',
           tool_call_id: toolCall.id,
           content: `Screenshot taken: ![Screenshot of ${parsedArgs.url}](${screenshotUrl})`
         };
+        console.log(`✅ Screenshot tool response prepared - Content: ${screenshotResponse.content}`);
+        return screenshotResponse;
         
       default:
-        console.log(`Unknown tool: ${name}`);
-        return {
+        console.log(`❌ Unknown tool: ${name}`);
+        const unknownResponse = {
           role: 'tool',
           tool_call_id: toolCall.id,
           content: `Unknown tool: ${name}`
         };
+        return unknownResponse;
     }
   } catch (error) {
-    console.error(`Tool execution error for ${name}:`, error);
-    return {
+    console.error(`❌ Tool execution error for ${name}:`, error);
+    const errorResponse = {
       role: 'tool',
       tool_call_id: toolCall.id,
       content: `Error executing tool: ${error.message}`
     };
+    return errorResponse;
   }
 }
 
@@ -1272,34 +1316,42 @@ async function handleChat(request, corsHeaders, env) {
 
     // Add default system prompt if no system message exists and make AI aware of tools
     if (!messages.some(msg => msg.role === 'system')) {
-      const systemPrompt = `You are an advanced AI assistant with access to external tools. You can:
+      const systemPrompt = `You are an advanced AI assistant with access to external tools through function calling. You can:
 
-1. **Web Scraping**: Extract content from websites when users provide URLs or ask to analyze web content
-2. **Screenshots**: Take visual screenshots of websites to see how they look
+1. **Web Scraping**: Extract content from websites by calling the web_scrape function
+2. **Screenshots**: Take visual screenshots of websites by calling the take_screenshot function  
 3. **Function Calling**: Execute specific functions when available with proper parameters
 
-When users mention URLs or ask about websites, you MUST use the available tools:
-- web_scrape: to extract text content from websites
-- take_screenshot: to capture visual appearance of websites
+IMPORTANT: When users mention URLs or ask about websites, you MUST use function calls:
+- Call web_scrape function to extract text content from websites
+- Call take_screenshot function to capture visual appearance of websites
 
-Always use tools when they would enhance your answer. Call the appropriate function instead of just describing what you would do.`;
+Always make function calls when they would enhance your answer. Do NOT just describe what you would do - actually call the functions using the proper function calling format.
+
+Example: If a user asks "What's on example.com?", you should call the web_scrape function with the URL, not just say "I would scrape the website".`;
 
       messages.unshift({
         role: 'system',
         content: systemPrompt
       });
+      console.log('✅ Enhanced system prompt added to instruct function calling');
     }
 
     // Provide built-in tools if no tools are specified
     if (!tools || tools.length === 0) {
       tools = [...builtInTools];
-      console.log('Added built-in tools:', tools.map(t => t.function.name));
+      console.log('🔧 ADDED BUILT-IN TOOLS:', tools.map(t => t.function.name));
+      console.log('Built-in tools count:', tools.length);
     } else {
-      console.log('Using provided tools:', tools.map(t => t.function?.name || 'unknown'));
+      console.log('🔧 USING PROVIDED TOOLS:', tools.map(t => t.function?.name || 'unknown'));
+      console.log('Provided tools count:', tools.length);
     }
 
     // Process external tools (this runs in parallel to avoid slowing down the API)
-    const externalToolsPromise = processExternalTools(messages);
+    // NOTE: Temporarily disabled to avoid interference with function calling
+    console.log('🌐 External tools processing temporarily disabled to focus on function calling');
+    const externalToolsPromise = Promise.resolve({ tools: [], additionalContext: '' });
+    // const externalToolsPromise = processExternalTools(messages);
     
     // Continue with model preparation while tools are processing
     let modifiedMessages = [...messages];
@@ -1311,7 +1363,7 @@ Always use tools when they would enhance your answer. Call the appropriate funct
         new Promise((resolve) => setTimeout(() => resolve({ tools: [], additionalContext: '' }), 5000))
       ]);
       
-      console.log(`External tools processed: ${externalToolsData.length} tools, context length: ${additionalContext.length}`);
+      console.log(`🌐 External tools processed: ${externalToolsData.length} tools, context length: ${additionalContext.length}`);
       
       // If we have additional context from tools, inject it into the conversation
       if (additionalContext) {
@@ -1348,10 +1400,14 @@ Always use tools when they would enhance your answer. Call the appropriate funct
       payload.tools = tools;
       // Always set tool_choice to 'auto' to enable function calling
       payload.tool_choice = tool_choice === 'none' ? 'none' : 'auto';
-      console.log(`Tools configured in payload: ${tools.length} tools, tool_choice: ${payload.tool_choice}`);
-      console.log('Tool names:', tools.map(t => t.function.name));
+      console.log(`🔧 TOOLS CONFIGURED IN PAYLOAD:`);
+      console.log(`- Tool count: ${tools.length}`);
+      console.log(`- Tool choice: ${payload.tool_choice}`);
+      console.log(`- Tool names: [${tools.map(t => t.function.name).join(', ')}]`);
+      console.log(`- Model: ${internalModel}`);
+      console.log(`- Stream: ${stream}`);
     } else {
-      console.log('No tools configured in payload');
+      console.log('❌ No tools configured in payload');
     }
 
     Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
@@ -1387,7 +1443,15 @@ Always use tools when they would enhance your answer. Call the appropriate funct
           });
       } else {
           // Handle tool calls in auto model non-streaming responses
+          console.log('🔄 Processing auto model non-streaming response for tool calls...');
           const processedResponse = await processModelResponse(response, modifiedMessages, payload, true);
+          console.log('✅ Auto model response processed, returning JSON');
+          console.log('Final auto response structure:', {
+            hasChoices: !!(processedResponse.choices),
+            choicesLength: processedResponse.choices?.length,
+            hasContent: !!(processedResponse.choices?.[0]?.message?.content),
+            contentPreview: processedResponse.choices?.[0]?.message?.content?.substring(0, 100) + '...'
+          });
           return new Response(JSON.stringify(processedResponse), { status: 200, headers: corsHeaders });
       }
     }
@@ -1421,7 +1485,15 @@ Always use tools when they would enhance your answer. Call the appropriate funct
         });
     } else {
         // Handle tool calls in non-streaming responses
+        console.log('🔄 Processing non-streaming response for tool calls...');
         const processedResponse = await processModelResponse(response, modifiedMessages, payload, false);
+        console.log('✅ Response processed, returning JSON');
+        console.log('Final response structure:', {
+          hasChoices: !!(processedResponse.choices),
+          choicesLength: processedResponse.choices?.length,
+          hasContent: !!(processedResponse.choices?.[0]?.message?.content),
+          contentPreview: processedResponse.choices?.[0]?.message?.content?.substring(0, 100) + '...'
+        });
         return new Response(JSON.stringify(processedResponse), { status: 200, headers: corsHeaders });
     }
 
