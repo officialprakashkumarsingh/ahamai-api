@@ -1029,9 +1029,9 @@ function handleChatModelList(corsHeaders = {}) {
     description: "🤖 AUTO MODEL: Intelligently selects the best provider (Cerebras, Mistral, Groq) with automatic fallback for optimal performance."
   };
 
-  // Get the rest of the models, excluding the primary and auto models
+  // Get the rest of the models, excluding the primary, auto, and gemini models
   const otherModels = Object.keys(exposedToInternalMap)
-    .filter(id => id !== primaryModelId && id !== autoModelId)
+    .filter(id => id !== primaryModelId && id !== autoModelId && !id.includes('gemini'))
     .map((id) => ({
       id,
       name: id.replace(/^(cerebras-|groq-)/, ''),
@@ -1039,8 +1039,8 @@ function handleChatModelList(corsHeaders = {}) {
       owned_by: "openai-compatible"
     }));
 
-  // Combine them, with primary model first, then auto model, then others
-  const chatModels = [primaryModel, autoModel, ...otherModels];
+  // Combine them, with auto model first, then primary model, then others
+  const chatModels = [autoModel, primaryModel, ...otherModels];
 
   return new Response(JSON.stringify({
     object: "list",
