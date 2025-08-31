@@ -1120,7 +1120,7 @@ function removeToolCallsFromText(text, toolCalls) {
 }
 
 // Function to process model response and handle both structured and text-based tool calls
-async function processModelResponse(response, modifiedMessages, payload, isAutoModel = false) {
+async function processModelResponse(response, modifiedMessages, payload, isAutoModel = false, debugMode = false) {
   let hasToolCalls = false;
   let toolCalls = [];
   
@@ -1207,7 +1207,8 @@ async function processModelResponse(response, modifiedMessages, payload, isAutoM
     const followUpPayload = {
       ...payload,
       messages: modifiedMessages,
-      tools: undefined // Remove tools from follow-up to prevent infinite loops
+      tools: undefined, // Remove tools from follow-up to prevent infinite loops
+      tool_choice: undefined // Also remove tool_choice
     };
     
     try {
@@ -1228,6 +1229,23 @@ async function processModelResponse(response, modifiedMessages, payload, isAutoM
         contentLength: followUpResponse.choices?.[0]?.message?.content?.length
       });
       
+      // Add metadata about tool usage to the response
+      if (followUpResponse.choices && followUpResponse.choices[0] && followUpResponse.choices[0].message) {
+        if (debugMode) {
+          followUpResponse.choices[0].message.tool_calls_executed = toolCalls.map(tc => ({
+            id: tc.id,
+            function_name: tc.function.name,
+            arguments: tc.function.arguments
+          }));
+        }
+        followUpResponse.tool_execution_summary = {
+          tools_used: toolCalls.length,
+          tool_names: toolCalls.map(tc => tc.function.name),
+          execution_successful: true
+        };
+        console.log('✅ Added tool execution metadata to response');
+      }
+      
       return followUpResponse;
     } catch (error) {
       console.error('❌ Follow-up request error:', error);
@@ -1238,6 +1256,26 @@ async function processModelResponse(response, modifiedMessages, payload, isAutoM
   }
   
   console.log('❌ No tool calls found, returning original response');
+  
+  // Check if the response mentions the tools without actually calling them
+  if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.content) {
+    const content = response.choices[0].message.content.toLowerCase();
+    const mentionsUrl = content.includes('http') || content.includes('www.') || content.includes('.com');
+    const mentionsScraping = content.includes('scrape') || content.includes('extract') || content.includes('content');
+    const mentionsScreenshot = content.includes('screenshot') || content.includes('visual') || content.includes('image');
+    
+    if (mentionsUrl && (mentionsScraping || mentionsScreenshot)) {
+      console.log('⚠️ WARNING: AI mentioned web content/screenshots but did not make function calls!');
+      console.log('This suggests the AI model may not be properly using function calling capability.');
+      
+      // Add a note to the response indicating tools should have been used
+      response.function_calling_warning = {
+        message: "AI model may not be using function calling properly",
+        suggestions: ["Check if model supports function calling", "Verify tool definitions", "Test with different model"]
+      };
+    }
+  }
+  
   return response;
 }
 
@@ -1307,6 +1345,12 @@ async function handleChat(request, corsHeaders, env) {
   let tools = requestBody.tools || [];
   const tool_choice = requestBody.tool_choice || 'auto';
   let messages = requestBody.messages;
+  
+  // Check for debug mode to show tool execution details
+  const debugMode = requestBody.debug_tools === true;
+  if (debugMode) {
+    console.log('🐛 DEBUG MODE ENABLED - Will include detailed tool execution information');
+  }
 
   try {
     const internalModel = exposedToInternalMap[exposedModel];
@@ -1348,10 +1392,9 @@ Example: If a user asks "What's on example.com?", you should call the web_scrape
     }
 
     // Process external tools (this runs in parallel to avoid slowing down the API)
-    // NOTE: Temporarily disabled to avoid interference with function calling
-    console.log('🌐 External tools processing temporarily disabled to focus on function calling');
+    // TEMPORARILY DISABLED: Focus on function calling first, then re-enable
+    console.log('🌐 External tools processing disabled - focusing on function calling');
     const externalToolsPromise = Promise.resolve({ tools: [], additionalContext: '' });
-    // const externalToolsPromise = processExternalTools(messages);
     
     // Continue with model preparation while tools are processing
     let modifiedMessages = [...messages];
@@ -1367,16 +1410,11 @@ Example: If a user asks "What's on example.com?", you should call the web_scrape
       
       // If we have additional context from tools, inject it into the conversation
       if (additionalContext) {
-        // Add the external data as a system message or append to the last user message
-        const lastMessage = modifiedMessages[modifiedMessages.length - 1];
-        if (lastMessage && lastMessage.role === 'user') {
-          lastMessage.content += additionalContext;
-        } else {
-          modifiedMessages.push({
-            role: 'system',
-            content: `External Tools Data: ${additionalContext}`
-          });
-        }
+        modifiedMessages.push({
+          role: 'system',
+          content: `External Tools Data: ${additionalContext}`
+        });
+        console.log('📋 Added external tools context');
       }
     } catch (error) {
       console.error('External tools processing error:', error);
@@ -1444,14 +1482,21 @@ Example: If a user asks "What's on example.com?", you should call the web_scrape
       } else {
           // Handle tool calls in auto model non-streaming responses
           console.log('🔄 Processing auto model non-streaming response for tool calls...');
-          const processedResponse = await processModelResponse(response, modifiedMessages, payload, true);
+          const processedResponse = await processModelResponse(response, modifiedMessages, payload, true, debugMode);
           console.log('✅ Auto model response processed, returning JSON');
           console.log('Final auto response structure:', {
             hasChoices: !!(processedResponse.choices),
             choicesLength: processedResponse.choices?.length,
             hasContent: !!(processedResponse.choices?.[0]?.message?.content),
-            contentPreview: processedResponse.choices?.[0]?.message?.content?.substring(0, 100) + '...'
+            contentPreview: processedResponse.choices?.[0]?.message?.content?.substring(0, 100) + '...',
+            hasToolExecutionSummary: !!(processedResponse.tool_execution_summary)
           });
+          
+          // Log tool execution summary if present
+          if (processedResponse.tool_execution_summary) {
+            console.log('🔧 Auto model tool execution summary:', processedResponse.tool_execution_summary);
+          }
+          
           return new Response(JSON.stringify(processedResponse), { status: 200, headers: corsHeaders });
       }
     }
@@ -1486,14 +1531,21 @@ Example: If a user asks "What's on example.com?", you should call the web_scrape
     } else {
         // Handle tool calls in non-streaming responses
         console.log('🔄 Processing non-streaming response for tool calls...');
-        const processedResponse = await processModelResponse(response, modifiedMessages, payload, false);
+        const processedResponse = await processModelResponse(response, modifiedMessages, payload, false, debugMode);
         console.log('✅ Response processed, returning JSON');
         console.log('Final response structure:', {
           hasChoices: !!(processedResponse.choices),
           choicesLength: processedResponse.choices?.length,
           hasContent: !!(processedResponse.choices?.[0]?.message?.content),
-          contentPreview: processedResponse.choices?.[0]?.message?.content?.substring(0, 100) + '...'
+          contentPreview: processedResponse.choices?.[0]?.message?.content?.substring(0, 100) + '...',
+          hasToolExecutionSummary: !!(processedResponse.tool_execution_summary)
         });
+        
+        // Log tool execution summary if present
+        if (processedResponse.tool_execution_summary) {
+          console.log('🔧 Tool execution summary:', processedResponse.tool_execution_summary);
+        }
+        
         return new Response(JSON.stringify(processedResponse), { status: 200, headers: corsHeaders });
     }
 
