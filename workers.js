@@ -1037,6 +1037,169 @@ const builtInTools = [
   }
 ];
 
+// Function to parse text-based tool calls that appear in model responses
+function parseTextBasedToolCalls(text) {
+  const toolCalls = [];
+  
+  // Pattern to match TOOL_CALL[...] or __TOOL_CALL__[...] format
+  // Using a more flexible approach to handle nested JSON issues
+  const toolCallPattern = /(?:TOOL_CALL|__TOOL_CALL__)\s*\[(.*?)\](?=\s|$|TOOL_CALL|__TOOL_CALL__|\.)/g;
+  
+  let match;
+  while ((match = toolCallPattern.exec(text)) !== null) {
+    try {
+      let toolCallData = match[1].trim();
+      
+      // Fix common JSON formatting issues
+      // Handle nested quotes in arguments field
+      toolCallData = toolCallData.replace(/"arguments"\s*:\s*"({[^}]*})"/g, '"arguments":$1');
+      
+      // Try to parse the corrected JSON
+      const parsed = JSON.parse(toolCallData);
+      
+      // Convert to standard tool call format
+      const standardToolCall = {
+        id: parsed.id || `tool_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'function',
+        function: {
+          name: parsed.function?.name || parsed.name,
+          arguments: parsed.function?.arguments || parsed.arguments || '{}'
+        }
+      };
+      
+      // Ensure arguments is a string
+      if (typeof standardToolCall.function.arguments === 'object') {
+        standardToolCall.function.arguments = JSON.stringify(standardToolCall.function.arguments);
+      }
+      
+      // Validate that we have the required fields
+      if (standardToolCall.function.name) {
+        toolCalls.push(standardToolCall);
+      }
+    } catch (error) {
+      console.error('Error parsing tool call:', error, 'Raw match:', match[1]);
+      
+      // Fallback: Try to extract tool information using regex
+      try {
+        const rawData = match[1];
+        const nameMatch = rawData.match(/"name"\s*:\s*"([^"]+)"/);
+        const urlMatch = rawData.match(/"url"\s*:\s*"([^"]+)"/);
+        
+        if (nameMatch) {
+          const standardToolCall = {
+            id: `tool_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: 'function',
+            function: {
+              name: nameMatch[1],
+              arguments: urlMatch ? JSON.stringify({ url: urlMatch[1] }) : '{}'
+            }
+          };
+          toolCalls.push(standardToolCall);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback parsing also failed:', fallbackError);
+      }
+    }
+  }
+  
+  return toolCalls;
+}
+
+// Function to clean response text by removing processed tool calls
+function removeToolCallsFromText(text, toolCalls) {
+  let cleanedText = text;
+  
+  // Remove TOOL_CALL[...] and __TOOL_CALL__[...] patterns
+  const toolCallPattern = /(?:TOOL_CALL|__TOOL_CALL__)\s*\[.*?\](?=\s|$|TOOL_CALL|__TOOL_CALL__|\.)/g;
+  cleanedText = cleanedText.replace(toolCallPattern, '').trim();
+  
+  // Clean up any extra whitespace or newlines
+  cleanedText = cleanedText.replace(/\n\s*\n/g, '\n').trim();
+  
+  return cleanedText;
+}
+
+// Function to process model response and handle both structured and text-based tool calls
+async function processModelResponse(response, modifiedMessages, payload, isAutoModel = false) {
+  let hasToolCalls = false;
+  let toolCalls = [];
+  
+  // Check for structured tool calls first
+  if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.tool_calls) {
+    toolCalls = response.choices[0].message.tool_calls;
+    hasToolCalls = true;
+  }
+  // Check for text-based tool calls in the response content
+  else if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.content) {
+    const content = response.choices[0].message.content;
+    const parsedToolCalls = parseTextBasedToolCalls(content);
+    
+    if (parsedToolCalls.length > 0) {
+      toolCalls = parsedToolCalls;
+      hasToolCalls = true;
+      
+      // Clean the response content by removing tool call markers
+      const cleanedContent = removeToolCallsFromText(content, parsedToolCalls);
+      response.choices[0].message.content = cleanedContent;
+    }
+  }
+  
+  // Execute tool calls if found
+  if (hasToolCalls && toolCalls.length > 0) {
+    console.log(`Found ${toolCalls.length} tool calls to execute`);
+    
+    // Add the assistant message with tool calls to the conversation
+    const assistantMessage = {
+      role: 'assistant',
+      content: response.choices[0].message.content || null,
+      tool_calls: toolCalls
+    };
+    modifiedMessages.push(assistantMessage);
+    
+    // Execute each tool call and add results
+    const toolResponses = [];
+    for (const toolCall of toolCalls) {
+      try {
+        const toolResponse = await executeBuiltInTool(toolCall);
+        toolResponses.push(toolResponse);
+        modifiedMessages.push(toolResponse);
+      } catch (error) {
+        console.error('Tool execution error:', error);
+        const errorResponse = {
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: `Error executing tool: ${error.message}`
+        };
+        toolResponses.push(errorResponse);
+        modifiedMessages.push(errorResponse);
+      }
+    }
+    
+    // Make a follow-up request with the tool results
+    const followUpPayload = {
+      ...payload,
+      messages: modifiedMessages,
+      tools: undefined // Remove tools from follow-up to prevent infinite loops
+    };
+    
+    try {
+      let followUpResponse;
+      if (isAutoModel) {
+        followUpResponse = await executeAutoModelRequest(followUpPayload, false);
+      } else {
+        followUpResponse = await executeModelRequest(payload.model, followUpPayload, false);
+      }
+      return followUpResponse;
+    } catch (error) {
+      console.error('Follow-up request error:', error);
+      // Return original response if follow-up fails
+      return response;
+    }
+  }
+  
+  return response;
+}
+
 // Function to execute built-in tools
 async function executeBuiltInTool(toolCall) {
   const { name, arguments: args } = toolCall.function;
@@ -1185,31 +1348,8 @@ Always provide helpful, accurate responses and use tools when they would enhance
           });
       } else {
           // Handle tool calls in auto model non-streaming responses
-          if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.tool_calls) {
-            const toolCalls = response.choices[0].message.tool_calls;
-            
-            // Execute tool calls
-            for (const toolCall of toolCalls) {
-              try {
-                const toolResponse = await executeBuiltInTool(toolCall);
-                modifiedMessages.push(response.choices[0].message); // Add assistant message with tool calls
-                modifiedMessages.push(toolResponse); // Add tool response
-                
-                // Make a follow-up request with the tool results
-                const followUpPayload = {
-                  ...payload,
-                  messages: modifiedMessages
-                };
-                
-                const followUpResponse = await executeAutoModelRequest(followUpPayload, false);
-                return new Response(JSON.stringify(followUpResponse), { status: 200, headers: corsHeaders });
-              } catch (error) {
-                console.error('Tool execution error:', error);
-              }
-            }
-          }
-          
-          return new Response(JSON.stringify(response), { status: 200, headers: corsHeaders });
+          const processedResponse = await processModelResponse(response, modifiedMessages, payload, true);
+          return new Response(JSON.stringify(processedResponse), { status: 200, headers: corsHeaders });
       }
     }
 
@@ -1226,31 +1366,8 @@ Always provide helpful, accurate responses and use tools when they would enhance
         });
     } else {
         // Handle tool calls in non-streaming responses
-        if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.tool_calls) {
-          const toolCalls = response.choices[0].message.tool_calls;
-          
-          // Execute tool calls
-          for (const toolCall of toolCalls) {
-            try {
-              const toolResponse = await executeBuiltInTool(toolCall);
-              modifiedMessages.push(response.choices[0].message); // Add assistant message with tool calls
-              modifiedMessages.push(toolResponse); // Add tool response
-              
-              // Make a follow-up request with the tool results
-              const followUpPayload = {
-                ...payload,
-                messages: modifiedMessages
-              };
-              
-              const followUpResponse = await executeModelRequest(internalModel, followUpPayload, false);
-              return new Response(JSON.stringify(followUpResponse), { status: 200, headers: corsHeaders });
-            } catch (error) {
-              console.error('Tool execution error:', error);
-            }
-          }
-        }
-        
-        return new Response(JSON.stringify(response), { status: 200, headers: corsHeaders });
+        const processedResponse = await processModelResponse(response, modifiedMessages, payload, false);
+        return new Response(JSON.stringify(processedResponse), { status: 200, headers: corsHeaders });
     }
 
   } catch (error) {
