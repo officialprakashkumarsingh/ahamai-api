@@ -1060,17 +1060,6 @@ async function processToolCalls(response, messages, payload) {
 
   // 1. Detect Tool Calls (Structured or Text-based)
   let toolCalls = message.tool_calls || [];
-  if (toolCalls.length === 0 && message.content) {
-    // AI might have returned text-based tool calls instead of structured ones.
-    // Let's use a new format: <tool_call>{"name": "...", "arguments": {...}}</tool_call>
-    const textBasedToolCalls = parseTextBasedToolCalls(message.content);
-    if (textBasedToolCalls.length > 0) {
-        console.log(`Found ${textBasedToolCalls.length} text-based tool calls.`);
-        toolCalls = textBasedToolCalls;
-        // Add an assistant message with the tool calls to the history
-        message.tool_calls = toolCalls;
-    }
-  }
 
   // 2. Execute if Tool Calls are Found
   if (!toolCalls || toolCalls.length === 0) {
