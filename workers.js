@@ -805,34 +805,6 @@ async function executeModelRequest(internalModel, payload, stream = false) {
 
 // ===== EXTERNAL TOOLS FUNCTIONALITY =====
 
-// Tool detection functions
-function needsWebScraping(messages) {
-  const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
-  const patterns = [
-    /scrape|fetch|get.*content|browse|visit.*site|read.*page|extract.*from/,
-    /what.*on.*website|content.*of.*site|information.*from.*url/,
-    /analyze.*website|check.*site|look.*at.*page/,
-    /content.*from|information.*about.*site|details.*from.*site/,
-    /compare.*sites?|analysis.*of.*website|data.*from.*web/,
-    /know.*about.*content|want.*to.*know.*about/,
-    /get.*information|find.*out.*about/
-  ];
-  return patterns.some(pattern => pattern.test(lastMessage));
-}
-
-function needsScreenshot(messages) {
-  const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
-  const patterns = [
-    /screenshot|capture|show.*looks?.*like|preview|image.*of.*site/,
-    /take.*picture|visual|appearance.*of|what.*does.*look/,
-    /snap.*shot|screen.*grab|view.*of.*website/,
-    /show.*me.*site|display.*website|see.*what.*looks|looks.*like/,
-    /compare.*appearance|visual.*comparison|image.*of.*page/,
-    /show.*me/,
-    /see.*what.*it.*looks|what.*it.*looks.*like/
-  ];
-  return patterns.some(pattern => pattern.test(lastMessage));
-}
 
 // URL normalization function
 function normalizeUrl(url) {
@@ -852,25 +824,6 @@ function normalizeUrl(url) {
   return url;
 }
 
-// Extract URLs from messages
-function extractUrls(messages) {
-  const lastMessage = messages[messages.length - 1]?.content || '';
-  const urlPatterns = [
-    /https?:\/\/[^\s]+/g,
-    /www\.[^\s]+/g,
-    /[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}[^\s]*/g
-  ];
-  
-  const urls = [];
-  for (const pattern of urlPatterns) {
-    const matches = lastMessage.match(pattern);
-    if (matches) {
-      urls.push(...matches.map(normalizeUrl));
-    }
-  }
-  
-  return [...new Set(urls)].filter(url => url.length > 0);
-}
 
 // Website scraping function
 async function scrapeWebsite(url) {
@@ -912,91 +865,6 @@ function generateScreenshotUrl(url) {
   return `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=1280&h=960`;
 }
 
-// Main external tools processor
-async function processExternalTools(messages) {
-  const tools = [];
-  const urls = extractUrls(messages);
-  
-  if (urls.length === 0) {
-    return { tools: [], additionalContext: '' };
-  }
-  
-  const needsScraping = needsWebScraping(messages);
-  const needsScreenshots = needsScreenshot(messages);
-  
-  // Smart auto-detection: if URLs are present but no specific tools detected,
-  // provide screenshot as it's generally most useful for visual context
-  const shouldAutoScreenshot = urls.length > 0 && !needsScraping && !needsScreenshots;
-  
-  // Execute tools in parallel to avoid slowing down the API
-  const promises = [];
-  
-  for (const url of urls.slice(0, 3)) { // Limit to 3 URLs to prevent overload
-    if (needsScraping) {
-      promises.push(
-        scrapeWebsite(url).then(result => ({
-          type: 'webscraping',
-          url: result.url,
-          content: result.content,
-          success: result.success
-        }))
-      );
-    }
-    
-    if (needsScreenshots || shouldAutoScreenshot) {
-      const screenshotUrl = generateScreenshotUrl(url);
-      tools.push({
-        type: 'screenshot',
-        url: url,
-        screenshotUrl: screenshotUrl,
-        success: true
-      });
-    }
-  }
-  
-  // Wait for scraping results with timeout
-  if (promises.length > 0) {
-    try {
-      const results = await Promise.allSettled(promises.map(p => 
-        Promise.race([p, new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Tool timeout')), 8000)
-        )])
-      ));
-      
-      results.forEach(result => {
-        if (result.status === 'fulfilled') {
-          tools.push(result.value);
-        }
-      });
-    } catch (error) {
-      console.error('External tools error:', error);
-    }
-  }
-  
-  // Generate additional context for the AI
-  let additionalContext = '';
-  
-  if (tools.length > 0) {
-    additionalContext += '\n\n=== EXTERNAL TOOLS DATA ===\n';
-    
-    for (const tool of tools) {
-      if (tool.type === 'webscraping' && tool.success) {
-        additionalContext += `\nWebsite Content from ${tool.url}:\n${tool.content}\n`;
-      }
-      
-      if (tool.type === 'screenshot') {
-        additionalContext += `\nScreenshot available: ${tool.screenshotUrl}\n`;
-        additionalContext += `You can display this screenshot in markdown: ![Screenshot of ${tool.url}](${tool.screenshotUrl})\n`;
-        additionalContext += `This screenshot shows the current visual appearance of ${tool.url}.\n`;
-      }
-    }
-    
-    additionalContext += '\nYou have access to the above external data. Use it to provide comprehensive and accurate responses. ';
-    additionalContext += 'You can reference the screenshots, analyze the scraped content, and provide insights based on this real-time data.\n';
-  }
-  
-  return { tools, additionalContext };
-}
 
 
 // Built-in tool definitions for AI awareness
@@ -1037,87 +905,6 @@ const builtInTools = [
   }
 ];
 
-// Function to parse text-based tool calls that appear in model responses
-function parseTextBasedToolCalls(text) {
-  const toolCalls = [];
-  
-  // Pattern to match TOOL_CALL[...] or __TOOL_CALL__[...] format
-  // Using a more flexible approach to handle nested JSON issues
-  const toolCallPattern = /(?:TOOL_CALL|__TOOL_CALL__)\s*\[(.*?)\](?=\s|$|TOOL_CALL|__TOOL_CALL__|\.)/g;
-  
-  let match;
-  while ((match = toolCallPattern.exec(text)) !== null) {
-    try {
-      let toolCallData = match[1].trim();
-      
-      // Fix common JSON formatting issues
-      // Handle nested quotes in arguments field
-      toolCallData = toolCallData.replace(/"arguments"\s*:\s*"({[^}]*})"/g, '"arguments":$1');
-      
-      // Try to parse the corrected JSON
-      const parsed = JSON.parse(toolCallData);
-      
-      // Convert to standard tool call format
-      const standardToolCall = {
-        id: parsed.id || `tool_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        type: 'function',
-        function: {
-          name: parsed.function?.name || parsed.name,
-          arguments: parsed.function?.arguments || parsed.arguments || '{}'
-        }
-      };
-      
-      // Ensure arguments is a string
-      if (typeof standardToolCall.function.arguments === 'object') {
-        standardToolCall.function.arguments = JSON.stringify(standardToolCall.function.arguments);
-      }
-      
-      // Validate that we have the required fields
-      if (standardToolCall.function.name) {
-        toolCalls.push(standardToolCall);
-      }
-    } catch (error) {
-      console.error('Error parsing tool call:', error, 'Raw match:', match[1]);
-      
-      // Fallback: Try to extract tool information using regex
-      try {
-        const rawData = match[1];
-        const nameMatch = rawData.match(/"name"\s*:\s*"([^"]+)"/);
-        const urlMatch = rawData.match(/"url"\s*:\s*"([^"]+)"/);
-        
-        if (nameMatch) {
-          const standardToolCall = {
-            id: `tool_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            type: 'function',
-            function: {
-              name: nameMatch[1],
-              arguments: urlMatch ? JSON.stringify({ url: urlMatch[1] }) : '{}'
-            }
-          };
-          toolCalls.push(standardToolCall);
-        }
-      } catch (fallbackError) {
-        console.error('Fallback parsing also failed:', fallbackError);
-      }
-    }
-  }
-  
-  return toolCalls;
-}
-
-// Function to clean response text by removing processed tool calls
-function removeToolCallsFromText(text, toolCalls) {
-  let cleanedText = text;
-  
-  // Remove TOOL_CALL[...] and __TOOL_CALL__[...] patterns
-  const toolCallPattern = /(?:TOOL_CALL|__TOOL_CALL__)\s*\[.*?\](?=\s|$|TOOL_CALL|__TOOL_CALL__|\.)/g;
-  cleanedText = cleanedText.replace(toolCallPattern, '').trim();
-  
-  // Clean up any extra whitespace or newlines
-  cleanedText = cleanedText.replace(/\n\s*\n/g, '\n').trim();
-  
-  return cleanedText;
-}
 
 // ===== NEW TOOL PROCESSING LOGIC =====
 
@@ -1195,9 +982,31 @@ function parseTextBasedToolCalls(text) {
       };
       toolCalls.push(standardToolCall);
     } catch (error) {
-      console.error('Error parsing text-based tool call:', error, 'Raw content:', match[1]);
+      console.error('Error parsing text-based tool call from tag:', error, 'Raw content:', match[1]);
     }
   }
+
+  if (toolCalls.length > 0) {
+      return toolCalls;
+  }
+
+  // Fallback for raw JSON in the content
+  try {
+      const parsed = JSON.parse(text);
+      if (parsed.name && parsed.arguments) {
+          toolCalls.push({
+              id: `call_${Math.random().toString(36).substr(2, 9)}`,
+              type: 'function',
+              function: {
+                  name: parsed.name,
+                  arguments: JSON.stringify(parsed.arguments || {})
+              }
+          });
+      }
+  } catch (error) {
+      // not a raw JSON, which is fine.
+  }
+
   return toolCalls;
 }
 
@@ -1315,10 +1124,10 @@ async function handleChat(request, corsHeaders, env) {
 
     // Add a system prompt to guide the model if one isn't present.
     if (!messages.some(msg => msg.role === 'system')) {
-      const systemPrompt = `You are a helpful AI assistant. When a user asks for information from a website (e.g., "summarize example.com") or wants to see a website, you must use the provided tools.
-- Use 'web_scrape' to get the text content of a URL.
-- Use 'take_screenshot' to get a visual image of a URL.
-When you need to use a tool, respond with a structured tool call. For text-based tool calls, use the format: <tool_call>{"name": "tool_name", "arguments": {"arg": "value"}}</tool_call>.`;
+      const systemPrompt = `You are a helpful AI assistant. Use the provided tools to answer questions.
+- 'web_scrape' for website content.
+- 'take_screenshot' for a visual of a website.
+Respond with a tool call when you need to use a tool.`;
       messages.unshift({ role: 'system', content: systemPrompt });
     }
 
