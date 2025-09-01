@@ -1007,6 +1007,28 @@ function parseTextBasedToolCalls(text) {
       // not a raw JSON, which is fine.
   }
 
+  // Final fallback: try to extract a JSON object from mixed content
+  try {
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) {
+          const snippet = text.slice(start, end + 1);
+          const parsed = JSON.parse(snippet);
+          if (parsed.name && parsed.arguments) {
+              toolCalls.push({
+                  id: `call_${Math.random().toString(36).substr(2, 9)}`,
+                  type: 'function',
+                  function: {
+                      name: parsed.name,
+                      arguments: JSON.stringify(parsed.arguments || {})
+                  }
+              });
+          }
+      }
+  } catch (error) {
+      // still not a JSON snippet; ignore
+  }
+
   return toolCalls;
 }
 
