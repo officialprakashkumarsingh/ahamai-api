@@ -803,6 +803,7 @@ async function executeModelRequest(internalModel, payload, stream = false) {
   return stream ? response : await response.json();
 }
 
+/*
 // ===== EXTERNAL TOOLS FUNCTIONALITY =====
 
 
@@ -907,6 +908,7 @@ const builtInTools = [
 
 
 // ===== NEW TOOL PROCESSING LOGIC =====
+*/
 
 // Helper to stream a final JSON response object as Server-Sent Events
 function streamJsonResponse(responseJson, corsHeaders) {
@@ -959,6 +961,7 @@ function streamJsonResponse(responseJson, corsHeaders) {
 }
 
 
+/*
 // Function to parse text-based tool calls that appear in model responses
 function parseTextBasedToolCalls(text) {
   const toolCalls = [];
@@ -1134,15 +1137,14 @@ async function processToolCalls(response, messages, payload) {
   console.log('Received final response from AI after tool execution.');
   return finalResponse;
 }
-
+*/
 
 async function handleChat(request, corsHeaders, env) {
   try {
     const requestBody = await request.json();
     const exposedModel = requestBody.model || "qwen-235b";
     const requestedStream = requestBody.stream === true;
-    let tools = requestBody.tools || [];
-    let messages = requestBody.messages || [];
+    const messages = requestBody.messages || [];
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(
@@ -1156,70 +1158,40 @@ async function handleChat(request, corsHeaders, env) {
       return new Response(JSON.stringify({ error: `Model '${exposedModel}' is not supported.` }), { status: 400, headers: corsHeaders });
     }
 
-    // Add a system prompt to guide the model if one isn't present.
+    // Add a basic system prompt if one isn't present.
     if (!messages.some(msg => msg.role === 'system')) {
-      const systemPrompt = `You are a helpful AI assistant. Use the provided tools to answer questions.
-- 'web_scrape' for website content.
-- 'take_screenshot' for a visual of a website.
-Respond with a tool call when you need to use a tool.`;
-      messages.unshift({ role: 'system', content: systemPrompt });
+      messages.unshift({ role: 'system', content: 'You are a helpful AI assistant.' });
     }
-
-    // Inject built-in tools if the request doesn't provide any
-    if (!tools || tools.length === 0) {
-      tools = [...builtInTools];
-    }
-    
-    const hasTools = tools.length > 0;
-
-    // IMPORTANT: If tools are involved, we cannot stream the first response.
-    // We must get the full response to check for tool calls.
-    const internalStream = requestedStream && !hasTools;
 
     const payload = {
-        model: internalModel,
-        messages: messages,
-        temperature: requestBody.temperature,
-        max_tokens: requestBody.max_tokens,
-        top_p: requestBody.top_p,
-        stream: internalStream,
-        tools: hasTools ? tools : undefined,
-        tool_choice: hasTools ? 'auto' : undefined
+      model: internalModel,
+      messages,
+      temperature: requestBody.temperature,
+      max_tokens: requestBody.max_tokens,
+      top_p: requestBody.top_p,
+      stream: requestedStream
     };
     Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
 
-    // Initial request to the AI model
-    const initialResponse = exposedModel === "auto"
-      ? await executeAutoModelRequest(payload, internalStream)
-      : await executeModelRequest(internalModel, payload, internalStream);
+    const response = exposedModel === "auto"
+      ? await executeAutoModelRequest(payload, requestedStream)
+      : await executeModelRequest(internalModel, payload, requestedStream);
 
-    // If we were streaming and no tools were involved, we can just return the response.
-    if (internalStream) {
-        const newHeaders = new Headers(initialResponse.headers);
-        Object.entries(corsHeaders).forEach(([key, value]) => newHeaders.set(key, value));
-        return new Response(initialResponse.body, {
-            status: initialResponse.status,
-            statusText: initialResponse.statusText,
-            headers: newHeaders
-        });
-    }
-
-    // If we are here, we have a complete JSON response. Now, check for tool calls.
-    const finalResponse = await processToolCalls(initialResponse, messages, payload);
-
-    // Now, decide how to send the final response back to the user.
     if (requestedStream) {
-      // User wanted a stream, so we simulate one from the final JSON response.
-      console.log('Simulating stream for the final response.');
-      return streamJsonResponse(finalResponse, corsHeaders);
-    } else {
-      // User wanted a simple JSON response.
-      console.log('Returning final JSON response.');
-      return new Response(JSON.stringify(finalResponse), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders }
+      const newHeaders = new Headers(response.headers);
+      Object.entries(corsHeaders).forEach(([key, value]) => newHeaders.set(key, value));
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders
       });
     }
+
+    const result = await response.json();
+    return new Response(JSON.stringify(result), {
+      status: response.status,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
 
   } catch (error) {
     console.error("Error in handleChat:", error);
