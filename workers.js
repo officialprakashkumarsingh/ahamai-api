@@ -1007,6 +1007,28 @@ function parseTextBasedToolCalls(text) {
       // not a raw JSON, which is fine.
   }
 
+  // Final fallback: try to extract a JSON object from mixed content
+  try {
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) {
+          const snippet = text.slice(start, end + 1);
+          const parsed = JSON.parse(snippet);
+          if (parsed.name && parsed.arguments) {
+              toolCalls.push({
+                  id: `call_${Math.random().toString(36).substr(2, 9)}`,
+                  type: 'function',
+                  function: {
+                      name: parsed.name,
+                      arguments: JSON.stringify(parsed.arguments || {})
+                  }
+              });
+          }
+      }
+  } catch (error) {
+      // still not a JSON snippet; ignore
+  }
+
   return toolCalls;
 }
 
@@ -1060,6 +1082,22 @@ async function processToolCalls(response, messages, payload) {
 
   // 1. Detect Tool Calls (Structured or Text-based)
   let toolCalls = message.tool_calls || [];
+
+  if ((!toolCalls || toolCalls.length === 0) && typeof message.content === 'string') {
+    // Attempt to parse inline tool call tags or raw JSON from the message content
+    toolCalls = parseTextBasedToolCalls(message.content);
+
+    if (toolCalls.length > 0) {
+      // Ensure the assistant message carries the parsed tool calls
+      message.tool_calls = toolCalls;
+
+      // Remove the tool call markup from the content to avoid confusing the follow-up request
+      message.content = message.content.replace(/<tool_call>.*?<\/tool_call>/gs, '').trim();
+      if (message.content === '') {
+        delete message.content;
+      }
+    }
+  }
 
   // 2. Execute if Tool Calls are Found
   if (!toolCalls || toolCalls.length === 0) {
