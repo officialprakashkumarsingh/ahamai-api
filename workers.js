@@ -1061,6 +1061,22 @@ async function processToolCalls(response, messages, payload) {
   // 1. Detect Tool Calls (Structured or Text-based)
   let toolCalls = message.tool_calls || [];
 
+  if ((!toolCalls || toolCalls.length === 0) && typeof message.content === 'string') {
+    // Attempt to parse inline tool call tags or raw JSON from the message content
+    toolCalls = parseTextBasedToolCalls(message.content);
+
+    if (toolCalls.length > 0) {
+      // Ensure the assistant message carries the parsed tool calls
+      message.tool_calls = toolCalls;
+
+      // Remove the tool call markup from the content to avoid confusing the follow-up request
+      message.content = message.content.replace(/<tool_call>.*?<\/tool_call>/gs, '').trim();
+      if (message.content === '') {
+        delete message.content;
+      }
+    }
+  }
+
   // 2. Execute if Tool Calls are Found
   if (!toolCalls || toolCalls.length === 0) {
     return response; // No tool calls, return original response
