@@ -1142,7 +1142,14 @@ async function handleChat(request, corsHeaders, env) {
     const exposedModel = requestBody.model || "qwen-235b";
     const requestedStream = requestBody.stream === true;
     let tools = requestBody.tools || [];
-    let messages = requestBody.messages;
+    let messages = requestBody.messages || [];
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "The 'messages' array is required." }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     const internalModel = exposedToInternalMap[exposedModel];
     if (!internalModel) {
