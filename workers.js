@@ -161,7 +161,7 @@ const autoModelProviders = {
     endpoint: "https://api.mistral.ai/v1/chat/completions"
   },
   render: {
-    models: ["zai-org/GLM-4.5-Air", "zai-org/GLM-4.5V"],
+    models: ["zai-org/GLM-4.5-Air", "exaanswer", "felo"],
     priority: 4, // Fallback priority - additional options
     endpoint: "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
   }
@@ -305,9 +305,12 @@ const exposedToInternalMap = {
   // OpenRouter Vision Models (1) - Google Gemini via OpenRouter
   "gemini-2.5-flash-image-preview": "google/gemini-2.5-flash-image-preview:free",
   
-  // GLM Models (2) - Render endpoint models ✅
+  // GLM Models (1) - Render endpoint models ✅
   "glm-4.5-air": "zai-org/GLM-4.5-Air",
-  "glm-4.5v": "zai-org/GLM-4.5V"
+  
+  // New Render Endpoint Models (2) ✅
+  "exaanswer": "exaanswer",
+  "felo": "felo"
 };
 
 const modelRoutes = {
@@ -337,9 +340,10 @@ const modelRoutes = {
   // OpenRouter API (1) - Google Gemini vision model
   "google/gemini-2.5-flash-image-preview:free": "https://openrouter.ai/api/v1/chat/completions",
   
-  // Render Endpoint API (2) - GLM models
+  // Render Endpoint API (3) - Updated models
   "zai-org/GLM-4.5-Air": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
-  "zai-org/GLM-4.5V": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
+  "exaanswer": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "felo": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
 
@@ -462,7 +466,7 @@ export default {
 
     // Auth check (skip for keep-alive endpoint)
     const authHeader = request.headers.get("Authorization");
-    if (!authHeader || authHeader !== `Bearer ${API_KEY}`) {
+    if (path !== "/v1/keep-alive" && (!authHeader || authHeader !== `Bearer ${API_KEY}`)) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { "Content-Type": "application/json", ...corsHeaders }
@@ -491,6 +495,10 @@ export default {
 
     if (path === "/v1/defaults" && request.method === "GET") {
       return handleDefaults(corsHeaders);
+    }
+
+    if (path === "/v1/keep-alive" && request.method === "GET") {
+      return handleKeepAlive(corsHeaders);
     }
 
     return new Response(JSON.stringify({ error: "Not found" }), {
@@ -1437,6 +1445,104 @@ function handleVisionModelList(corsHeaders = {}) {
     headers: { "Content-Type": "application/json", ...corsHeaders }
   });
 }
+
+
+
+// Keep-alive functionality to prevent render endpoint from sleeping
+async function handleKeepAlive(corsHeaders = {}) {
+  try {
+    // Send a lightweight request to the render endpoint to keep it alive
+    const keepAlivePayload = {
+      model: "exaanswer", // Use one of the render endpoint models
+      messages: [
+        { role: "system", content: "You are a helpful assistant." },
+        { role: "user", content: "Hi" }
+      ],
+      max_tokens: 10,
+      temperature: 0.1
+    };
+
+    const response = await fetch("https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer ahamaibyprakash25"
+      },
+      body: JSON.stringify(keepAlivePayload),
+      signal: AbortSignal.timeout(10000) // 10 second timeout
+    });
+
+    const status = response.ok ? "success" : "failed";
+    const timestamp = new Date().toISOString();
+    
+    return new Response(JSON.stringify({
+      status: status,
+      timestamp: timestamp,
+      render_endpoint: "https://gpt-oss-openai-proxy.onrender.com",
+      message: "Keep-alive request sent to render endpoint"
+    }), {
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+
+  } catch (error) {
+    return new Response(JSON.stringify({
+      status: "error",
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      message: "Keep-alive request failed"
+    }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
+}
+
+// Global variable to track keep-alive interval
+let keepAliveInterval = null;
+
+// Start automatic keep-alive requests
+function startKeepAlive() {
+  if (keepAliveInterval) {
+    clearInterval(keepAliveInterval);
+  }
+  
+  keepAliveInterval = setInterval(async () => {
+    try {
+      console.log('[Keep-Alive] Sending automatic keep-alive request...');
+      
+      const keepAlivePayload = {
+        model: "exaanswer",
+        messages: [
+          { role: "system", content: "You are a helpful assistant." },
+          { role: "user", content: "ping" }
+        ],
+        max_tokens: 5,
+        temperature: 0.1
+      };
+
+      const response = await fetch("https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer ahamaibyprakash25"
+        },
+        body: JSON.stringify(keepAlivePayload),
+        signal: AbortSignal.timeout(10000)
+      });
+
+      const status = response.ok ? 'SUCCESS' : 'FAILED';
+      console.log(`[Keep-Alive] Automatic request completed: ${status} (${response.status})`);
+      
+    } catch (error) {
+      console.error('[Keep-Alive] Automatic request failed:', error.message);
+    }
+  }, 30000); // 30 seconds
+  
+  console.log('[Keep-Alive] Automatic keep-alive started (30 second intervals)');
+}
+
+// Initialize keep-alive on worker startup
+startKeepAlive();
 
 
 
