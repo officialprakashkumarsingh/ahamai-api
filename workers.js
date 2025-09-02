@@ -159,6 +159,11 @@ const autoModelProviders = {
     models: ["mistral-medium-2508", "mistral-small-latest"],
     priority: 3, // Lower priority - reliable fallback
     endpoint: "https://api.mistral.ai/v1/chat/completions"
+  },
+  render: {
+    models: ["zai-org/GLM-4.5-Air", "zai-org/GLM-4.5V"],
+    priority: 4, // Fallback priority - additional options
+    endpoint: "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
   }
 };
 
@@ -166,7 +171,8 @@ const autoModelProviders = {
 let autoModelPerformance = {
   cerebras: { responseTime: 800, successRate: 0.95, lastUsed: 0 },
   groq: { responseTime: 600, successRate: 0.92, lastUsed: 0 },
-  mistral: { responseTime: 1200, successRate: 0.98, lastUsed: 0 }
+  mistral: { responseTime: 1200, successRate: 0.98, lastUsed: 0 },
+  render: { responseTime: 1000, successRate: 0.90, lastUsed: 0 }
 };
 
 // Function to select the best provider and model for auto requests
@@ -297,7 +303,11 @@ const exposedToInternalMap = {
   "mistral-small-latest": "mistral-small-latest",
   
   // OpenRouter Vision Models (1) - Google Gemini via OpenRouter
-  "gemini-2.5-flash-image-preview": "google/gemini-2.5-flash-image-preview:free"
+  "gemini-2.5-flash-image-preview": "google/gemini-2.5-flash-image-preview:free",
+  
+  // GLM Models (2) - Render endpoint models ✅
+  "glm-4.5-air": "zai-org/GLM-4.5-Air",
+  "glm-4.5v": "zai-org/GLM-4.5V"
 };
 
 const modelRoutes = {
@@ -325,7 +335,11 @@ const modelRoutes = {
   "mistral-small-latest": "https://api.mistral.ai/v1/chat/completions",
   
   // OpenRouter API (1) - Google Gemini vision model
-  "google/gemini-2.5-flash-image-preview:free": "https://openrouter.ai/api/v1/chat/completions"
+  "google/gemini-2.5-flash-image-preview:free": "https://openrouter.ai/api/v1/chat/completions",
+  
+  // Render Endpoint API (2) - GLM models
+  "zai-org/GLM-4.5-Air": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions",
+  "zai-org/GLM-4.5V": "https://gpt-oss-openai-proxy.onrender.com/v1/chat/completions"
 };
 
 
@@ -787,6 +801,9 @@ async function executeModelRequest(internalModel, payload, stream = false) {
     headers["Authorization"] = `Bearer ${openRouterKey}`;
     headers["HTTP-Referer"] = "https://ahamai-api.com"; // Optional: Your site URL
     headers["X-Title"] = "Ahamai API"; // Optional: Your app name
+  } else if (modelRoute.includes('gpt-oss-openai-proxy.onrender.com')) {
+    // Render endpoint API handling with API key
+    headers["Authorization"] = "Bearer ahamaibyprakash25";
   }
   // Add other provider-specific auth here if needed (e.g., DeepInfra has no auth)
 
