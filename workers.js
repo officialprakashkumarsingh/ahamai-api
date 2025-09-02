@@ -432,6 +432,12 @@ const defaultModels = {
 
 export default {
   async fetch(request, env) {
+    // Initialize keep-alive on first request to avoid global scope issues
+    if (!keepAliveInitialized) {
+      keepAliveInitialized = true;
+      startKeepAlive();
+    }
+    
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -1427,6 +1433,7 @@ async function handleKeepAlive(corsHeaders = {}) {
 
 // Global variable to track keep-alive interval
 let keepAliveInterval = null;
+let keepAliveInitialized = false;
 
 // Start automatic keep-alive requests
 function startKeepAlive() {
@@ -1470,7 +1477,7 @@ function startKeepAlive() {
 }
 
 // Initialize keep-alive on worker startup
-startKeepAlive();
+// startKeepAlive(); // Moved to fetch handler to avoid global scope issues
 
 
 
